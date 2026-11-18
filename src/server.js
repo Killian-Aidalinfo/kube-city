@@ -233,12 +233,17 @@ wss.on("connection", (ws) => {
         const h = proto.parseHello(m);
         if (h.v !== proto.PROTOCOL) { send(ws, { t: "error", code: "version", need: proto.PROTOCOL }); return ws.close(4001, "protocole non supporté"); }
         const id = proto.isValidId(h.id) ? h.id : game.newId("joueur");
-        const saved = await store.loadPlayer(id).catch(() => null);
-        const profile = await store.loadProfile(id).catch(() => null);
+        // Redis absent (bascule Sentinel) : on accueille tout de suite sans l'attendre, le client redemandera son profil
+        const up = store.redisReady();
+        const read = (f, d) => (up ? f().catch(() => d) : Promise.resolve(d));
+        const [saved, profile, chat, races, board] = await Promise.all([
+          read(() => store.loadPlayer(id), null), read(() => store.loadProfile(id), null),
+          read(() => store.recentChat(20), []), read(() => store.listRaces(), []), read(() => store.leaderboard(10), []),
+        ]);
         me = { id, name: h.name, ch: h.ch, o: h.o, p: h.p || saved?.p || [0, 0, 0], r: 0, vel: [0, 0, 0], a: "idle", veh: null, seat: 0, st: 0, vh: null };
         send(ws, {
           t: "welcome", v: proto.PROTOCOL, id, pod: store.POD, version: VERSION, sync: store.redisReady(), leader,
-          profile, chat: await store.recentChat(20).catch(() => []), races: await store.listRaces().catch(() => []), board: await store.leaderboard(10).catch(() => []),
+          profile, chat, races, board,
         });
         send(ws, fullSnapshot());
         // après une reconnexion (pod tué, mise à jour…), pas de message : le joueur ne doit rien remarquer
