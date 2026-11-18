@@ -69,9 +69,23 @@ export function install(game) {
     return veh;
   }
 
+  /** Donne un conducteur civil à une voiture rendue à la circulation (elle devient volable). */
+  function civilianDriver(veh) {
+    if (!veh || veh.driver) return;
+    veh.driver = {
+      npc: true, kind: 'ped',
+      onEjected(v, at) {
+        v.npcEjected = true;
+        game.npc?.releaseVehicle?.(v);
+        game.npc?.spawnFleeing?.({ x: at.x, z: at.z }, { x: v.object3d.position.x, z: v.object3d.position.z });
+      },
+    };
+  }
+
   function dismiss(u) {
     u.veh.setControls?.({ throttle: 0, brake: 0, steer: 0, handbrake: false });
     u.veh.siren = false;
+    civilianDriver(u.veh);
     game.npc?.adoptVehicle?.(u.veh);
   }
 
@@ -181,7 +195,7 @@ export function install(game) {
       ambientDone = true;
       for (let i = 0; i < 2; i++) {
         const s = roadPoint(80, 220); if (!s) continue;
-        try { const v = game.vehicles.spawn('police', { x: s.x, y: 0.8, z: s.z }, s.yaw, { owner: 'police' }); if (v) { v.owner = 'police'; v.engineOn = true; game.npc.adoptVehicle(v); } } catch { /* pas de véhicules */ }
+        try { const v = game.vehicles.spawn('police', { x: s.x, y: 0.8, z: s.z }, s.yaw, { owner: 'police' }); if (v) { v.owner = 'police'; v.engineOn = true; civilianDriver(v); game.npc.adoptVehicle(v); } } catch { /* pas de véhicules */ }
       }
     }
     const lvl = police.level;

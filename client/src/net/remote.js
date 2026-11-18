@@ -1,7 +1,7 @@
 // Rendu des autres joueurs : mannequin colorié avec leur tenue, pseudo au-dessus, véhicule Kenney.
 // Tout est tolérant : modèle absent ou module physique en stub => repli procédural (capsule, boîte).
 import * as THREE from 'three';
-import { DELAY, pushSample, sampleAt } from './interp.js';
+import { DELAY, adaptiveDelay, pushSample, sampleAt } from './interp.js';
 
 // Animation du protocole -> clip de la bibliothèque (animations/ual.glb)
 const CLIPS = {
@@ -111,6 +111,8 @@ export function createRemotes(game, players) {
       try {
         const p = { x: v.p?.[0] ?? 0, y: (v.p?.[1] ?? 0), z: v.p?.[2] ?? 0 };
         const veh = game.vehicles.spawn(v.type || 'sedan', p, 0, { owner: 'remote', color: v.col });
+        // le modèle local doit correspondre au type annoncé (un type inconnu retombe sur la berline)
+        if (veh && v.type && veh.type !== v.type) console.warn(`[net] véhicule distant : type reçu « ${v.type} », modèle local « ${veh.type} »`);
         if (veh?.setRemoteState) return { id: v.id, veh, buf: [], dead: false, owner: null, type: v.type, color: v.col };
         if (veh) game.vehicles.remove?.(veh);
       } catch (e) { console.warn('[net] véhicule distant :', e.message); }
@@ -186,6 +188,8 @@ export function createRemotes(game, players) {
       // véhicule piloté par ce joueur
       if (e.vh) {
         let v = vehs.get(e.vh.id);
+        // le conducteur a changé de véhicule sous le même id (ou de type) : on reconstruit le bon modèle
+        if (v && e.vh.type && v.type && v.type !== e.vh.type) { dropVehicle(v); v = null; }
         if (!v) { v = buildVehicle(e.vh); v.owner = e.id; vehs.set(e.vh.id, v); }
         if (v.veh && e.vh.col && v.color !== e.vh.col) v.veh.setColor?.(e.vh.col);
         v.type = e.vh.type; v.color = e.vh.col; v.sir = e.vh.sir; v.lastSeen = t; v.owner = e.id;
@@ -214,7 +218,8 @@ export function createRemotes(game, players) {
     update(dt, nowSec) {
       const t = nowSec - DELAY;
       for (const v of vehs.values()) {
-        const s = sampleAt(v.buf, t);
+        // véhicules : retard adaptatif (court à cadence stable) + extrapolation par la vitesse
+        const s = sampleAt(v.buf, nowSec - adaptiveDelay(v.buf));
         if (!s) continue;
         if (v.veh) {
           const H0 = v.veh.geom?.H0 ?? 0, q = s.q ? { x: s.q[0], y: s.q[1], z: s.q[2], w: s.q[3] } : undefined;

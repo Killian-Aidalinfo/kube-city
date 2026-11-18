@@ -2,6 +2,8 @@
 import { project, drawRoads, drawRoute, drawBlip, drawArrow, drawSearch, collectBlips, createRoadCache, unitPos } from './maprender.js';
 import { formatDistance, routeLength } from './mapmath.js';
 
+const labelPriority = (b) => (b.shape === 'dia' ? 3 : b.shape === 'dot' ? 2 : b.color === '#c8d3f5' ? 0 : 1);
+
 export function createFullMap(game, ui) {
   const el = document.createElement('div');
   el.className = 'kc-screen kc-map'; el.style.display = 'none';
@@ -43,11 +45,28 @@ export function createFullMap(game, ui) {
     drawSearch(ctx, game.police?.searchZone, t, game.time.elapsed);
     drawRoute(ctx, ui.state.route, t, 5);
     ctx.font = '13px sans-serif'; ctx.textAlign = 'left'; ctx.textBaseline = 'middle';
+    // libellés : placement anti-collision (priorité aux missions, puis aux lieux clés), zones d'interface évitées
+    const cr = cv.getBoundingClientRect();
+    const taken = [...el.querySelectorAll('.kc-legend, .tools, .info')].map((n) => { const r = n.getBoundingClientRect(); return { x: r.left - cr.left - 4, y: r.top - cr.top - 4, w: r.width + 8, h: r.height + 8 }; });
+    const shown = [];
     for (const bl of collectBlips(game)) {
       const q = project(t, bl.x, bl.z);
       if (q.x < -20 || q.x > W + 20 || q.y < -20 || q.y > H + 20) continue;
       drawBlip(ctx, q.x, q.y, bl, 6);
-      if (bl.label) { ctx.fillStyle = '#000'; ctx.fillText(bl.label, q.x + 11, q.y + 1); ctx.fillStyle = '#eaf0ff'; ctx.fillText(bl.label, q.x + 10, q.y); }
+      if (bl.label) shown.push({ bl, q, pr: labelPriority(bl), w: ctx.measureText(bl.label).width });
+    }
+    shown.sort((a, b) => b.pr - a.pr);
+    const overlap = (a, b) => a.x < b.x + b.w && a.x + a.w > b.x && a.y < b.y + b.h && a.y + a.h > b.y;
+    for (const { bl, q, w } of shown) {
+      // candidats : à droite, à gauche, au-dessus, en dessous
+      const cand = [[q.x + 10, q.y - 8], [q.x - 10 - w, q.y - 8], [q.x - w / 2, q.y - 24], [q.x - w / 2, q.y + 9]];
+      for (const [x, y] of cand) {
+        const r = { x: x - 2, y, w: w + 4, h: 16 };
+        if (r.x < 0 || r.x + r.w > W || r.y < 0 || r.y + r.h > H || taken.some((o) => overlap(r, o))) continue;
+        taken.push(r);
+        ctx.fillStyle = '#000'; ctx.fillText(bl.label, x + 1, y + 9); ctx.fillStyle = '#eaf0ff'; ctx.fillText(bl.label, x, y + 8);
+        break;
+      }
     }
     for (const u of game.police?.units || []) { const p = unitPos(u); if (!p) continue; const q = project(t, p.x, p.z); ctx.fillStyle = Math.floor(game.time.elapsed * 4) % 2 ? '#ff3c50' : '#3c6eff'; ctx.beginPath(); ctx.arc(q.x, q.y, 5, 0, 7); ctx.fill(); }
     if (ui.state.waypoint) { const q = project(t, ui.state.waypoint.x, ui.state.waypoint.z); drawBlip(ctx, q.x, q.y, { color: '#38e8ff', shape: 'dia' }, 9); }

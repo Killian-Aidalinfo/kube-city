@@ -1,7 +1,7 @@
 // Tests du client réseau : interpolation, reconnexion (attente aléatoire croissante), lecture de l'état local.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { pushSample, sampleAt, DELAY, TELEPORT } from '../client/src/net/interp.js';
+import { pushSample, sampleAt, adaptiveDelay, DELAY, TELEPORT } from '../client/src/net/interp.js';
 import { backoffDelay, createConnection } from '../client/src/net/connection.js';
 import { readState, readVehicle, animOf } from '../client/src/net/local.js';
 
@@ -120,4 +120,12 @@ test('état local : véhicule piloté', () => {
   assert.equal(v.sir, 1);
   veh.driver = {}; // passager
   assert.equal(readVehicle(g), null);
+});
+
+test('interpolation : retard adaptatif court à cadence stable, plus long avec gigue', () => {
+  const stable = [], jitter = [];
+  for (let i = 0; i < 12; i++) { pushSample(stable, i / 15, { p: [i, 0, 0] }); pushSample(jitter, i * 0.07 + (i % 2) * 0.05, { p: [i, 0, 0] }); }
+  assert.ok(adaptiveDelay(stable) < DELAY, 'cadence stable : retard réduit');
+  assert.ok(adaptiveDelay(jitter) > adaptiveDelay(stable));
+  assert.equal(adaptiveDelay([]), DELAY);
 });

@@ -1,8 +1,9 @@
 // Tenues : colore le mannequin Quaternius par zone du corps (couleurs de sommets via les poids du squelette).
 // Permet 3 persos jouables et des piétons distincts avec un seul maillage et le même squelette.
 import * as THREE from 'three';
+import { reshape, attachAccessories } from './accessories.js';
 
-/** @typedef {{ skin: string, hair: string, top: string, bottom: string, shoes: string }} Outfit */
+/** @typedef {{ skin: string, hair: string, top: string, bottom: string, shoes: string, style?: import('./accessories.js').Style }} Outfit */
 
 // Zone du corps selon le nom de l'os dominant du sommet
 function zoneOf(bone) {
@@ -22,7 +23,8 @@ function zoneOf(bone) {
  * @param {Outfit} outfit couleurs CSS
  */
 export function applyOutfit(model, outfit) {
-  const col = Object.fromEntries(Object.entries(outfit).map(([k, v]) => [k, new THREE.Color(v)]));
+  const style = outfit.style || {}, build = style.build || {};
+  const col = Object.fromEntries(Object.entries(outfit).filter(([k]) => k !== 'style').map(([k, v]) => [k, new THREE.Color(v)]));
   model.updateMatrixWorld(true);
   model.traverse((o) => {
     if (!o.isSkinnedMesh) return;
@@ -33,21 +35,26 @@ export function applyOutfit(model, outfit) {
     const headY = head ? new THREE.Vector3().setFromMatrixPosition(head.matrixWorld).y : 99;
     const inv = new THREE.Matrix4().copy(o.matrixWorld).invert();
     const headLocalY = new THREE.Vector3(0, headY, 0).applyMatrix4(inv).y;
-    const colors = new Float32Array(pos.count * 3);
+    const colors = new Float32Array(pos.count * 3), zones = new Uint8Array(pos.count);
     for (let i = 0; i < pos.count; i++) {
       let best = 0, bw = -1;
       for (let k = 0; k < 4; k++) { const w = sw.getComponent(i, k); if (w > bw) { bw = w; best = si.getComponent(i, k); } }
       let zone = zoneOf(bones[best]?.name || '');
       // le haut du crâne devient la chevelure
-      if (zone === 'head') zone = pos.getY(i) > headLocalY + 0.13 ? 'hair' : 'skin';
+      if (zone === 'head') { zone = pos.getY(i) > headLocalY + 0.13 ? 'hair' : 'skin'; zones[i] = 1; }
+      else if (/^(shoulder|upper_arm|forearm|hand|f_|thumb)/.test((bones[best]?.name || '').replace(/^DEF-/, ''))) zones[i] = 2;
       const c = col[zone] || col.skin;
       colors.set([c.r, c.g, c.b], i * 3);
     }
+    if (Object.keys(build).length) reshape(geo, build, zones);
     geo.setAttribute('color', new THREE.BufferAttribute(colors, 3));
     o.geometry = geo;
     o.material = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.7, metalness: 0 });
     o.castShadow = true;
     o.frustumCulled = false; // les maillages skinnés ont des bornes de bind pose
   });
+  // échelle globale (taille, carrure) puis accessoires attachés aux os
+  if (build.h || build.w) model.scale.set(build.w ?? 1, build.h ?? 1, build.w ?? 1);
+  if (Object.keys(style).length) attachAccessories(model, style, outfit);
   return model;
 }

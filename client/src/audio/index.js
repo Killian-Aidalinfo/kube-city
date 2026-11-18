@@ -381,6 +381,16 @@ export function install(game) {
     const pos = vehicle?.object3d?.position;
     if (vehicle === game.player?.vehicle || (pos && distTo(vehicle) < 60)) audio.play('crash', { intensity: k, position: vehicle === game.player?.vehicle ? null : pos });
   });
+  // klaxon des PNJ : deux notes courtes, spatialisées ; le joueur a son propre klaxon continu
+  bus.on('vehicle:horn', ({ vehicle, npc }) => {
+    if (!npc || !ctx || !vehicle?.object3d || distTo(vehicle) > 90) return;
+    const t = ctx.currentTime, g = ctx.createGain(), lp = ctx.createBiquadFilter();
+    lp.type = 'lowpass'; lp.frequency.value = 1800;
+    g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(0.07, t + 0.02); g.gain.setValueAtTime(0.07, t + 0.38); g.gain.linearRampToValueAtTime(0, t + 0.45);
+    lp.connect(g); g.connect(panner(vehicle.object3d.position, buses.sfx));
+    const base = vehicle.type === 'police' ? 1.1 : 0.9 + (((vehicle.id ?? 1) * 37) % 20) / 100; // timbre propre à chaque voiture
+    for (const hz of [415 * base, 523 * base]) { const o = ctx.createOscillator(); o.type = 'square'; o.frequency.value = hz; o.connect(lp); o.start(t); o.stop(t + 0.5); }
+  });
   bus.on('player:damaged', () => audio.play('hit', { volume: 0.6 }));
   bus.on('money:changed', ({ delta }) => { if (delta > 0) audio.play('coins', { volume: 0.5 }); });
   bus.on('notify', ({ kind }) => audio.play(kind === 'danger' ? 'ui_err' : kind === 'success' ? 'ui_ok' : 'ui_click', { volume: 0.35 }));

@@ -1,9 +1,10 @@
 // Physique Rapier : init du WASM, monde, pas fixe 60 Hz avec accumulateur.
-import RAPIER from '@dimforge/rapier3d-compat';
 
 export const FIXED_DT = 1 / 60;
 
 export async function createPhysics() {
+  // import dynamique : le WASM (gros chunk « rapier ») se charge à part, le reste du jeu n'attend pas son analyse
+  const { default: RAPIER } = await import('@dimforge/rapier3d-compat');
   await RAPIER.init();
   const world = new RAPIER.World({ x: 0, y: -9.81, z: 0 });
   world.timestep = FIXED_DT;

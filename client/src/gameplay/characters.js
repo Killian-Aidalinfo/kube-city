@@ -10,7 +10,9 @@ export const CHARACTERS = {
     stats: { endurance: 5, conduite: 9, combat: 4 },
     ability: { id: 'focus', name: 'Focus', desc: 'Ralentit le temps en conduite. Jauge qui se recharge.', cost: 0.5, duration: 4, cooldown: 12 },
     activity: 'Inès règle ses amortisseurs près du port.',
-    defaultOutfit: { skin: '#e0ac8a', hair: '#2b1b14', top: '#d4513f', bottom: '#23283b', shoes: '#f2f2f2' },
+    defaultOutfit: { skin: '#e0ac8a', hair: '#2b1b14', top: '#d4513f', bottom: '#23283b', shoes: '#f2f2f2',
+      // pilote de rallye : silhouette féminine svelte, queue de cheval haute et bandeau blanc
+      style: { build: { h: 0.95, w: 0.97, shoulders: 0.9, waist: 0.76, hips: 1.16, bust: 1.1, legs: 1.04, head: 0.96 }, hair: 'ponytail', headband: '#f2f2f2', scarf: '#f2f2f2' } },
     hideout: /ines/i, offset: { x: 18, z: 12 },
   },
   malik: {
@@ -19,7 +21,9 @@ export const CHARACTERS = {
     stats: { endurance: 7, conduite: 6, combat: 6 },
     ability: { id: 'repair', name: 'Réparation express', desc: 'Répare le véhicule courant en un éclair.', cost: 0.6, duration: 0, cooldown: 20 },
     activity: 'Malik remonte un moteur dans l\'atelier de Lou.',
-    defaultOutfit: { skin: '#8d5a3c', hair: '#111111', top: '#2f6fb3', bottom: '#5b4a33', shoes: '#2b2b2b' },
+    defaultOutfit: { skin: '#8d5a3c', hair: '#111111', top: '#2f6fb3', bottom: '#5b4a33', shoes: '#2b2b2b',
+      // mécano : grand et large d'épaules, casquette, barbe, poche d'outils et clé à la ceinture
+      style: { build: { h: 1.06, w: 1.08, shoulders: 1.12, waist: 1.12, hips: 1.0 }, hair: 'short', cap: '#e8872b', beard: true, belt: '#8a5a2b' } },
     hideout: /malik/i, offset: { x: -16, z: 14 },
     /** Multiplicateur de dégâts subis par ses véhicules. */
     vehicleDamage: 0.6,
@@ -30,7 +34,9 @@ export const CHARACTERS = {
     stats: { endurance: 4, conduite: 5, combat: 6 },
     ability: { id: 'blackout', name: 'Panne de réseau', desc: 'Feux au vert pour elle, police brouillée quelques secondes.', cost: 0.7, duration: 8, cooldown: 25 },
     activity: 'Jade pirate une borne Wi-Fi sur la place du Centre.',
-    defaultOutfit: { skin: '#5a3a28', hair: '#6b2fa0', top: '#2a2a2a', bottom: '#3b8f6a', shoes: '#d4d43f' },
+    defaultOutfit: { skin: '#5a3a28', hair: '#6b2fa0', top: '#2a2a2a', bottom: '#3b8f6a', shoes: '#d4d43f',
+      // hackeuse : petite, longue chevelure violette, lunettes rondes, sac à dos et capuche
+      style: { build: { h: 0.9, w: 0.95, shoulders: 0.9, waist: 0.8, hips: 1.14, bust: 1.06, head: 1.0 }, hair: 'long', glasses: '#38e8ff', backpack: '#2b2f45', hood: '#2a2a2a' } },
     hideout: /jade/i, offset: { x: 4, z: -20 },
   },
 };

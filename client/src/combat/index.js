@@ -240,28 +240,37 @@ export function install(game) {
   // ---------- accessoires tenus en main ----------
   function buildProps() {
     const foam = new THREE.MeshStandardMaterial({ color: 0xf5c518 }), dark = new THREE.MeshStandardMaterial({ color: 0x2b3245 }), neon = new THREE.MeshStandardMaterial({ color: 0xff4fa3, emissive: 0x551133 });
-    const bat = new THREE.Mesh(new THREE.CylinderGeometry(0.045, 0.07, 0.85, 10), foam); bat.position.set(0, 0.28, 0.05);
-    const taser = new THREE.Group(); const tb = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.14, 0.22), dark); const tt = new THREE.Mesh(new THREE.BoxGeometry(0.03, 0.03, 0.08), new THREE.MeshBasicMaterial({ color: 0x7df9ff })); tt.position.z = 0.14; taser.add(tb, tt);
+    const bat = new THREE.Group(); const batMesh = new THREE.Mesh(new THREE.CylinderGeometry(0.045, 0.07, 0.85, 10), foam); batMesh.position.y = 0.28; bat.add(batMesh); // poignée dans la paume, fût vers le haut
+    const taser = new THREE.Group(); const tb = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.14, 0.22), dark); const tt = new THREE.Mesh(new THREE.BoxGeometry(0.03, 0.03, 0.08), new THREE.MeshBasicMaterial({ color: 0x7df9ff })); tt.position.z = 0.14; tb.material = new THREE.MeshStandardMaterial({ color: 0xffd23f }); taser.add(tb, tt);
     const gun = new THREE.Group(); const gb = new THREE.Mesh(new THREE.BoxGeometry(0.07, 0.12, 0.35), dark); const gt = new THREE.Mesh(new THREE.SphereGeometry(0.07, 8, 6), neon); gt.position.set(0, 0.1, -0.02); const gm = new THREE.Mesh(new THREE.CylinderGeometry(0.02, 0.02, 0.2, 8), dark); gm.rotation.x = Math.PI / 2; gm.position.z = 0.25; gun.add(gb, gt, gm);
     props.batte = bat; props.taser = taser; props.paintball = gun;
     for (const k of Object.keys(props)) { props[k].visible = false; props[k].traverse((o) => { o.castShadow = true; }); }
   }
   buildProps();
 
+  // La main droite du mannequin (os « DEF-hand.R », nommé « DEF-handR » après nettoyage par three.js) est retrouvée
+  // dès que le modèle change (changement de perso : le précédent est détruit avec ses accessoires).
+  let propHand = null;
+  const underHost = (o, host) => { for (; o; o = o.parent) if (o === host) return true; return false; };
   function syncProps() {
     const obj = player()?.object3d;
     if (!obj || typeof obj.traverse !== 'function' || typeof obj.add !== 'function') return;
-    if (propHost !== obj) {
+    if (propHost !== obj || (propHand && !underHost(propHand, obj))) {
       propHost = obj;
       let hand = null;
       obj.traverse((o) => { if (!hand && o.isBone && /hand[._-]?r$/i.test(o.name)) hand = o; });
+      propHand = hand;
       const host = hand ?? obj;
       for (const k of Object.keys(props)) {
         host.add(props[k]);
         props[k].position.set(hand ? 0 : 0.3, hand ? 0.05 : 1, hand ? 0 : 0.3);
-        if (hand) props[k].scale.setScalar(1 / (hand.getWorldScale(v3()).x || 1));
+        props[k].rotation.set(0, 0, 0);
+        if (hand) {
+          props[k].scale.setScalar(1 / (hand.getWorldScale(v3()).x || 1));
+          if (k === 'batte') props[k].rotation.x = 1.2;                   // fût vers l'avant et le haut, poignée dans le poing
+          else props[k].rotation.x = -Math.PI / 2;                    // canon dans le prolongement des doigts
+        }
       }
-      props.batte.position.y = hand ? 0.2 : 1.2;
     }
     for (const k of Object.keys(props)) props[k].visible = k === weapon && isOnFoot() && !ko;
   }

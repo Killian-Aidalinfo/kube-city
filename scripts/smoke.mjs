@@ -124,8 +124,46 @@ try {
   report.combat = `arme ${await page.evaluate(() => window.__game.combat.currentWeapon)}, ralenti ${slow.toFixed(2)} → ${back}`;
   must(slow < 0.5 && back === 1, `ralenti de la roue incorrect (${slow} → ${back})`);
 
-  // mesures : draw calls (vue de rue), canvas non noir, cadence
-  const stats = await page.evaluate(async () => {
+  // 8. carjacking : voler une voiture conduite par un PNJ
+  await page.evaluate(() => { window.__ejected = 0; window.__game.bus.on('vehicle:driverEjected', () => { window.__ejected++; }); });
+  let jacked = false;
+  for (let essai = 0; essai < 4 && !jacked; essai++) {
+    const found = await page.evaluate(() => {
+      const g = window.__game;
+      if (g.player.state === 'inVehicle') g.vehicles.exit(g.player);
+      const cars = g.vehicles.list.filter((v) => v.driver?.npc && !v.destroyed && v.owner !== 'police');
+      const v = cars[0]; if (!v) return false;
+      const o = v.object3d.position, yaw = v.object3d.rotation.y;
+      g.player.state === 'onFoot' || (g.player.state = 'onFoot');
+      g.player.teleport({ x: o.x + Math.cos(yaw) * 2.0, z: o.z - Math.sin(yaw) * 2.0 });
+      window.__target = v; return true;
+    });
+    if (!found) break;
+    await sleep(300);
+    await page.keyboard.press('KeyF');
+    jacked = await page.waitForFunction(() => window.__target.driver === window.__game.player, null, { timeout: 5000 }).then(() => true, () => false);
+  }
+  must(jacked, 'carjacking : le PNJ n\'a pas été éjecté / la voiture n\'a pas été volée');
+  report.carjack = jacked ? `éjecté ×${await page.evaluate(() => window.__ejected)}` : 'échec';
+  await shot('carjack');
+  await page.evaluate(() => window.__game.police.clear?.());
+
+  // 9. K.O. → réveil à l'hôpital
+  const hop = await page.evaluate(() => {
+    const g = window.__game;
+    window.__respawn = null; g.bus.on('player:respawn', (e) => { window.__respawn = e; });
+    g.player.knockOut('smoke'); return g.player.state;
+  });
+  must(hop === 'ko', 'le K.O. n\'a pas mis le joueur à terre (' + hop + ')');
+  await page.waitForFunction(() => window.__respawn, null, { timeout: 10000 }).catch(() => must(false, 'pas de réveil après le K.O.'));
+  await sleep(600);
+  const wake = await page.evaluate(() => { const g = window.__game; return { where: window.__respawn?.where, state: g.player.state, hp: g.player.health }; });
+  report.ko = `${wake.where}, état ${wake.state}, pv ${wake.hp}`;
+  must(wake.where === 'hôpital' && wake.state !== 'ko' && wake.hp > 0, 'réveil à l\'hôpital incorrect : ' + JSON.stringify(wake));
+  await shot('hopital');
+
+  // mesures : draw calls (vue de rue), canvas non noir, cadence — de jour puis de nuit (phares, lampadaires)
+  const measure = () => page.evaluate(async () => {
     const g = window.__game, { renderer, scene, camera } = g.three;
     const t0 = g.time.elapsed, f0 = renderer.info.render.frame;
     await new Promise((r) => setTimeout(r, 2000));
@@ -140,11 +178,22 @@ try {
     }
     return { colors: seen.size, lum: Math.round(lum / n), calls, tris, fps, elapsed: Math.round((g.time.elapsed - t0) * 10) / 10 };
   });
+  const MAX = +(process.env.SMOKE_MAX_CALLS || 300);
+  const check = (nom, st) => {
+    if (st.calls > MAX) errors.push(`trop de draw calls (${nom}) : ${st.calls} > ${MAX}`);
+    if (st.elapsed <= 0) errors.push('la boucle ne tourne pas');
+  };
+  const stats = await measure();
   report.rendu = stats;
   if (stats.lum < 8) errors.push('canvas noir (luminosité moyenne ' + stats.lum + ')');
   if (stats.colors < 2) errors.push('canvas uni (une seule couleur)');
-  if (stats.elapsed <= 0) errors.push('la boucle ne tourne pas');
-  if (process.env.SMOKE_MAX_CALLS && stats.calls > +process.env.SMOKE_MAX_CALLS) errors.push(`trop de draw calls : ${stats.calls}`);
+  check('jour', stats);
+  await page.evaluate(() => window.__game.world.setTime(23));
+  await sleep(1500);
+  const nuit = await measure();
+  report.nuit = nuit;
+  check('nuit', nuit);
+  await shot('nuit');
 } catch (e) {
   errors.push(`smoke (étape ${step}) : ${e.message}`);
 } finally {

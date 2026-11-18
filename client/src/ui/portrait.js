@@ -52,8 +52,8 @@ export async function renderPortraits(game, outfits) {
       const clip = gltf.animations.find((a) => a.name === 'Idle_Loop') || gltf.animations[0];
       if (clip) { const mixer = new THREE.AnimationMixer(model); mixer.clipAction(clip).play(); mixer.update(0.9); }
       model.updateMatrixWorld(true);
-      const cam = new THREE.PerspectiveCamera(26, W / H, 0.1, 50);
-      cam.position.set(0, 1.0, 5.2); cam.lookAt(0, 0.92, 0);
+      const cam = new THREE.PerspectiveCamera(24.5, W / H, 0.1, 50);
+      cam.position.set(0, 1.0, 5.2); cam.lookAt(0, 0.93, 0);
       renderer.render(scene, cam);
       out[id] = renderer.domElement.toDataURL('image/png');
       scene.traverse((o) => { o.geometry?.dispose?.(); });

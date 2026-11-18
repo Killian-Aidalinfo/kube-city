@@ -3,6 +3,8 @@
 export const DELAY = 0.1;          // s : retard d'affichage
 export const MAX_EXTRAP = 0.25;    // s : extrapolation maximale
 export const TELEPORT = 10;        // m : au-delà, pas d'interpolation
+export const MIN_DELAY = 0.05;     // s : retard adaptatif minimal
+export const MAX_DELAY = 0.15;     // s : retard adaptatif maximal
 const KEEP = 24;                   // échantillons conservés
 
 const lerp = (a, b, k) => a + (b - a) * k;
@@ -12,6 +14,13 @@ const lerpAngle = (a, b, k) => a + Math.atan2(Math.sin(b - a), Math.cos(b - a)) 
 export function pushSample(buf, t, s) {
   const last = buf[buf.length - 1];
   if (last && Math.hypot(s.p[0] - last.p[0], s.p[1] - last.p[1], s.p[2] - last.p[2]) > TELEPORT) buf.length = 0; // téléportation
+  // cadence d'arrivée : moyenne et écart moyen (lissage exponentiel) pour le retard adaptatif
+  if (last) {
+    const dt = t - last.t;
+    const st = buf.stats || (buf.stats = { avg: dt, dev: 0 });
+    st.dev += (Math.abs(dt - st.avg) - st.dev) * 0.1;
+    st.avg += (dt - st.avg) * 0.1;
+  }
   buf.push({ ...s, t });
   if (buf.length > KEEP) buf.shift();
 }
@@ -52,4 +61,11 @@ export function sampleAt(buf, t) {
     q: a.q && b.q ? slerp(a.q, b.q, k) : b.q,
     w: b.w,
   };
+}
+
+/** Retard d'affichage adapté à la gigue du tampon : intervalle moyen + 2 écarts, borné ; DELAY tant qu'on manque de mesures. */
+export function adaptiveDelay(buf) {
+  const st = buf.stats;
+  if (!st || buf.length < 6) return DELAY;
+  return Math.min(MAX_DELAY, Math.max(MIN_DELAY, st.avg + 2 * st.dev));
 }
