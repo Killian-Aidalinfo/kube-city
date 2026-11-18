@@ -2,7 +2,7 @@
 import * as THREE from 'three';
 import { generateCity, LIGHT_CYCLE, lightPhase, WATER_LEVEL, isWaterAt, groundHeight, SIZE, CHUNK, HALF } from './citygen.js';
 import { buildTerrain, buildChunks, terrainHeights, rampPoints, TERRAIN_CELLS, TERRAIN_SIZE } from './build.js';
-import { noiseTexture, windowAtlas, glowTexture } from './textures.js';
+import { noiseTexture, windowAtlas, glowTexture, signTexture } from './textures.js';
 import { createSky } from './sky.js';
 import { createWater } from './water.js';
 import { createWeather } from './weather.js';
@@ -91,6 +91,27 @@ export function install(game) {
   const lampLights = [];
   for (let i = 0; i < LAMP_LIGHTS; i++) { const l = new THREE.PointLight(0xffc880, 0, 34, 1.6); scene.add(l); lampLights.push(l); }
 
+
+  // ---- ambiance (instanciée : 1 appel de dessin chacun) : têtes de lampadaire, panneaux « Kube City »
+  const lampHeads = new THREE.InstancedMesh(new THREE.BoxGeometry(0.62, 0.1, 0.28), new THREE.MeshBasicMaterial({ color: 0xdfe3ea }), Math.max(1, city.lamps.length));
+  { const o = new THREE.Object3D();
+    city.lamps.forEach((l, i) => { o.position.set(l.x + l.dx * 1.3, l.y + 6.54, l.z + l.dz * 1.3); o.rotation.set(0, -Math.atan2(l.dz, l.dx), 0); o.updateMatrix(); lampHeads.setMatrixAt(i, o.matrix); });
+    lampHeads.count = city.lamps.length; lampHeads.frustumCulled = false; scene.add(lampHeads); }
+  const signMat = (tex) => new THREE.MeshStandardMaterial({ map: tex, emissiveMap: tex, emissive: 0xffffff, emissiveIntensity: 0.1, roughness: 0.6, side: THREE.DoubleSide });
+  const kubeSignMat = signMat(signTexture('KUBE CITY'));
+  const kubeSigns = [];
+  { const lamps = city.lamps, n = Math.min(14, Math.floor(lamps.length / 30)), o = new THREE.Object3D();
+    const step = Math.max(1, Math.floor(lamps.length / Math.max(1, n)));
+    for (let i = 7; i < lamps.length && kubeSigns.length < n; i += step) kubeSigns.push(lamps[i]);
+    const m = new THREE.InstancedMesh(new THREE.PlaneGeometry(2.2, 0.825), kubeSignMat, Math.max(1, kubeSigns.length));
+    kubeSigns.forEach((l, k) => { o.position.set(l.x + l.dx * 0.55, l.y + 4.7, l.z + l.dz * 0.55); o.rotation.set(0, Math.atan2(l.dx, l.dz) + Math.PI / 2, 0); o.updateMatrix(); m.setMatrixAt(k, o.matrix); });
+    m.count = kubeSigns.length; m.frustumCulled = false; scene.add(m); }
+  const dcSignMat = signMat(signTexture('DATACENTER', 'Kube City'));
+  if (city.datacenter) {
+    const m = new THREE.Mesh(new THREE.PlaneGeometry(8, 3), dcSignMat);
+    m.position.set(city.datacenter.sign.x, city.datacenter.sign.y, city.datacenter.sign.z); scene.add(m);
+  }
+
   // phare : faisceau tournant
   const beam = new THREE.Mesh(new THREE.ConeGeometry(7, 90, 12, 1, true), new THREE.MeshBasicMaterial({ color: 0xfff2b0, transparent: true, opacity: 0, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide }));
   beam.geometry.translate(0, -45, 0); beam.geometry.rotateZ(Math.PI / 2);
@@ -152,6 +173,8 @@ export function install(game) {
       lampPts.material.opacity = neonPts.material.opacity = Math.min(1, night * 1.4);
       lampPts.visible = neonPts.visible = night > 0.02;
       beam.material.opacity = Math.min(0.12, night * 0.14);
+      kubeSignMat.emissiveIntensity = dcSignMat.emissiveIntensity = 0.1 + Math.min(1, night * 1.3) * 0.95;
+      lampHeads.material.color.setHex(night > 0.35 ? 0xfff0c0 : 0xdfe3ea);
     }
     beamPivot.rotation.y += dt * 0.8;
     acc += dt; lampAcc += dt;

@@ -11,7 +11,7 @@ const norm = (s) => String(s).normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCa
 const PLACE_PATTERNS = {
   garage: /garage|\blou\b/, port: /(^|[^a-z])port($|[^a-z])|dock/, jetee: /jetee|pier/, phare: /phare|lighthouse/, stade: /stade|stadium/,
   belvedere: /belvedere|viewpoint/, aeroport: /aeroport|airport/, mairie: /mairie|hotel.de.ville|town.?hall/, commissariat: /commissariat|police/,
-  hopital: /hopital|hospital/, vetements: /vetement|boutique|clothes|mode/, datacenter: /data|donnees|industr/,
+  hopital: /hopital|hospital/, vetements: /vetement|boutique|clothes|mode/, datacenter: /datacenter|data.?center/,
 };
 const PALETTE = ['#d4513f', '#2f6fb3', '#e8b949', '#7bbf6a', '#c94c8f', '#2a2a2a', '#f2f2f2', '#6b3fa0'];
 const PAINTS = ['#d4513f', '#2f6fb3', '#e8b949', '#2a2a2a', '#f2f2f2', '#7bbf6a', '#ff4fa3', '#38e8ff'];
@@ -45,7 +45,6 @@ export function install(game) {
     for (const [k, v] of Object.entries(places)) {
       if (pat.test(norm(k)) || pat.test(norm(v?.label || ''))) { base = v.position; break; }
     }
-    if (!base && key === 'datacenter') base = place('aeroport');
     if (!base) { // repli déterministe : couronne autour du point d'apparition
       const names = Object.keys(PLACE_PATTERNS), i = Math.max(0, names.indexOf(key)), s = spawn();
       const a = (i / names.length) * Math.PI * 2;

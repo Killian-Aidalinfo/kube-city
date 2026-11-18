@@ -2,6 +2,8 @@
 // Aucune dépendance à three : testable sous node. Repère : l'avant est +Z, la gauche est +X.
 import { steerLimit, engineForce, rpmFor } from './tuning.js';
 
+// force de freinage (≈ 1 g de décélération à fond)
+const BRAKE_K = 0.06;
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 /** Rotation d'un vecteur par un quaternion Rapier {x,y,z,w}. */
 function rot(q, x, y, z) {
@@ -94,7 +96,9 @@ export function driveStep(pv, controls, dt, wet = 0) {
 
   // direction : braquage lissé, plus étroit à haute vitesse
   const steerIn = clamp(controls.steer ?? 0, -1, 1);
-  const target = steerIn * steerLimit(spec.steer, speed);
+  // braquage limité par l'accélération latérale que les pneus peuvent tenir (v²/r) : pas de virage « sur rails » vite
+  const latCap = Math.atan(2.6 * 17 * grip / Math.max(1, speed * speed));
+  const target = steerIn * Math.min(steerLimit(spec.steer, speed), Math.max(0.035, latCap));
   const rate = Math.abs(target) > Math.abs(pv.steer) ? 7 : 11;
   pv.steer += (target - pv.steer) * Math.min(1, rate * dt);
   // moteur
@@ -105,7 +109,7 @@ export function driveStep(pv, controls, dt, wet = 0) {
     const isDriven = spec.drive === 'awd' || (spec.drive === 'fwd' ? w.front : !w.front);
     ctrl.setWheelEngineForce(i, isDriven ? eng / driven : 0);
     // freins : à fond au frein, léger frein moteur au repos, frein à main sur l'arrière
-    let b = brake * spec.mass * 0.38 / n * 4;
+    let b = brake * spec.mass * BRAKE_K / n * 4;
     if (thr === 0 && brake === 0) b = spec.mass * 0.03 + (speed < 1.2 ? spec.mass * 0.4 : 0);
     if (hb && !w.front) b = spec.mass * 3;
     ctrl.setWheelBrake(i, b);

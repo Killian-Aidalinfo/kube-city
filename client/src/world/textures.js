@@ -50,3 +50,19 @@ export function glowTexture() {
   g.fillStyle = grd; g.fillRect(0, 0, 64, 64);
   return tex(c, { repeat: false });
 }
+
+/** Panneau lumineux « Kube City » (cube dans un cube + nom) ; `text` remplace le libellé. */
+export function signTexture(text = 'KUBE CITY', sub = '') {
+  const c = document.createElement('canvas'); c.width = 512; c.height = 192;
+  const g = c.getContext('2d');
+  g.fillStyle = '#0d2236'; g.fillRect(0, 0, 512, 192);
+  g.strokeStyle = '#38e1ff'; g.lineWidth = 8; g.strokeRect(6, 6, 500, 180);
+  g.lineWidth = 7; g.strokeRect(34, 46, 70, 70); g.strokeRect(52, 64, 34, 34);
+  g.fillStyle = '#ffffff'; g.font = 'bold 74px sans-serif'; g.textBaseline = 'middle'; g.textAlign = 'left';
+  let fs = 74; g.font = `bold ${fs}px sans-serif`;
+  while (g.measureText(text).width > 360 && fs > 30) { fs -= 4; g.font = `bold ${fs}px sans-serif`; }
+  g.fillText(text, 130, sub ? 70 : 96);
+  if (sub) { g.fillStyle = '#4dff9a'; g.font = 'bold 44px sans-serif'; g.fillText(sub, 134, 138); }
+  const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 4;
+  return t;
+}

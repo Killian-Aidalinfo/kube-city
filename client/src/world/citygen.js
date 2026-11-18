@@ -457,6 +457,7 @@ const RAMPS = [
 
 function generateStructures(g) {
   const buildings = [], props = [], neon = [], reserved = [], places = {};
+  let datacenter = null;
   const rngB = (i, j, s = 0) => mulberry32((Math.imul(i + 3, 2654435761) ^ Math.imul(j + 11, 40503) ^ (SEED + s)) >>> 0);
   const gh = groundHeight;
   const lw = (axis, c) => KIND[lineKind(axis, c)].width;
@@ -576,6 +577,42 @@ function generateStructures(g) {
     add('industrie', 'hangar', 180, -526, 50, 18, [box(180, -526, 50, 18, y - 1, y + 12, 0xcbd2dc, { roof: 'gable', roofH: 4, roofColor: 0x6b7480 })]);
     reserve(130, -540, 470, -509);
     places.aeroport = { label: 'Aéroport', position: { x: 300, y: gh(300, -507) + CURB, z: -507 } };
+    // Datacenter (bloc 8,2) : salle de baies lumineuses derrière une clôture, portail côté sud (route)
+    r = blockRect(8, 2);
+    {
+      const hw = Math.min(36, r.w / 2 - 3), hd = Math.min(36, r.d / 2 - 3), cx = r.cx, cz = r.cz;
+      const x0 = cx - hw, x1 = cx + hw, z0 = cz - hd, z1 = cz + hd;
+      reserve(x0 - 2, z0 - 2, x1 + 2, z1 + 2);
+      const y = Math.max(gh(x0, z0), gh(x1, z0), gh(x0, z1), gh(x1, z1), gh(cx, cz));
+      const hz = z0 + 24, FH = 2.4, FC = 0x7d8794, T = 0.3, G = 7; // hall, hauteur de clôture, épaisseur, demi-portail
+      const fenceSeg = (fx, fz, fw, fd) => box(fx, fz, fw, fd, y - 0.5, y + FH, FC);
+      const segs = [fenceSeg(cx, z0, hw * 2, T), fenceSeg(x0, cz, T, hd * 2), fenceSeg(x1, cz, T, hd * 2),
+        fenceSeg((x0 + cx - G) / 2, z1, (cx - G) - x0, T), fenceSeg((x1 + cx + G) / 2, z1, x1 - (cx + G), T)];
+      const parts = [
+        box(cx, hz, 56, 26, y - 1, y + 11, 0x2b3544, { roof: 'flat' }),
+        box(cx, hz + 13.1, 3, 0.4, y, y + 4, 0x1a2029),                       // porte
+        box(cx - 14, hz - 4, 8, 8, y + 11, y + 13.2, 0x8b94a3), box(cx + 14, hz - 4, 8, 8, y + 11, y + 13.2, 0x8b94a3), // groupes froids
+        box(cx, hz + 4, 10, 10, y + 11, y + 17, 0x1f6f8f),                    // « cube » du Cluster sur le toit
+        box(cx, hz + 4, 5, 5, y + 17, y + 20, 0x38e1ff),
+        box(x1 - 6, z1 - 10, 5, 4, y - 0.5, y + 3.2, 0xd8dde4, { roof: 'flat' }), // guérite
+        cyl(x0 + 8, z1 - 12, 3, y - 0.5, y + 5, 0xe8e8e8), cyl(x0 + 16, z1 - 12, 3, y - 0.5, y + 5, 0xe8e8e8), // cuves de fuel
+      ];
+      // baies lumineuses en façade sud (vers le portail) et sur les côtés : barres verticales claires
+      for (let k = -6; k <= 6; k++) parts.push(box(cx + k * 4.2, hz + 13.2, 1.2, 0.3, y + 1.5, y + 7, k % 2 ? 0x4dff9a : 0x38e1ff));
+      for (const sx of [-1, 1]) for (let k = -2; k <= 2; k++) parts.push(box(cx + sx * 28.2, hz + k * 5, 0.3, 1.2, y + 2, y + 9, k % 2 ? 0x4dff9a : 0x38e1ff));
+      const colliders = [
+        { cx, cz: hz, hw: 28, hd: 13, y0: y - 1, y1: y + 11 },
+        { cx: x1 - 6, cz: z1 - 10, hw: 2.5, hd: 2, y0: y - 0.5, y1: y + 3.2 },
+        { cx: x0 + 8, cz: z1 - 12, hw: 3, hd: 3, y0: y - 0.5, y1: y + 5 }, { cx: x0 + 16, cz: z1 - 12, hw: 3, hd: 3, y0: y - 0.5, y1: y + 5 },
+        ...segs.map((s2) => ({ cx: s2.cx, cz: s2.cz, hw: s2.w / 2, hd: s2.d / 2, y0: y - 0.5, y1: y + FH })),
+      ];
+      add('industrie', 'datacenter', cx, cz, hw * 2, hd * 2, [...parts, ...segs], { colliders });
+      for (let k = -6; k <= 6; k += 2) neon.push({ x: cx + k * 4.2, y: y + 4.5, z: hz + 14.2, color: k % 4 ? '#4dff9a' : '#38e1ff', size: 7 });
+      for (const sx of [-1, 1]) for (let k = -2; k <= 2; k += 2) neon.push({ x: cx + sx * 29.2, y: y + 5.5, z: hz + k * 5, color: '#38e1ff', size: 7 });
+      neon.push({ x: cx, y: y + 21.5, z: hz + 4, color: '#38e1ff', size: 14 });
+      datacenter = { x: cx, y, z: cz, gate: { x: cx, z: z1 }, sign: { x: cx, y: y + 9, z: hz + 13.45 } };
+      place('datacenter', 'Datacenter', { x: cx, z: hz + 13 + 14 });
+    }
     // Phare au bout de la plage est
     y = gh(545, 418);
     add('plage', 'phare', 545, 418, 9, 9, [cyl(545, 418, 4.5, y - 1, y + 12, 0xf2f2f2), cyl(545, 418, 4, y + 12, y + 22, 0xd93a3a), cyl(545, 418, 3.4, y + 22, y + 32, 0xf2f2f2),
@@ -688,7 +725,7 @@ function generateStructures(g) {
     else if (rs() < 0.5) props.push({ kind: 'parasol', x: x + 6, z: 405 + rs() * (zS - 405), y: 0, s: 1, rot: 0, color: pick(rs, [0xff4fa3, 0x38e1ff, 0xffb02e, 0xffffff]) });
   }
   // zone d'essai : marques de départ (rien) — les arbres de ville sont ajoutés par le long des routes
-  return { buildings, props, neon, reserved, places, tree, rngB };
+  return { buildings, props, neon, reserved, places, tree, rngB, get datacenter() { return datacenter; } };
 }
 
 /** Parc à conteneurs : rangées de conteneurs empilés (une seule collision par rangée). */
@@ -792,7 +829,7 @@ export function generateCity(seed = SEED) {
   const pier = { x: 200, z0: 396, z1: 520, width: 6, y: 0.25 };
   const lighthouse = { x: 545, z: 418, y: groundHeight(545, 418) + 35 };
   const city = {
-    seed, size: SIZE, roads, sidewalks, trafficLights, buildings: st.buildings, props, lamps, neon: st.neon, places, spawnPoints: spawn, ramps, pier, lighthouse,
+    seed, size: SIZE, roads, sidewalks, trafficLights, buildings: st.buildings, props, lamps, neon: st.neon, places, spawnPoints: spawn, ramps, pier, lighthouse, datacenter: st.datacenter,
     groundHeight, district: districtAt, isRoad: (x, z) => roads.isRoad(x, z), isWater: isWaterAt,
     nearestRoadPoint: (p) => { const n = roads.nearest(p.x, p.z); return n ? { x: n.x, y: n.y, z: n.z } : { x: p.x, y: groundHeight(p.x, p.z), z: p.z }; },
     route: (a, b) => roads.route(a, b),

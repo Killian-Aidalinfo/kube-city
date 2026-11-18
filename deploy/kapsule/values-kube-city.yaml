@@ -1,0 +1,28 @@
+# Valeurs Kube City pour un Kapsule UNE zone, 3 nœuds, Redis Sentinel (release « redis », namespace « kube-city »).
+# À adapter : ingress.host (et className si vous utilisez Traefik).
+replicaCount: 3
+
+strategy: { maxUnavailable: 0, maxSurge: 1 }
+
+podDisruptionBudget: { enabled: true, minAvailable: 2 }
+
+topologySpread:
+  enabled: true
+  node: DoNotSchedule      # 3 nœuds, 3 pods : 1 pod par nœud
+  zone: ScheduleAnyway     # inutile en mono-zone, sans effet
+
+autoscaling: { enabled: true, minReplicas: 3, maxReplicas: 6, cpu: 70 }
+
+redis:
+  enabled: false           # pas de Redis simple : on utilise celui de Sentinel
+  sentinel:
+    hosts: "redis-node-0.redis-headless.kube-city.svc.cluster.local:26379,redis-node-1.redis-headless.kube-city.svc.cluster.local:26379,redis-node-2.redis-headless.kube-city.svc.cluster.local:26379"
+    masterName: mymaster
+    passwordSecret: redis-auth   # Secret avec la clé REDIS_PASSWORD (le même que pour Redis)
+
+ingress:
+  enabled: true
+  className: nginx         # ou traefik
+  host: jeu.mon-groupe.fr  # <= à changer
+  tls: false               # passer à true une fois cert-manager installé (README, étape 4)
+  annotations: {}          # avec cert-manager : cert-manager.io/cluster-issuer: letsencrypt

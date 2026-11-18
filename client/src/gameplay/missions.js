@@ -92,9 +92,9 @@ export const MISSIONS = [
       { type: 'say', text: 'Écoutez.', lines: [L('Jade', 'Un coursier part du port avec un disque dur. Je veux savoir où il va.'), L('Jade', 'Reste à distance : il est discret, mais il a des yeux dans les caméras.', 4)] },
       { type: 'goto', text: 'Rejoignez le port.', to: 'port', radius: 16 },
       { type: 'follow', text: 'Suivez le coursier à distance raisonnable.', from: 'port', to: 'mairie', speed: 6, maxGap: 40, patience: 14, say: [L('Jade', 'Il marche vite pour quelqu\'un qui transporte des secrets.', 3)] },
-      { type: 'say', text: 'Le coursier est arrivé.', lines: [L('Jade', 'Il entre à la mairie par la porte de service. Avec le disque dur.', 4), L('Jade', 'Le disque porte une étiquette : « sauvegarde du datacenter, hangar 4, aéroport ». Merci pour l\'adresse.', 5)] },
+      { type: 'say', text: 'Le coursier est arrivé.', lines: [L('Jade', 'Il entre à la mairie par la porte de service. Avec le disque dur.', 4), L('Jade', 'Le disque porte une étiquette : « sauvegarde du datacenter, zone industrielle, portail sud ». Merci pour l\'adresse.', 5)] },
     ],
-    outro: 'Le coursier a livré la sauvegarde. Le datacenter se cache dans un hangar de l\'aéroport.',
+    outro: 'Le coursier a livré la sauvegarde. Le datacenter du Cluster se cache dans la zone industrielle.',
   },
   {
     id: 'jade_3', char: 'jade', title: 'Brouillage', giver: 'commissariat', reward: 800, requires: 'jade_2',
@@ -105,7 +105,7 @@ export const MISSIONS = [
       { type: 'evade', text: 'Faites-vous remarquer, puis semez la police (G : Panne de réseau).', level: 3, say: [L('Jade', 'Si ça chauffe, active la Panne de réseau avec G. Les feux seront verts, la police aveugle.')] },
       { type: 'say', text: 'Vous avez disparu.', lines: [L('Jade', 'Plus un agent à l\'horizon. Les caméras du coin sont aveugles pour dix minutes.', 4)] },
     ],
-    outro: 'La voie est libre : direction le casse du datacenter, à la mairie.',
+    outro: 'La voie est libre : direction le casse du datacenter, dans la zone industrielle.',
   },
   // ---------- Mission finale ----------
   {
@@ -114,13 +114,13 @@ export const MISSIONS = [
     steps: [
       { type: 'switch', text: 'Jade prend le contrôle.', to: 'jade' },
       { type: 'say', text: 'Briefing de Jade.', lines: [L('Jade', 'Plan : je coupe les caméras, Inès nous sort de là, Malik remet le serveur central en état. Simple.'), L('Malik', 'Quand quelqu\'un dit « simple », je prends ma clé à molette.', 3)] },
-      { type: 'goto', text: 'Jade : atteignez le datacenter (hangar de l\'aéroport).', to: 'datacenter', radius: 14 },
+      { type: 'goto', text: 'Jade : atteignez le datacenter (zone industrielle, repérez les baies lumineuses).', to: 'datacenter', radius: 14 },
       { type: 'wait', text: 'Jade : piratage des caméras…', seconds: 6, say: [L('Jade', 'Pare-feu… cassé. Caméras… aveugles. Le Cluster boude.')] },
       { type: 'switch', text: 'Inès prend le volant.', to: 'ines' },
       { type: 'enterVehicle', text: 'Inès : montez dans la voiture de fuite.', spawn: { type: 'sport', at: { place: 'datacenter', dx: 12, dz: 6 } } },
       { type: 'goto', text: 'Inès : amenez la voiture à l\'entrée du datacenter.', to: 'datacenter', vehicle: true, radius: 10, timeLimit: 200, say: [L('Inès', 'Voiture de fuite avancée. Ça me change de la voiture de livraison.', 4)] },
       { type: 'switch', text: 'Malik prend la relève.', to: 'malik' },
-      { type: 'goto', text: 'Malik : rejoignez la salle des serveurs.', to: { place: 'datacenter', dx: -10, dz: -8 }, radius: 6 },
+      { type: 'goto', text: 'Malik : rejoignez la salle des serveurs (porte du hall).', to: { place: 'datacenter', dx: 0, dz: -13 }, radius: 6 },
       { type: 'wait', text: 'Malik : réparation du serveur central…', seconds: 6, say: [L('Malik', 'Un petit coup de clé, un gros coup de chance.')] },
       { type: 'switch', text: 'Retour à Jade pour la fuite.', to: 'jade' },
       { type: 'evade', text: 'Jade : l\'alarme est déclenchée, semez la police !', level: 3, say: [L('Cluster', 'Intrusion détectée. Je vous vois. Je vous vois tous.')] },
