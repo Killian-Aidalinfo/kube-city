@@ -1,0 +1,26 @@
+# Variante avec Redis en HA : 1 maître + 2 réplicas + 3 Sentinel.
+#   docker compose -f docker-compose.yml -f deploy/sentinel/docker-compose.sentinel.yml up --build
+#   docker compose … stop redis-a      → Sentinel promeut un réplica, le jeu continue
+x-sentinel: &sentinel
+  image: redis:7-alpine
+  # chaque Sentinel réécrit sa config : on la copie d'abord dans le conteneur
+  command: sh -c "cp /conf/sentinel.conf /tmp/s.conf && redis-sentinel /tmp/s.conf"
+  volumes: ["./deploy/sentinel:/conf:ro"]
+  depends_on: [redis-a]
+
+x-game-env: &genv
+  REDIS_SENTINELS: "sentinel-1:26379,sentinel-2:26379,sentinel-3:26379"
+  REDIS_SENTINEL_NAME: mymaster
+  APP_VERSION: local-sentinel
+  DRAIN_DELAY_MS: "1000"
+
+services:
+  redis-a: { image: "redis:7-alpine", hostname: redis-a, command: ["redis-server", "--appendonly", "yes", "--replica-announce-ip", "redis-a"] }
+  redis-b: { image: "redis:7-alpine", hostname: redis-b, command: ["redis-server", "--appendonly", "yes", "--replicaof", "redis-a", "6379", "--replica-announce-ip", "redis-b"], depends_on: [redis-a] }
+  redis-c: { image: "redis:7-alpine", hostname: redis-c, command: ["redis-server", "--appendonly", "yes", "--replicaof", "redis-a", "6379", "--replica-announce-ip", "redis-c"], depends_on: [redis-a] }
+  sentinel-1: *sentinel
+  sentinel-2: *sentinel
+  sentinel-3: *sentinel
+  game-1: { depends_on: [sentinel-1], environment: { <<: *genv, POD_NAME: game-1 } }
+  game-2: { depends_on: [sentinel-1], environment: { <<: *genv, POD_NAME: game-2 } }
+  game-3: { depends_on: [sentinel-1], environment: { <<: *genv, POD_NAME: game-3 } }

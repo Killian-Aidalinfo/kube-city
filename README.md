@@ -66,6 +66,36 @@ kubectl -n jeu create secret generic redis-ha --from-literal=REDIS_URL='rediss:/
 helm upgrade --install jeu ./chart/kube-city -n jeu --set redis.enabled=false --set redis.existingSecret=redis-ha
 ```
 
+## Redis sans point faible : Sentinel
+
+Un maître, deux réplicas, trois Sentinel. Si le maître meurt, les Sentinel promeuvent un réplica et le jeu s'y reconnecte seul.
+
+```bash
+# en local : 1 maître + 2 réplicas + 3 Sentinel + 3 pods de jeu
+export COMPOSE_FILE=docker-compose.yml:deploy/sentinel/docker-compose.sentinel.yml
+docker compose up --build
+docker compose kill redis-a        # le maître meurt brutalement
+```
+
+Mesuré en local : **3,7 s** de synchro en pause (2 s de détection + bascule), **0 joueur déconnecté**, 100 % de disponibilité HTTP. Pendant la bascule, chacun continue de rouler et le HUD affiche « Synchro en pause ».
+
+Ce qui rend ça possible :
+- `/readyz` ne dépend PAS de Redis : sinon tous les pods deviendraient « pas prêts » en même temps pendant la bascule et le Service couperait tout le monde ;
+- côté appli (`src/store.js`) : `failoverDetector` (écoute l'annonce du nouveau maître), délais courts (`commandTimeout`, reconnexion toutes les 100 ms), reconnexion sur l'erreur `READONLY` ;
+- côté Sentinel : `down-after-milliseconds 2000` (plus bas, une micro-coupure réseau déclenche une bascule inutile).
+
+Sur Kubernetes, avec un Redis + Sentinel installé par Helm (chart à choisir et vérifier, par exemple Bitnami avec `sentinel.enabled=true` et un délai de détection réglé à 2 s) :
+
+```bash
+helm upgrade --install jeu ./chart/kube-city -n jeu \
+  --set redis.enabled=false \
+  --set-string 'redis.sentinel.hosts=hote-sentinel-0:26379\,hote-sentinel-1:26379\,hote-sentinel-2:26379' \
+  --set redis.sentinel.masterName=mymaster \
+  --set redis.sentinel.passwordSecret=nom-du-secret   # Secret avec la clé REDIS_PASSWORD
+```
+
+Persistance : chaque pod Redis a son propre disque (RWO, pas besoin de RWX), avec `appendonly`. Il ne sert que si les trois pods Redis redémarrent en même temps ; la réplication couvre la perte d'un pod.
+
 ## Les épreuves de chaos
 
 Lancez la sonde **avant** les épreuves et laissez-la tourner :
@@ -102,7 +132,7 @@ Pour protéger l'accès : `--set mcp.token=…`, puis l'en-tête `Authorization:
 | `/ws` | WebSocket de jeu |
 | `/mcp` | serveur MCP |
 | `/healthz` | vivant (liveness) |
-| `/readyz` | prêt à recevoir du trafic (readiness) : Redis joignable et pas en arrêt |
+| `/readyz` | prêt à recevoir du trafic (readiness) : pas en arrêt (volontairement indépendant de Redis) |
 | `/metrics` | métriques Prometheus (`pn_clients_connected`, `pn_is_leader`…) |
 | `/api/info` | pod, version, leader |
 

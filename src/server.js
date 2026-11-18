@@ -12,7 +12,9 @@ import { handleMcp } from "./mcp.js";
 const PORT = Number(process.env.PORT || 8080);
 const VERSION = process.env.APP_VERSION || "dev";
 const DRAIN_MS = Number(process.env.DRAIN_DELAY_MS || 5000);
-const PUBLIC = path.join(path.dirname(fileURLToPath(import.meta.url)), "..", "public");
+const ROOT = path.join(path.dirname(fileURLToPath(import.meta.url)), "..");
+const PUBLIC = path.join(ROOT, "public");
+const DIST = path.join(ROOT, "client", "dist"); // build Vite, prioritaire sur public/
 const startedAt = Date.now();
 let draining = false;
 
@@ -47,6 +49,13 @@ setInterval(() => {
   broadcast({ t: "snap", players: list, now });
 }, 100);
 
+// ---------- État de la synchro Redis, affiché aux joueurs ----------
+let syncOk = true;
+setInterval(() => {
+  const ok = store.redisReady();
+  if (ok !== syncOk) { syncOk = ok; broadcast({ t: "sync", ok }); console.log(`synchro Redis ${ok ? "rétablie" : "en pause"}`); }
+}, 250);
+
 // ---------- Leader : un seul pod fait rouler les agents IA ----------
 let leader = false;
 setInterval(async () => {
@@ -63,21 +72,23 @@ setInterval(async () => {
 }, 100);
 
 // ---------- HTTP ----------
-const MIME = { ".html": "text/html; charset=utf-8", ".js": "text/javascript; charset=utf-8", ".css": "text/css", ".svg": "image/svg+xml", ".png": "image/png", ".ico": "image/x-icon", ".json": "application/json" };
+const MIME = { ".html": "text/html; charset=utf-8", ".js": "text/javascript; charset=utf-8", ".css": "text/css", ".svg": "image/svg+xml", ".png": "image/png", ".ico": "image/x-icon", ".json": "application/json", ".glb": "model/gltf-binary", ".gltf": "model/gltf+json", ".bin": "application/octet-stream", ".wasm": "application/wasm", ".ogg": "audio/ogg", ".jpg": "image/jpeg", ".woff2": "font/woff2", ".md": "text/plain; charset=utf-8" };
 
 async function serveStatic(req, res) {
   const url = new URL(req.url, "http://x");
   let p = decodeURIComponent(url.pathname);
   if (p === "/") p = "/index.html";
-  const file = path.normalize(path.join(PUBLIC, p));
-  if (!file.startsWith(PUBLIC)) return res.writeHead(403).end();
-  try {
-    const data = await fs.readFile(file);
-    res.writeHead(200, { "content-type": MIME[path.extname(file)] || "application/octet-stream", "cache-control": p === "/index.html" ? "no-cache" : "public, max-age=60" });
-    res.end(data);
-  } catch {
-    res.writeHead(404).end("introuvable");
+  // client/dist d'abord, repli sur public/
+  for (const base of [DIST, PUBLIC]) {
+    const file = path.normalize(path.join(base, p));
+    if (!file.startsWith(base)) return res.writeHead(403).end();
+    try {
+      const data = await fs.readFile(file);
+      res.writeHead(200, { "content-type": MIME[path.extname(file)] || "application/octet-stream", "cache-control": p === "/index.html" ? "no-cache" : "public, max-age=60" });
+      return res.end(data);
+    } catch { /* on tente la base suivante */ }
   }
+  res.writeHead(404).end("introuvable");
 }
 
 function json(res, code, obj) {
@@ -96,7 +107,10 @@ const server = http.createServer(async (req, res) => {
     const { pathname } = new URL(req.url, "http://x");
     if (pathname === "/healthz") return json(res, 200, { ok: true });
     if (pathname === "/readyz") {
-      const ok = !draining && store.redisReady();
+      // Prêt = pas en train de s'arrêter. Volontairement indépendant de Redis : pendant une bascule
+      // Sentinel, si tous les pods devenaient « pas prêts » en même temps, le Service n'aurait plus
+      // aucun pod et TOUS les joueurs seraient coupés. On garde les joueurs connectés, la synchro reprend seule.
+      const ok = !draining;
       return json(res, ok ? 200 : 503, { ok, draining, redis: store.redisReady(), pod: store.POD });
     }
     if (pathname === "/metrics") {
@@ -136,7 +150,7 @@ wss.on("connection", (ws) => {
         const saved = await store.loadPlayer(id);
         me = { id, name: String(m.name || "Anonyme").slice(0, 20), color: /^#[0-9a-f]{6}$/i.test(m.color || "") ? m.color : "#ff3cac", x: m.x ?? saved?.x ?? 0, y: m.y ?? saved?.y ?? 0, a: 0, v: 0 };
         ws.send(JSON.stringify({
-          t: "welcome", id, pod: store.POD, version: VERSION,
+          t: "welcome", id, pod: store.POD, version: VERSION, sync: store.redisReady(),
           chat: await store.recentChat(20), races: await store.listRaces(), board: await store.leaderboard(10),
         }));
         // après une reconnexion (pod tué, mise à jour…), pas de message : le joueur ne doit rien remarquer
@@ -147,6 +161,8 @@ wss.on("connection", (ws) => {
         return;
       } else if (m.t === "state") {
         Object.assign(me, { x: +m.x || 0, y: +m.y || 0, a: +m.a || 0, v: +m.v || 0 });
+        // Redis absent (bascule en cours) : les joueurs du même pod se voient quand même
+        if (!store.redisReady()) { players.set(me.id, { ...me, ts: Date.now() }); return; }
         await store.publish({ k: "p", p: me });
         if (Date.now() - lastSave > 1000) { lastSave = Date.now(); await store.savePlayer(me); }
       } else if (m.t === "chat") {

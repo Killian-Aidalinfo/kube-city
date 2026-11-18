@@ -39,6 +39,8 @@ spec:
         - maxSkew: 1
           topologyKey: kubernetes.io/hostname
           whenUnsatisfiable: {{ .Values.topologySpread.node }}
+          # un nœud vidé (kubectl drain = cordon) ne compte plus : le pod chassé peut se replacer ailleurs
+          nodeTaintsPolicy: Honor
           labelSelector:
             matchLabels: {{- include "pn.selector" . | nindent 14 }}
       {{- end }}
@@ -53,7 +55,16 @@ spec:
               valueFrom: { fieldRef: { fieldPath: metadata.name } }
             - name: DRAIN_DELAY_MS
               value: {{ .Values.drainDelayMs | quote }}
-            {{- if .Values.redis.existingSecret }}
+            {{- if .Values.redis.sentinel.hosts }}
+            - name: REDIS_SENTINELS
+              value: {{ .Values.redis.sentinel.hosts | quote }}
+            - name: REDIS_SENTINEL_NAME
+              value: {{ .Values.redis.sentinel.masterName | quote }}
+            {{- if .Values.redis.sentinel.passwordSecret }}
+            - name: REDIS_PASSWORD
+              valueFrom: { secretKeyRef: { name: {{ .Values.redis.sentinel.passwordSecret }}, key: REDIS_PASSWORD } }
+            {{- end }}
+            {{- else if .Values.redis.existingSecret }}
             - name: REDIS_URL
               valueFrom: { secretKeyRef: { name: {{ .Values.redis.existingSecret }}, key: REDIS_URL } }
             {{- else }}

@@ -64,7 +64,7 @@ function onMessage(m) {
     $("status").className = "hud panel";
     if (everConnected && prevPod && prevPod !== m.pod) toast(`Reconnecté sur ${m.pod}`, 1800, "#2de2e6");
     everConnected = true; prevPod = m.pod;
-    pod = m.pod; version = m.version;
+    pod = m.pod; version = m.version; syncOk = m.sync !== false;
     me.id = m.id; persist();
     chat = m.chat || []; board = m.board || [];
     for (const r of m.races || []) races.set(r.id, r);
@@ -92,6 +92,9 @@ function onMessage(m) {
     myRace = null; send({ t: "board" });
   } else if (m.t === "board") {
     board = m.board; renderBoard();
+  } else if (m.t === "sync") {
+    syncOk = m.ok;
+    if (!m.ok) toast("Synchro en pause : on continue à jouer", 1500, "#ffd23f");
   } else if (m.t === "pong") {
     ping = Math.round(performance.now() - m.ts);
   } else if (m.t === "bye") {
@@ -104,7 +107,7 @@ setInterval(() => { persist(); send({ t: "board" }); }, 5000);
 setInterval(async () => {
   try { const i = await (await fetch("/api/info", { cache: "no-store" })).json(); leader = i.leader; } catch { /* pod en cours de remplacement */ }
 }, 3000);
-let leader = "—";
+let leader = "—", syncOk = true;
 
 // ---------- Entrées ----------
 const keys = new Set();
@@ -396,7 +399,7 @@ function toast(text, ms, color) {
   const t = $("toast"); t.textContent = text; t.style.color = color; t.style.display = "block"; toastUntil = performance.now() + ms;
 }
 function hud() {
-  $("server").innerHTML = `Servi par <b>${esc(pod)}</b><br>Version <b>${esc(version)}</b> · ping ${ping} ms<br>Reconnexions : <b>${reconnects}</b> · leader IA : ${esc(leader || "—")}<br>${esc(districtAt(me.x, me.y).name)} · ${Math.round(Math.abs(me.v) / 4)} km/h`;
+  $("server").innerHTML = `Servi par <b>${esc(pod)}</b><br>Version <b>${esc(version)}</b> · ping ${ping} ms<br>${syncOk ? "Synchro OK" : "<span style='color:#ffd23f'>Synchro en pause</span>"} · Reconnexions : <b>${reconnects}</b> · leader IA : ${esc(leader || "—")}<br>${esc(districtAt(me.x, me.y).name)} · ${Math.round(Math.abs(me.v) / 4)} km/h`;
   $("stars").textContent = "★".repeat(wanted) + "☆".repeat(3 - wanted);
   if (performance.now() > toastUntil) $("toast").style.display = "none";
 }

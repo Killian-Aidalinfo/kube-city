@@ -6,9 +6,40 @@ export const POD = process.env.POD_NAME || os.hostname();
 const URL = process.env.REDIS_URL || "redis://localhost:6379";
 const CHANNEL = "pn:ev";
 
-const opts = { maxRetriesPerRequest: 2, enableReadyCheck: true, lazyConnect: false };
-export const redis = new Redis(URL, opts);
-export const sub = new Redis(URL, opts);
+// Réglages pour une bascule rapide : on échoue vite plutôt que d'attendre un Redis mort,
+// et on se reconnecte toutes les 100 ms (max 1 s).
+const fast = (times) => Math.min(times * 100, 1000);
+const opts = {
+  maxRetriesPerRequest: 1,
+  enableReadyCheck: true,
+  lazyConnect: false,
+  connectTimeout: 2000,
+  commandTimeout: 1500,
+  retryStrategy: fast,
+  // l'ancien maître devenu réplica refuse les écritures : on se reconnecte au nouveau maître
+  reconnectOnError: (err) => (String(err.message).includes("READONLY") ? 2 : false),
+};
+
+// Deux modes :
+// - REDIS_URL : un Redis unique (simple, mais point de défaillance unique) ;
+// - REDIS_SENTINELS="hote1:26379,hote2:26379" : on demande aux Sentinel qui est le maître,
+//   et ioredis se reconnecte tout seul au nouveau maître après une bascule.
+function connect() {
+  const sentinels = (process.env.REDIS_SENTINELS || "").split(",").map((s) => s.trim()).filter(Boolean);
+  if (!sentinels.length) return new Redis(URL, opts);
+  return new Redis({
+    ...opts,
+    sentinels: sentinels.map((s) => { const [host, port] = s.split(":"); return { host, port: Number(port || 26379) }; }),
+    name: process.env.REDIS_SENTINEL_NAME || "mymaster",
+    // écoute l'annonce « +switch-master » des Sentinel : bascule dès qu'un nouveau maître est élu
+    failoverDetector: true,
+    sentinelRetryStrategy: fast,
+    password: process.env.REDIS_PASSWORD || undefined,
+    sentinelPassword: process.env.REDIS_SENTINEL_PASSWORD || process.env.REDIS_PASSWORD || undefined,
+  });
+}
+export const redis = connect();
+export const sub = connect();
 
 for (const [n, c] of [["redis", redis], ["sub", sub]]) {
   c.on("error", (e) => console.error(`[${n}] ${e.message}`));

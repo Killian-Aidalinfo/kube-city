@@ -26,8 +26,9 @@ podDisruptionBudget:
 # Répartir les pods sur des nœuds ET des zones différents
 topologySpread:
   enabled: true
-  zone: DoNotSchedule        # passer à ScheduleAnyway sur un cluster mono-zone
-  node: ScheduleAnyway
+  # Kapsule mono-zone : l'important est de répartir les pods sur des NŒUDS différents.
+  node: DoNotSchedule        # passer à ScheduleAnyway si vous avez moins de nœuds que de pods
+  zone: ScheduleAnyway       # utile seulement sur un cluster multi-zone
 
 autoscaling:
   enabled: true
@@ -46,6 +47,12 @@ redis:
   enabled: true
   url: ""
   existingSecret: ""         # Secret contenant la clé REDIS_URL
+  # Redis en HA avec Sentinel (ex. chart Bitnami redis avec sentinel.enabled=true) :
+  # redis.enabled=false, puis la liste des Sentinel et le nom du maître surveillé
+  sentinel:
+    hosts: ""                # ex. "redis-node-0.redis-headless:26379,redis-node-1.redis-headless:26379,redis-node-2.redis-headless:26379"
+    masterName: mymaster
+    passwordSecret: ""       # Secret contenant la clé REDIS_PASSWORD (si Redis a un mot de passe)
   image: redis:7-alpine
   persistence:
     enabled: false

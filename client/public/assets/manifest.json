@@ -1,0 +1,4209 @@
+{
+ "version": 1,
+ "notes": "Chemins relatifs à /assets/. Les `size`/`min`/`max` sont en unités du modèle (avant échelle). Échelles recommandées : personnage 1 (1,83 m), véhicules 1.4 (berline ~4,4 m), ville 8 (tuile de route = 8 m, voie ≈ 4 m) ; ajustables par les modules. Orientation avant : +Z pour les véhicules (vérifié sur les nœuds de roues) ; voir characters.forward pour le perso.",
+ "vehicles": {
+  "scale": 1.4,
+  "forward": "+Z",
+  "textures": "vehicles/Textures/colormap.png (référencée par les glb)",
+  "wheels": [
+   "vehicles/wheel-default.glb",
+   "vehicles/wheel-dark.glb",
+   "vehicles/wheel-racing.glb",
+   "vehicles/wheel-truck.glb"
+  ],
+  "models": {
+   "ambulance": {
+    "file": "vehicles/ambulance.glb",
+    "size": [
+     1.5,
+     1.6,
+     3.25
+    ],
+    "bodyBounds": {
+     "min": [
+      -0.75,
+      0.2,
+      -1.65
+     ],
+     "max": [
+      0.75,
+      1.8,
+      1.6
+     ]
+    },
+    "wheelNodes": [
+     "wheel-front-right",
+     "wheel-front-left",
+     "wheel-back-right",
+     "wheel-back-left"
+    ],
+    "wheelPositions": {
+     "wheel-front-right": [
+      -0.3,
+      0.3,
+      1.01
+     ],
+     "wheel-front-left": [
+      0.3,
+      0.3,
+      1.01
+     ],
+     "wheel-back-right": [
+      -0.3,
+      0.3,
+      -0.91
+     ],
+     "wheel-back-left": [
+      0.3,
+      0.3,
+      -0.91
+     ]
+    },
+    "wheelRadius": 0.3,
+    "extraNodes": [
+     "door-right",
+     "door-left"
+    ]
+   },
+   "delivery": {
+    "file": "vehicles/delivery.glb",
+    "size": [
+     1.5,
+     1.5,
+     3.25
+    ],
+    "bodyBounds": {
+     "min": [
+      -0.75,
+      0.15,
+      -1.65
+     ],
+     "max": [
+      0.75,
+      1.65,
+      1.6
+     ]
+    },
+    "wheelNodes": [
+     "wheel-front-right",
+     "wheel-front-left",
+     "wheel-back-right",
+     "wheel-back-left"
+    ],
+    "wheelPositions": {
+     "wheel-front-right": [
+      -0.3,
+      0.3,
+      1.01
+     ],
+     "wheel-front-left": [
+      0.3,
+      0.3,
+      1.01
+     ],
+     "wheel-back-right": [
+      -0.3,
+      0.3,
+      -0.61
+     ],
+     "wheel-back-left": [
+      0.3,
+      0.3,
+      -0.61
+     ]
+    },
+    "wheelRadius": 0.3,
+    "extraNodes": [
+     "door"
+    ]
+   },
+   "firetruck": {
+    "file": "vehicles/firetruck.glb",
+    "size": [
+     1.5,
+     1.63,
+     3.4
+    ],
+    "bodyBounds": {
+     "min": [
+      -0.75,
+      0.07,
+      -1.7
+     ],
+     "max": [
+      0.75,
+      1.7,
+      1.7
+     ]
+    },
+    "wheelNodes": [
+     "wheel-front-right",
+     "wheel-front-left",
+     "wheel-back-right",
+     "wheel-back-left"
+    ],
+    "wheelPositions": {
+     "wheel-front-right": [
+      -0.4,
+      0.3,
+      0.96
+     ],
+     "wheel-front-left": [
+      0.4,
+      0.3,
+      0.96
+     ],
+     "wheel-back-right": [
+      -0.4,
+      0.3,
+      -0.66
+     ],
+     "wheel-back-left": [
+      0.4,
+      0.3,
+      -0.66
+     ]
+    },
+    "wheelRadius": 0.3,
+    "extraNodes": [
+     "grill"
+    ]
+   },
+   "garbage-truck": {
+    "file": "vehicles/garbage-truck.glb",
+    "size": [
+     1.6,
+     1.48,
+     3.45
+    ],
+    "bodyBounds": {
+     "min": [
+      -0.8,
+      0.13,
+      -1.7
+     ],
+     "max": [
+      0.8,
+      1.6,
+      1.75
+     ]
+    },
+    "wheelNodes": [
+     "wheel-front-left",
+     "wheel-front-right",
+     "wheel-back-right",
+     "wheel-back-left"
+    ],
+    "wheelPositions": {
+     "wheel-front-left": [
+      0.3,
+      0.3,
+      1.11
+     ],
+     "wheel-front-right": [
+      -0.3,
+      0.3,
+      1.11
+     ],
+     "wheel-back-right": [
+      -0.3,
+      0.3,
+      -0.51
+     ],
+     "wheel-back-left": [
+      0.3,
+      0.3,
+      -0.51
+     ]
+    },
+    "wheelRadius": 0.3,
+    "extraNodes": [
+     "arm",
+     "trash"
+    ]
+   },
+   "hatchback-sports": {
+    "file": "vehicles/hatchback-sports.glb",
+    "size": [
+     1.3,
+     0.95,
+     2.85
+    ],
+    "bodyBounds": {
+     "min": [
+      -0.65,
+      0.15,
+      -1.45
+     ],
+     "max": [
+      0.65,
+      1.1,
+      1.4
+     ]
+    },
+    "wheelNodes": [
+     "wheel-front-right",
+     "wheel-front-left",
+     "wheel-back-right",
+     "wheel-back-left"
+    ],
+    "wheelPositions": {
+     "wheel-front-right": [
+      -0.3,
+      0.3,
+      0.81
+     ],
+     "wheel-front-left": [
+      0.3,
+      0.3,
+      0.81
+     ],
+     "wheel-back-right": [
+      -0.3,
+      0.3,
+      -0.81
+     ],
+     "wheel-back-left": [
+      0.3,
+      0.3,
+      -0.81
+     ]
+    },
+    "wheelRadius": 0.3,
+    "extraNodes": []
+   },
+   "police": {
+    "file": "vehicles/police.glb",
+    "size": [
+     1.5,
+     1.31,
+     3.12
+    ],
+    "bodyBounds": {
+     "min": [
+      -0.75,
+      -0.01,
+      -1.55
+     ],
+     "max": [
+      0.75,
+      1.3,
+      1.57
+     ]
+    },
+    "wheelNodes": [
+     "wheel-back-left",
+     "wheel-front-left",
+     "wheel-back-right",
+     "wheel-front-right"
+    ],
+    "wheelPositions": {
+     "wheel-back-left": [
+      0.3,
+      0.3,
+      -0.81
+     ],
+     "wheel-front-left": [
+      0.3,
+      0.3,
+      0.81
+     ],
+     "wheel-back-right": [
+      -0.3,
+      0.3,
+      -0.81
+     ],
+     "wheel-front-right": [
+      -0.3,
+      0.3,
+      0.81
+     ]
+    },
+    "wheelRadius": 0.3,
+    "extraNodes": [
+     "grill"
+    ]
+   },
+   "race-future": {
+    "file": "vehicles/race-future.glb",
+    "size": [
+     1.2,
+     0.63,
+     2.66
+    ],
+    "bodyBounds": {
+     "min": [
+      -0.6,
+      0.2,
+      -1.33
+     ],
+     "max": [
+      0.6,
+      0.83,
+      1.33
+     ]
+    },
+    "wheelNodes": [
+     "wheel-back-left",
+     "wheel-back-right",
+     "wheel-front-left",
+     "wheel-front-right"
+    ],
+    "wheelPositions": {
+     "wheel-back-left": [
+      0.3,
+      0.3,
+      -0.93
+     ],
+     "wheel-back-right": [
+      -0.3,
+      0.3,
+      -0.93
+     ],
+     "wheel-front-left": [
+      0.3,
+      0.3,
+      0.59
+     ],
+     "wheel-front-right": [
+      -0.3,
+      0.3,
+      0.59
+     ]
+    },
+    "wheelRadius": 0.3,
+    "extraNodes": []
+   },
+   "race": {
+    "file": "vehicles/race.glb",
+    "size": [
+     1.2,
+     0.63,
+     2.56
+    ],
+    "bodyBounds": {
+     "min": [
+      -0.6,
+      0.1,
+      -1.28
+     ],
+     "max": [
+      0.6,
+      0.73,
+      1.28
+     ]
+    },
+    "wheelNodes": [
+     "wheel-front-left",
+     "wheel-front-right",
+     "wheel-back-left",
+     "wheel-back-right"
+    ],
+    "wheelPositions": {
+     "wheel-front-left": [
+      0.35,
+      0.3,
+      0.64
+     ],
+     "wheel-front-right": [
+      -0.35,
+      0.3,
+      0.64
+     ],
+     "wheel-back-left": [
+      0.35,
+      0.3,
+      -0.88
+     ],
+     "wheel-back-right": [
+      -0.35,
+      0.3,
+      -0.88
+     ]
+    },
+    "wheelRadius": 0.3,
+    "extraNodes": []
+   },
+   "sedan-sports": {
+    "file": "vehicles/sedan-sports.glb",
+    "size": [
+     1.3,
+     0.95,
+     2.55
+    ],
+    "bodyBounds": {
+     "min": [
+      -0.65,
+      0.15,
+      -1.3
+     ],
+     "max": [
+      0.65,
+      1.1,
+      1.25
+     ]
+    },
+    "wheelNodes": [
+     "wheel-back-right",
+     "wheel-back-left",
+     "wheel-front-left",
+     "wheel-front-right"
+    ],
+    "wheelPositions": {
+     "wheel-back-right": [
+      -0.3,
+      0.3,
+      -0.66
+     ],
+     "wheel-back-left": [
+      0.3,
+      0.3,
+      -0.66
+     ],
+     "wheel-front-left": [
+      0.3,
+      0.3,
+      0.66
+     ],
+     "wheel-front-right": [
+      -0.3,
+      0.3,
+      0.66
+     ]
+    },
+    "wheelRadius": 0.3,
+    "extraNodes": [
+     "spoiler"
+    ]
+   },
+   "sedan": {
+    "file": "vehicles/sedan.glb",
+    "size": [
+     1.5,
+     1.15,
+     2.55
+    ],
+    "bodyBounds": {
+     "min": [
+      -0.75,
+      0.15,
+      -1.3
+     ],
+     "max": [
+      0.75,
+      1.3,
+      1.25
+     ]
+    },
+    "wheelNodes": [
+     "wheel-front-right",
+     "wheel-back-left",
+     "wheel-back-right",
+     "wheel-front-left"
+    ],
+    "wheelPositions": {
+     "wheel-front-right": [
+      -0.3,
+      0.3,
+      0.66
+     ],
+     "wheel-back-left": [
+      0.3,
+      0.3,
+      -0.66
+     ],
+     "wheel-back-right": [
+      -0.3,
+      0.3,
+      -0.66
+     ],
+     "wheel-front-left": [
+      0.3,
+      0.3,
+      0.66
+     ]
+    },
+    "wheelRadius": 0.3,
+    "extraNodes": []
+   },
+   "suv-luxury": {
+    "file": "vehicles/suv-luxury.glb",
+    "size": [
+     1.5,
+     1.17,
+     2.85
+    ],
+    "bodyBounds": {
+     "min": [
+      -0.75,
+      0.13,
+      -1.4
+     ],
+     "max": [
+      0.75,
+      1.3,
+      1.45
+     ]
+    },
+    "wheelNodes": [
+     "wheel-back-right",
+     "wheel-front-right",
+     "wheel-front-left",
+     "wheel-back-left"
+    ],
+    "wheelPositions": {
+     "wheel-back-right": [
+      -0.3,
+      0.3,
+      -0.71
+     ],
+     "wheel-front-right": [
+      -0.3,
+      0.3,
+      0.81
+     ],
+     "wheel-front-left": [
+      0.3,
+      0.3,
+      0.81
+     ],
+     "wheel-back-left": [
+      0.3,
+      0.3,
+      -0.71
+     ]
+    },
+    "wheelRadius": 0.3,
+    "extraNodes": []
+   },
+   "suv": {
+    "file": "vehicles/suv.glb",
+    "size": [
+     1.5,
+     1.1,
+     2.55
+    ],
+    "bodyBounds": {
+     "min": [
+      -0.75,
+      0.2,
+      -1.2
+     ],
+     "max": [
+      0.75,
+      1.3,
+      1.35
+     ]
+    },
+    "wheelNodes": [
+     "wheel-back",
+     "wheel-back-left",
+     "wheel-back-right",
+     "wheel-front-left",
+     "wheel-front-right"
+    ],
+    "wheelPositions": {
+     "wheel-back": [
+      0,
+      0.5,
+      -1.05
+     ],
+     "wheel-back-left": [
+      0.3,
+      0.3,
+      -0.56
+     ],
+     "wheel-back-right": [
+      -0.3,
+      0.3,
+      -0.56
+     ],
+     "wheel-front-left": [
+      0.3,
+      0.3,
+      0.76
+     ],
+     "wheel-front-right": [
+      -0.3,
+      0.3,
+      0.76
+     ]
+    },
+    "wheelRadius": 0.3,
+    "extraNodes": []
+   },
+   "taxi": {
+    "file": "vehicles/taxi.glb",
+    "size": [
+     1.5,
+     1.35,
+     2.75
+    ],
+    "bodyBounds": {
+     "min": [
+      -0.75,
+      0.15,
+      -1.4
+     ],
+     "max": [
+      0.75,
+      1.5,
+      1.35
+     ]
+    },
+    "wheelNodes": [
+     "wheel-front-right",
+     "wheel-front-left",
+     "wheel-back-left",
+     "wheel-back-right"
+    ],
+    "wheelPositions": {
+     "wheel-front-right": [
+      -0.3,
+      0.3,
+      0.76
+     ],
+     "wheel-front-left": [
+      0.3,
+      0.3,
+      0.76
+     ],
+     "wheel-back-left": [
+      0.3,
+      0.3,
+      -0.76
+     ],
+     "wheel-back-right": [
+      -0.3,
+      0.3,
+      -0.76
+     ]
+    },
+    "wheelRadius": 0.3,
+    "extraNodes": []
+   },
+   "truck": {
+    "file": "vehicles/truck.glb",
+    "size": [
+     1.5,
+     1.15,
+     2.95
+    ],
+    "bodyBounds": {
+     "min": [
+      -0.75,
+      0.15,
+      -1.5
+     ],
+     "max": [
+      0.75,
+      1.3,
+      1.45
+     ]
+    },
+    "wheelNodes": [
+     "wheel-front-right",
+     "wheel-front-left",
+     "wheel-back-right",
+     "wheel-back-left"
+    ],
+    "wheelPositions": {
+     "wheel-front-right": [
+      -0.3,
+      0.3,
+      0.86
+     ],
+     "wheel-front-left": [
+      0.3,
+      0.3,
+      0.86
+     ],
+     "wheel-back-right": [
+      -0.3,
+      0.3,
+      -0.76
+     ],
+     "wheel-back-left": [
+      0.3,
+      0.3,
+      -0.76
+     ]
+    },
+    "wheelRadius": 0.3,
+    "extraNodes": []
+   },
+   "van": {
+    "file": "vehicles/van.glb",
+    "size": [
+     1.5,
+     1.2,
+     2.75
+    ],
+    "bodyBounds": {
+     "min": [
+      -0.75,
+      0.15,
+      -1.4
+     ],
+     "max": [
+      0.75,
+      1.35,
+      1.35
+     ]
+    },
+    "wheelNodes": [
+     "wheel-front-right",
+     "wheel-front-left",
+     "wheel-back-right",
+     "wheel-back-left"
+    ],
+    "wheelPositions": {
+     "wheel-front-right": [
+      -0.3,
+      0.3,
+      0.76
+     ],
+     "wheel-front-left": [
+      0.3,
+      0.3,
+      0.76
+     ],
+     "wheel-back-right": [
+      -0.3,
+      0.3,
+      -0.76
+     ],
+     "wheel-back-left": [
+      0.3,
+      0.3,
+      -0.76
+     ]
+    },
+    "wheelRadius": 0.3,
+    "extraNodes": []
+   }
+  },
+  "categories": {
+   "compacte": [
+    "hatchback-sports"
+   ],
+   "berline": [
+    "sedan"
+   ],
+   "sport": [
+    "sedan-sports",
+    "race",
+    "race-future"
+   ],
+   "suv": [
+    "suv",
+    "suv-luxury"
+   ],
+   "camionnette": [
+    "van",
+    "delivery"
+   ],
+   "pick-up": [
+    "truck"
+   ],
+   "taxi": [
+    "taxi"
+   ],
+   "police": [
+    "police"
+   ],
+   "ambulance": [
+    "ambulance"
+   ],
+   "pompiers": [
+    "firetruck"
+   ],
+   "poids_lourd": [
+    "garbage-truck"
+   ]
+  },
+  "notes": "Les roues sont des nœuds nommés wheel-front-left/right et wheel-back-left/right dans chaque glb (pivot au centre de la roue, axe X). Pas de moto ni de bus dans le Car Kit : repli procédural."
+ },
+ "city": {
+  "scale": 8,
+  "tile": "Les tuiles de route font 1x1 unité : à scale 8 une tuile = 8 m. Immeubles : empreinte ≈ 1 tuile.",
+  "roads": {
+   "bridge-pillar-wide": {
+    "file": "city/roads/bridge-pillar-wide.glb",
+    "size": [
+     0.14,
+     0.5,
+     0.14
+    ],
+    "min": [
+     -0.07,
+     0,
+     -0.07
+    ],
+    "max": [
+     0.07,
+     0.5,
+     0.07
+    ]
+   },
+   "bridge-pillar": {
+    "file": "city/roads/bridge-pillar.glb",
+    "size": [
+     0.1,
+     0.5,
+     0.1
+    ],
+    "min": [
+     -0.05,
+     0,
+     -0.05
+    ],
+    "max": [
+     0.05,
+     0.5,
+     0.05
+    ]
+   },
+   "construction-barrier": {
+    "file": "city/roads/construction-barrier.glb",
+    "size": [
+     0.14,
+     0.13,
+     0.22
+    ],
+    "min": [
+     -0.07,
+     0,
+     -0.11
+    ],
+    "max": [
+     0.07,
+     0.13,
+     0.11
+    ]
+   },
+   "construction-cone": {
+    "file": "city/roads/construction-cone.glb",
+    "size": [
+     0.08,
+     0.09,
+     0.08
+    ],
+    "min": [
+     -0.04,
+     0,
+     -0.04
+    ],
+    "max": [
+     0.04,
+     0.09,
+     0.04
+    ]
+   },
+   "construction-fence": {
+    "file": "city/roads/construction-fence.glb",
+    "size": [
+     0.08,
+     0.18,
+     0.38
+    ],
+    "min": [
+     -0.04,
+     0,
+     -0.19
+    ],
+    "max": [
+     0.04,
+     0.18,
+     0.19
+    ]
+   },
+   "construction-light": {
+    "file": "city/roads/construction-light.glb",
+    "size": [
+     0.08,
+     0.23,
+     0.08
+    ],
+    "min": [
+     -0.04,
+     0,
+     -0.04
+    ],
+    "max": [
+     0.04,
+     0.23,
+     0.04
+    ]
+   },
+   "dumpster": {
+    "file": "city/roads/dumpster.glb",
+    "size": [
+     0.28,
+     0.21,
+     0.37
+    ],
+    "min": [
+     -0.13,
+     0,
+     -0.18
+    ],
+    "max": [
+     0.15,
+     0.21,
+     0.19
+    ]
+   },
+   "electricity-pole-single": {
+    "file": "city/roads/electricity-pole-single.glb",
+    "size": [
+     0.08,
+     0.52,
+     0.21
+    ],
+    "min": [
+     -0.05,
+     0,
+     -0.11
+    ],
+    "max": [
+     0.03,
+     0.52,
+     0.11
+    ]
+   },
+   "electricity-pole-wide": {
+    "file": "city/roads/electricity-pole-wide.glb",
+    "size": [
+     1.08,
+     0.52,
+     0.21
+    ],
+    "min": [
+     -0.55,
+     0,
+     -0.11
+    ],
+    "max": [
+     0.53,
+     0.52,
+     0.11
+    ]
+   },
+   "electricity-pole": {
+    "file": "city/roads/electricity-pole.glb",
+    "size": [
+     0.58,
+     0.52,
+     0.21
+    ],
+    "min": [
+     -0.3,
+     0,
+     -0.11
+    ],
+    "max": [
+     0.28,
+     0.52,
+     0.11
+    ]
+   },
+   "electricity-side-single": {
+    "file": "city/roads/electricity-side-single.glb",
+    "size": [
+     0.06,
+     0.52,
+     0.43
+    ],
+    "min": [
+     -0.03,
+     0,
+     -0.4
+    ],
+    "max": [
+     0.03,
+     0.52,
+     0.03
+    ]
+   },
+   "electricity-side-wide": {
+    "file": "city/roads/electricity-side-wide.glb",
+    "size": [
+     1.06,
+     0.52,
+     0.43
+    ],
+    "min": [
+     -0.53,
+     0,
+     -0.14
+    ],
+    "max": [
+     0.53,
+     0.52,
+     0.29
+    ]
+   },
+   "electricity-side": {
+    "file": "city/roads/electricity-side.glb",
+    "size": [
+     0.56,
+     0.52,
+     0.43
+    ],
+    "min": [
+     -0.28,
+     0,
+     -0.14
+    ],
+    "max": [
+     0.28,
+     0.52,
+     0.29
+    ]
+   },
+   "electricity-wires-wide": {
+    "file": "city/roads/electricity-wires-wide.glb",
+    "size": [
+     1.01,
+     0.1,
+     0.19
+    ],
+    "min": [
+     -0.54,
+     0.4,
+     -0.09
+    ],
+    "max": [
+     0.47,
+     0.5,
+     0.09
+    ]
+   },
+   "electricity-wires": {
+    "file": "city/roads/electricity-wires.glb",
+    "size": [
+     0.51,
+     0.06,
+     0.19
+    ],
+    "min": [
+     -0.28,
+     0.44,
+     -0.09
+    ],
+    "max": [
+     0.22,
+     0.5,
+     0.09
+    ]
+   },
+   "light-curved-cross": {
+    "file": "city/roads/light-curved-cross.glb",
+    "size": [
+     0.4,
+     0.67,
+     0.4
+    ],
+    "min": [
+     -0.2,
+     0,
+     -0.2
+    ],
+    "max": [
+     0.2,
+     0.67,
+     0.2
+    ]
+   },
+   "light-curved-double": {
+    "file": "city/roads/light-curved-double.glb",
+    "size": [
+     0.05,
+     0.67,
+     0.4
+    ],
+    "min": [
+     -0.03,
+     0,
+     -0.2
+    ],
+    "max": [
+     0.03,
+     0.67,
+     0.2
+    ]
+   },
+   "light-curved": {
+    "file": "city/roads/light-curved.glb",
+    "size": [
+     0.05,
+     0.67,
+     0.23
+    ],
+    "min": [
+     -0.03,
+     0,
+     -0.2
+    ],
+    "max": [
+     0.03,
+     0.67,
+     0.03
+    ]
+   },
+   "light-square-cross": {
+    "file": "city/roads/light-square-cross.glb",
+    "size": [
+     0.42,
+     0.6,
+     0.42
+    ],
+    "min": [
+     -0.21,
+     0,
+     -0.21
+    ],
+    "max": [
+     0.21,
+     0.6,
+     0.21
+    ]
+   },
+   "light-square-double": {
+    "file": "city/roads/light-square-double.glb",
+    "size": [
+     0.05,
+     0.6,
+     0.42
+    ],
+    "min": [
+     -0.03,
+     0,
+     -0.21
+    ],
+    "max": [
+     0.03,
+     0.6,
+     0.21
+    ]
+   },
+   "light-square": {
+    "file": "city/roads/light-square.glb",
+    "size": [
+     0.05,
+     0.6,
+     0.24
+    ],
+    "min": [
+     -0.03,
+     0,
+     -0.21
+    ],
+    "max": [
+     0.03,
+     0.6,
+     0.03
+    ]
+   },
+   "road-bend-barrier": {
+    "file": "city/roads/road-bend-barrier.glb",
+    "size": [
+     1,
+     0.08,
+     1
+    ],
+    "min": [
+     -0.5,
+     0,
+     -0.5
+    ],
+    "max": [
+     0.5,
+     0.08,
+     0.5
+    ]
+   },
+   "road-bend-sidewalk": {
+    "file": "city/roads/road-bend-sidewalk.glb",
+    "size": [
+     1,
+     0.02,
+     1
+    ],
+    "min": [
+     -0.5,
+     0,
+     -0.5
+    ],
+    "max": [
+     0.5,
+     0.02,
+     0.5
+    ]
+   },
+   "road-bend-square-barrier": {
+    "file": "city/roads/road-bend-square-barrier.glb",
+    "size": [
+     1,
+     0.08,
+     1
+    ],
+    "min": [
+     -0.5,
+     0,
+     -0.5
+    ],
+    "max": [
+     0.5,
+     0.08,
+     0.5
+    ]
+   },
+   "road-bend-square": {
+    "file": "city/roads/road-bend-square.glb",
+    "size": [
+     1,
+     0.02,
+     1
+    ],
+    "min": [
+     -0.5,
+     0,
+     -0.5
+    ],
+    "max": [
+     0.5,
+     0.02,
+     0.5
+    ]
+   },
+   "road-bend": {
+    "file": "city/roads/road-bend.glb",
+    "size": [
+     1,
+     0.02,
+     1
+    ],
+    "min": [
+     -0.5,
+     0,
+     -0.5
+    ],
+    "max": [
+     0.5,
+     0.02,
+     0.5
+    ]
+   },
+   "road-bridge": {
+    "file": "city/roads/road-bridge.glb",
+    "size": [
+     1,
+     0.52,
+     1
+    ],
+    "min": [
+     -0.5,
+     0,
+     -0.5
+    ],
+    "max": [
+     0.5,
+     0.52,
+     0.5
+    ]
+   },
+   "road-crossing": {
+    "file": "city/roads/road-crossing.glb",
+    "size": [
+     1,
+     0.02,
+     1
+    ],
+    "min": [
+     -0.5,
+     0,
+     -0.5
+    ],
+    "max": [
+     0.5,
+     0.02,
+     0.5
+    ]
+   },
+   "road-crossroad-barrier": {
+    "file": "city/roads/road-crossroad-barrier.glb",
+    "size": [
+     1,
+     0.08,
+     1
+    ],
+    "min": [
+     -0.5,
+     0,
+     -0.5
+    ],
+    "max": [
+     0.5,
+     0.08,
+     0.5
+    ]
+   },
+   "road-crossroad-line": {
+    "file": "city/roads/road-crossroad-line.glb",
+    "size": [
+     1,
+     0.02,
+     1
+    ],
+    "min": [
+     -0.5,
+     0,
+     -0.5
+    ],
+    "max": [
+     0.5,
+     0.02,
+     0.5
+    ]
+   },
+   "road-crossroad-path": {
+    "file": "city/roads/road-crossroad-path.glb",
+    "size": [
+     1,
+     0.02,
+     1
+    ],
+    "min": [
+     -0.5,
+     0,
+     -0.5
+    ],
+    "max": [
+     0.5,
+     0.02,
+     0.5
+    ]
+   },
+   "road-crossroad": {
+    "file": "city/roads/road-crossroad.glb",
+    "size": [
+     1,
+     0.02,
+     1
+    ],
+    "min": [
+     -0.5,
+     0,
+     -0.5
+    ],
+    "max": [
+     0.5,
+     0.02,
+     0.5
+    ]
+   },
+   "road-curve-barrier": {
+    "file": "city/roads/road-curve-barrier.glb",
+    "size": [
+     2,
+     0.08,
+     2
+    ],
+    "min": [
+     -1,
+     0,
+     -1
+    ],
+    "max": [
+     1,
+     0.08,
+     1
+    ]
+   },
+   "road-curve-intersection-barrier": {
+    "file": "city/roads/road-curve-intersection-barrier.glb",
+    "size": [
+     2,
+     0.08,
+     2
+    ],
+    "min": [
+     -1,
+     0,
+     -1
+    ],
+    "max": [
+     1,
+     0.08,
+     1
+    ]
+   },
+   "road-curve-intersection": {
+    "file": "city/roads/road-curve-intersection.glb",
+    "size": [
+     2,
+     0.02,
+     2
+    ],
+    "min": [
+     -1,
+     0,
+     -1
+    ],
+    "max": [
+     1,
+     0.02,
+     1
+    ]
+   },
+   "road-curve-pavement": {
+    "file": "city/roads/road-curve-pavement.glb",
+    "size": [
+     2,
+     0.02,
+     2
+    ],
+    "min": [
+     -1,
+     0,
+     -1
+    ],
+    "max": [
+     1,
+     0.02,
+     1
+    ]
+   },
+   "road-curve": {
+    "file": "city/roads/road-curve.glb",
+    "size": [
+     2,
+     0.02,
+     2
+    ],
+    "min": [
+     -1,
+     0,
+     -1
+    ],
+    "max": [
+     1,
+     0.02,
+     1
+    ]
+   },
+   "road-driveway-double-barrier": {
+    "file": "city/roads/road-driveway-double-barrier.glb",
+    "size": [
+     1,
+     0.08,
+     1
+    ],
+    "min": [
+     -0.5,
+     0,
+     -0.5
+    ],
+    "max": [
+     0.5,
+     0.08,
+     0.5
+    ]
+   },
+   "road-driveway-double": {
+    "file": "city/roads/road-driveway-double.glb",
+    "size": [
+     1,
+     0.02,
+     1
+    ],
+    "min": [
+     -0.5,
+     0,
+     -0.5
+    ],
+    "max": [
+     0.5,
+     0.02,
+     0.5
+    ]
+   },
+   "road-driveway-single-barrier": {
+    "file": "city/roads/road-driveway-single-barrier.glb",
+    "size": [
+     1,
+     0.08,
+     1
+    ],
+    "min": [
+     -0.5,
+     0,
+     -0.5
+    ],
+    "max": [
+     0.5,
+     0.08,
+     0.5
+    ]
+   },
+   "road-driveway-single": {
+    "file": "city/roads/road-driveway-single.glb",
+    "size": [
+     1,
+     0.02,
+     1
+    ],
+    "min": [
+     -0.5,
+     0,
+     -0.5
+    ],
+    "max": [
+     0.5,
+     0.02,
+     0.5
+    ]
+   },
+   "road-end-barrier": {
+    "file": "city/roads/road-end-barrier.glb",
+    "size": [
+     1,
+     0.08,
+     1
+    ],
+    "min": [
+     -0.5,
+     0,
+     -0.5
+    ],
+    "max": [
+     0.5,
+     0.08,
+     0.5
+    ]
+   },
+   "road-end-round-barrier": {
+    "file": "city/roads/road-end-round-barrier.glb",
+    "size": [
+     1,
+     0.08,
+     1
+    ],
+    "min": [
+     -0.5,
+     0,
+     -0.5
+    ],
+    "max": [
+     0.5,
+     0.08,
+     0.5
+    ]
+   },
+   "road-end-round": {
+    "file": "city/roads/road-end-round.glb",
+    "size": [
+     1,
+     0.02,
+     1
+    ],
+    "min": [
+     -0.5,
+     0,
+     -0.5
+    ],
+    "max": [
+     0.5,
+     0.02,
+     0.5
+    ]
+   },
+   "road-end": {
+    "file": "city/roads/road-end.glb",
+    "size": [
+     1,
+     0.02,
+     1
+    ],
+    "min": [
+     -0.5,
+     0,
+     -0.5
+    ],
+    "max": [
+     0.5,
+     0.02,
+     0.5
+    ]
+   },
+   "road-intersection-barrier": {
+    "file": "city/roads/road-intersection-barrier.glb",
+    "size": [
+     1,
+     0.08,
+     1
+    ],
+    "min": [
+     -0.5,
+     0,
+     -0.5
+    ],
+    "max": [
+     0.5,
+     0.08,
+     0.5
+    ]
+   },
+   "road-intersection-line": {
+    "file": "city/roads/road-intersection-line.glb",
+    "size": [
+     1,
+     0.02,
+     1
+    ],
+    "min": [
+     -0.5,
+     0,
+     -0.5
+    ],
+    "max": [
+     0.5,
+     0.02,
+     0.5
+    ]
+   },
+   "road-intersection-path": {
+    "file": "city/roads/road-intersection-path.glb",
+    "size": [
+     1,
+     0.02,
+     1
+    ],
+    "min": [
+     -0.5,
+     0,
+     -0.5
+    ],
+    "max": [
+     0.5,
+     0.02,
+     0.5
+    ]
+   },
+   "road-intersection": {
+    "file": "city/roads/road-intersection.glb",
+    "size": [
+     1,
+     0.02,
+     1
+    ],
+    "min": [
+     -0.5,
+     0,
+     -0.5
+    ],
+    "max": [
+     0.5,
+     0.02,
+     0.5
+    ]
+   },
+   "road-roundabout-barrier": {
+    "file": "city/roads/road-roundabout-barrier.glb",
+    "size": [
+     3,
+     0.08,
+     3
+    ],
+    "min": [
+     -1.5,
+     0,
+     -1.5
+    ],
+    "max": [
+     1.5,
+     0.08,
+     1.5
+    ]
+   },
+   "road-roundabout": {
+    "file": "city/roads/road-roundabout.glb",
+    "size": [
+     3,
+     0.02,
+     3
+    ],
+    "min": [
+     -1.5,
+     0,
+     -1.5
+    ],
+    "max": [
+     1.5,
+     0.02,
+     1.5
+    ]
+   },
+   "road-side-barrier": {
+    "file": "city/roads/road-side-barrier.glb",
+    "size": [
+     1.31,
+     0.08,
+     1
+    ],
+    "min": [
+     -0.81,
+     0,
+     -0.5
+    ],
+    "max": [
+     0.5,
+     0.08,
+     0.5
+    ]
+   },
+   "road-side-entry-barrier": {
+    "file": "city/roads/road-side-entry-barrier.glb",
+    "size": [
+     1.31,
+     0.08,
+     1
+    ],
+    "min": [
+     -0.81,
+     0,
+     -0.5
+    ],
+    "max": [
+     0.5,
+     0.08,
+     0.5
+    ]
+   },
+   "road-side-entry": {
+    "file": "city/roads/road-side-entry.glb",
+    "size": [
+     1,
+     0.02,
+     1.31
+    ],
+    "min": [
+     -0.5,
+     0,
+     -0.81
+    ],
+    "max": [
+     0.5,
+     0.02,
+     0.5
+    ]
+   },
+   "road-side-exit-barrier": {
+    "file": "city/roads/road-side-exit-barrier.glb",
+    "size": [
+     1.31,
+     0.08,
+     1
+    ],
+    "min": [
+     -0.81,
+     0,
+     -0.5
+    ],
+    "max": [
+     0.5,
+     0.08,
+     0.5
+    ]
+   },
+   "road-side-exit": {
+    "file": "city/roads/road-side-exit.glb",
+    "size": [
+     1,
+     0.02,
+     1.31
+    ],
+    "min": [
+     -0.5,
+     0,
+     -0.81
+    ],
+    "max": [
+     0.5,
+     0.02,
+     0.5
+    ]
+   },
+   "road-side": {
+    "file": "city/roads/road-side.glb",
+    "size": [
+     1,
+     0.02,
+     1.31
+    ],
+    "min": [
+     -0.5,
+     0,
+     -0.81
+    ],
+    "max": [
+     0.5,
+     0.02,
+     0.5
+    ]
+   },
+   "road-sign-empty-hanging": {
+    "file": "city/roads/road-sign-empty-hanging.glb",
+    "size": [
+     0.09,
+     0.47,
+     0.29
+    ],
+    "min": [
+     -0.04,
+     0,
+     -0.25
+    ],
+    "max": [
+     0.04,
+     0.47,
+     0.04
+    ]
+   },
+   "road-sign-empty": {
+    "file": "city/roads/road-sign-empty.glb",
+    "size": [
+     0.05,
+     0.48,
+     0.05
+    ],
+    "min": [
+     -0.03,
+     0,
+     -0.03
+    ],
+    "max": [
+     0.03,
+     0.48,
+     0.03
+    ]
+   },
+   "road-sign-object-stop": {
+    "file": "city/roads/road-sign-object-stop.glb",
+    "size": [
+     0.08,
+     0.13,
+     0.13
+    ],
+    "min": [
+     -0.04,
+     -0.06,
+     -0.06
+    ],
+    "max": [
+     0.04,
+     0.06,
+     0.06
+    ]
+   },
+   "road-sign-object-street": {
+    "file": "city/roads/road-sign-object-street.glb",
+    "size": [
+     0.04,
+     0.06,
+     0.19
+    ],
+    "min": [
+     -0.02,
+     -0.03,
+     -0.02
+    ],
+    "max": [
+     0.02,
+     0.03,
+     0.17
+    ]
+   },
+   "road-sign-object-warning": {
+    "file": "city/roads/road-sign-object-warning.glb",
+    "size": [
+     0.08,
+     0.13,
+     0.13
+    ],
+    "min": [
+     -0.04,
+     -0.07,
+     -0.07
+    ],
+    "max": [
+     0.04,
+     0.07,
+     0.07
+    ]
+   },
+   "road-sign-stop": {
+    "file": "city/roads/road-sign-stop.glb",
+    "size": [
+     0.08,
+     0.49,
+     0.14
+    ],
+    "min": [
+     -0.05,
+     0,
+     -0.07
+    ],
+    "max": [
+     0.03,
+     0.49,
+     0.07
+    ]
+   },
+   "road-sign-street": {
+    "file": "city/roads/road-sign-street.glb",
+    "size": [
+     0.2,
+     0.48,
+     0.2
+    ],
+    "min": [
+     -0.17,
+     0,
+     -0.03
+    ],
+    "max": [
+     0.03,
+     0.48,
+     0.17
+    ]
+   },
+   "road-sign-warning": {
+    "file": "city/roads/road-sign-warning.glb",
+    "size": [
+     0.08,
+     0.5,
+     0.15
+    ],
+    "min": [
+     -0.05,
+     0,
+     -0.07
+    ],
+    "max": [
+     0.03,
+     0.5,
+     0.07
+    ]
+   },
+   "road-slant-barrier": {
+    "file": "city/roads/road-slant-barrier.glb",
+    "size": [
+     1,
+     0.33,
+     1
+    ],
+    "min": [
+     -0.5,
+     0,
+     -0.5
+    ],
+    "max": [
+     0.5,
+     0.33,
+     0.5
+    ]
+   },
+   "road-slant-curve-barrier": {
+    "file": "city/roads/road-slant-curve-barrier.glb",
+    "size": [
+     2,
+     0.58,
+     1
+    ],
+    "min": [
+     -1,
+     0,
+     -0.5
+    ],
+    "max": [
+     1,
+     0.58,
+     0.5
+    ]
+   },
+   "road-slant-curve": {
+    "file": "city/roads/road-slant-curve.glb",
+    "size": [
+     2,
+     0.52,
+     1
+    ],
+    "min": [
+     -1,
+     0,
+     -0.5
+    ],
+    "max": [
+     1,
+     0.52,
+     0.5
+    ]
+   },
+   "road-slant-flat-curve": {
+    "file": "city/roads/road-slant-flat-curve.glb",
+    "size": [
+     2,
+     0.52,
+     1
+    ],
+    "min": [
+     -1,
+     0,
+     -0.5
+    ],
+    "max": [
+     1,
+     0.52,
+     0.5
+    ]
+   },
+   "road-slant-flat-high": {
+    "file": "city/roads/road-slant-flat-high.glb",
+    "size": [
+     1,
+     0.52,
+     1
+    ],
+    "min": [
+     -0.5,
+     0,
+     -0.5
+    ],
+    "max": [
+     0.5,
+     0.52,
+     0.5
+    ]
+   },
+   "road-slant-flat": {
+    "file": "city/roads/road-slant-flat.glb",
+    "size": [
+     1,
+     0.27,
+     1
+    ],
+    "min": [
+     -0.5,
+     0,
+     -0.5
+    ],
+    "max": [
+     0.5,
+     0.27,
+     0.5
+    ]
+   },
+   "road-slant-high-barrier": {
+    "file": "city/roads/road-slant-high-barrier.glb",
+    "size": [
+     1,
+     0.58,
+     1
+    ],
+    "min": [
+     -0.5,
+     0,
+     -0.5
+    ],
+    "max": [
+     0.5,
+     0.58,
+     0.5
+    ]
+   },
+   "road-slant-high": {
+    "file": "city/roads/road-slant-high.glb",
+    "size": [
+     1,
+     0.52,
+     1
+    ],
+    "min": [
+     -0.5,
+     0,
+     -0.5
+    ],
+    "max": [
+     0.5,
+     0.52,
+     0.5
+    ]
+   },
+   "road-slant": {
+    "file": "city/roads/road-slant.glb",
+    "size": [
+     1,
+     0.27,
+     1
+    ],
+    "min": [
+     -0.5,
+     0,
+     -0.5
+    ],
+    "max": [
+     0.5,
+     0.27,
+     0.5
+    ]
+   },
+   "road-split-barrier": {
+    "file": "city/roads/road-split-barrier.glb",
+    "size": [
+     1,
+     0.08,
+     2
+    ],
+    "min": [
+     -0.5,
+     0,
+     -1
+    ],
+    "max": [
+     0.5,
+     0.08,
+     1
+    ]
+   },
+   "road-split": {
+    "file": "city/roads/road-split.glb",
+    "size": [
+     1,
+     0.02,
+     2
+    ],
+    "min": [
+     -0.5,
+     0,
+     -1
+    ],
+    "max": [
+     0.5,
+     0.02,
+     1
+    ]
+   },
+   "road-square-barrier": {
+    "file": "city/roads/road-square-barrier.glb",
+    "size": [
+     1,
+     0.08,
+     1
+    ],
+    "min": [
+     -0.5,
+     0,
+     -0.5
+    ],
+    "max": [
+     0.5,
+     0.08,
+     0.5
+    ]
+   },
+   "road-square": {
+    "file": "city/roads/road-square.glb",
+    "size": [
+     1,
+     0.02,
+     1
+    ],
+    "min": [
+     -0.5,
+     0,
+     -0.5
+    ],
+    "max": [
+     0.5,
+     0.02,
+     0.5
+    ]
+   },
+   "road-straight-barrier-end": {
+    "file": "city/roads/road-straight-barrier-end.glb",
+    "size": [
+     1,
+     0.08,
+     1
+    ],
+    "min": [
+     -0.5,
+     0,
+     -0.5
+    ],
+    "max": [
+     0.5,
+     0.08,
+     0.5
+    ]
+   },
+   "road-straight-barrier-half": {
+    "file": "city/roads/road-straight-barrier-half.glb",
+    "size": [
+     1,
+     0.08,
+     0.5
+    ],
+    "min": [
+     -0.5,
+     0,
+     -0.25
+    ],
+    "max": [
+     0.5,
+     0.08,
+     0.25
+    ]
+   },
+   "road-straight-barrier": {
+    "file": "city/roads/road-straight-barrier.glb",
+    "size": [
+     1,
+     0.08,
+     1
+    ],
+    "min": [
+     -0.5,
+     0,
+     -0.5
+    ],
+    "max": [
+     0.5,
+     0.08,
+     0.5
+    ]
+   },
+   "road-straight-half": {
+    "file": "city/roads/road-straight-half.glb",
+    "size": [
+     0.5,
+     0.02,
+     1
+    ],
+    "min": [
+     -0.25,
+     0,
+     -0.5
+    ],
+    "max": [
+     0.25,
+     0.02,
+     0.5
+    ]
+   },
+   "road-straight": {
+    "file": "city/roads/road-straight.glb",
+    "size": [
+     1,
+     0.02,
+     1
+    ],
+    "min": [
+     -0.5,
+     0,
+     -0.5
+    ],
+    "max": [
+     0.5,
+     0.02,
+     0.5
+    ]
+   },
+   "sign-highway-detailed": {
+    "file": "city/roads/sign-highway-detailed.glb",
+    "size": [
+     0.13,
+     0.82,
+     1
+    ],
+    "min": [
+     -0.11,
+     0,
+     -0.5
+    ],
+    "max": [
+     0.03,
+     0.82,
+     0.5
+    ]
+   },
+   "sign-highway-wide": {
+    "file": "city/roads/sign-highway-wide.glb",
+    "size": [
+     0.13,
+     0.71,
+     1
+    ],
+    "min": [
+     -0.11,
+     0,
+     -0.5
+    ],
+    "max": [
+     0.03,
+     0.71,
+     0.5
+    ]
+   },
+   "sign-highway": {
+    "file": "city/roads/sign-highway.glb",
+    "size": [
+     0.13,
+     0.71,
+     1
+    ],
+    "min": [
+     -0.11,
+     0,
+     -0.5
+    ],
+    "max": [
+     0.03,
+     0.71,
+     0.5
+    ]
+   },
+   "tile-high": {
+    "file": "city/roads/tile-high.glb",
+    "size": [
+     1,
+     0.25,
+     1
+    ],
+    "min": [
+     -0.5,
+     0,
+     -0.5
+    ],
+    "max": [
+     0.5,
+     0.25,
+     0.5
+    ]
+   },
+   "tile-low": {
+    "file": "city/roads/tile-low.glb",
+    "size": [
+     1,
+     0.02,
+     1
+    ],
+    "min": [
+     -0.5,
+     0,
+     -0.5
+    ],
+    "max": [
+     0.5,
+     0.02,
+     0.5
+    ]
+   },
+   "tile-slant": {
+    "file": "city/roads/tile-slant.glb",
+    "size": [
+     1,
+     0.27,
+     1
+    ],
+    "min": [
+     -0.5,
+     0,
+     -0.5
+    ],
+    "max": [
+     0.5,
+     0.27,
+     0.5
+    ]
+   },
+   "tile-slantHigh": {
+    "file": "city/roads/tile-slantHigh.glb",
+    "size": [
+     1,
+     0.52,
+     1
+    ],
+    "min": [
+     -0.5,
+     0,
+     -0.5
+    ],
+    "max": [
+     0.5,
+     0.52,
+     0.5
+    ]
+   },
+   "traffic-light-hanging": {
+    "file": "city/roads/traffic-light-hanging.glb",
+    "size": [
+     0.12,
+     0.51,
+     0.3
+    ],
+    "min": [
+     -0.07,
+     0,
+     -0.25
+    ],
+    "max": [
+     0.04,
+     0.51,
+     0.04
+    ]
+   },
+   "traffic-light-object-hanging": {
+    "file": "city/roads/traffic-light-object-hanging.glb",
+    "size": [
+     0.1,
+     0.14,
+     0.06
+    ],
+    "min": [
+     -0.06,
+     -0.07,
+     -0.03
+    ],
+    "max": [
+     0.04,
+     0.07,
+     0.03
+    ]
+   },
+   "traffic-light-object-horizontal": {
+    "file": "city/roads/traffic-light-object-horizontal.glb",
+    "size": [
+     0.1,
+     0.06,
+     0.14
+    ],
+    "min": [
+     -0.06,
+     -0.03,
+     -0.07
+    ],
+    "max": [
+     0.04,
+     0.03,
+     0.07
+    ]
+   },
+   "traffic-light-object-vertical": {
+    "file": "city/roads/traffic-light-object-vertical.glb",
+    "size": [
+     0.1,
+     0.14,
+     0.06
+    ],
+    "min": [
+     -0.06,
+     -0.07,
+     -0.03
+    ],
+    "max": [
+     0.04,
+     0.07,
+     0.03
+    ]
+   },
+   "traffic-light": {
+    "file": "city/roads/traffic-light.glb",
+    "size": [
+     0.12,
+     0.51,
+     0.09
+    ],
+    "min": [
+     -0.07,
+     0,
+     -0.04
+    ],
+    "max": [
+     0.04,
+     0.51,
+     0.04
+    ]
+   }
+  },
+  "commercial": {
+   "building-a": {
+    "file": "city/commercial/building-a.glb",
+    "size": [
+     0.88,
+     1.29,
+     0.94
+    ],
+    "min": [
+     -0.44,
+     0,
+     -0.47
+    ],
+    "max": [
+     0.44,
+     1.29,
+     0.47
+    ]
+   },
+   "building-b": {
+    "file": "city/commercial/building-b.glb",
+    "size": [
+     0.97,
+     1.29,
+     0.94
+    ],
+    "min": [
+     -0.49,
+     0,
+     -0.47
+    ],
+    "max": [
+     0.49,
+     1.29,
+     0.47
+    ]
+   },
+   "building-c": {
+    "file": "city/commercial/building-c.glb",
+    "size": [
+     0.88,
+     0.89,
+     1.09
+    ],
+    "min": [
+     -0.44,
+     0,
+     -0.55
+    ],
+    "max": [
+     0.44,
+     0.89,
+     0.55
+    ]
+   },
+   "building-d": {
+    "file": "city/commercial/building-d.glb",
+    "size": [
+     0.84,
+     1.29,
+     0.9
+    ],
+    "min": [
+     -0.42,
+     0,
+     -0.45
+    ],
+    "max": [
+     0.42,
+     1.29,
+     0.45
+    ]
+   },
+   "building-e": {
+    "file": "city/commercial/building-e.glb",
+    "size": [
+     1.64,
+     0.89,
+     1.01
+    ],
+    "min": [
+     -0.82,
+     0,
+     -0.5
+    ],
+    "max": [
+     0.82,
+     0.89,
+     0.5
+    ]
+   },
+   "building-f": {
+    "file": "city/commercial/building-f.glb",
+    "size": [
+     0.84,
+     1.69,
+     1.03
+    ],
+    "min": [
+     -0.42,
+     0,
+     -0.51
+    ],
+    "max": [
+     0.42,
+     1.69,
+     0.52
+    ]
+   },
+   "building-g": {
+    "file": "city/commercial/building-g.glb",
+    "size": [
+     0.97,
+     1.69,
+     0.92
+    ],
+    "min": [
+     -0.49,
+     0,
+     -0.46
+    ],
+    "max": [
+     0.49,
+     1.69,
+     0.46
+    ]
+   },
+   "building-h": {
+    "file": "city/commercial/building-h.glb",
+    "size": [
+     0.88,
+     1.29,
+     1.01
+    ],
+    "min": [
+     -0.44,
+     0,
+     -0.5
+    ],
+    "max": [
+     0.44,
+     1.29,
+     0.5
+    ]
+   },
+   "building-i": {
+    "file": "city/commercial/building-i.glb",
+    "size": [
+     1.24,
+     1.68,
+     1.3
+    ],
+    "min": [
+     -0.62,
+     0,
+     -0.65
+    ],
+    "max": [
+     0.62,
+     1.68,
+     0.65
+    ]
+   },
+   "building-j": {
+    "file": "city/commercial/building-j.glb",
+    "size": [
+     2.08,
+     1.69,
+     1.34
+    ],
+    "min": [
+     -1.04,
+     0,
+     -0.67
+    ],
+    "max": [
+     1.04,
+     1.69,
+     0.67
+    ]
+   },
+   "building-k": {
+    "file": "city/commercial/building-k.glb",
+    "size": [
+     2.08,
+     1.47,
+     0.94
+    ],
+    "min": [
+     -1.04,
+     0,
+     -0.47
+    ],
+    "max": [
+     1.04,
+     1.47,
+     0.47
+    ]
+   },
+   "building-l": {
+    "file": "city/commercial/building-l.glb",
+    "size": [
+     1.37,
+     2.27,
+     1.4
+    ],
+    "min": [
+     -0.69,
+     0,
+     -0.7
+    ],
+    "max": [
+     0.69,
+     2.27,
+     0.7
+    ]
+   },
+   "building-m": {
+    "file": "city/commercial/building-m.glb",
+    "size": [
+     1.24,
+     3.15,
+     1.24
+    ],
+    "min": [
+     -0.62,
+     0,
+     -0.62
+    ],
+    "max": [
+     0.62,
+     3.15,
+     0.62
+    ]
+   },
+   "building-n": {
+    "file": "city/commercial/building-n.glb",
+    "size": [
+     2.32,
+     2.48,
+     1.82
+    ],
+    "min": [
+     -1.16,
+     0,
+     -0.91
+    ],
+    "max": [
+     1.16,
+     2.48,
+     0.91
+    ]
+   },
+   "building-skyscraper-a": {
+    "file": "city/commercial/building-skyscraper-a.glb",
+    "size": [
+     1.36,
+     2.88,
+     1.36
+    ],
+    "min": [
+     -0.68,
+     0,
+     -0.68
+    ],
+    "max": [
+     0.68,
+     2.88,
+     0.68
+    ]
+   },
+   "building-skyscraper-b": {
+    "file": "city/commercial/building-skyscraper-b.glb",
+    "size": [
+     1.36,
+     4.48,
+     1.36
+    ],
+    "min": [
+     -0.68,
+     0,
+     -0.68
+    ],
+    "max": [
+     0.68,
+     4.48,
+     0.68
+    ]
+   },
+   "building-skyscraper-c": {
+    "file": "city/commercial/building-skyscraper-c.glb",
+    "size": [
+     1.28,
+     4.08,
+     1.39
+    ],
+    "min": [
+     -0.64,
+     0,
+     -0.69
+    ],
+    "max": [
+     0.64,
+     4.08,
+     0.69
+    ]
+   },
+   "building-skyscraper-d": {
+    "file": "city/commercial/building-skyscraper-d.glb",
+    "size": [
+     1.28,
+     5.47,
+     1.39
+    ],
+    "min": [
+     -0.64,
+     0,
+     -0.69
+    ],
+    "max": [
+     0.64,
+     5.47,
+     0.69
+    ]
+   },
+   "building-skyscraper-e": {
+    "file": "city/commercial/building-skyscraper-e.glb",
+    "size": [
+     1.29,
+     4.08,
+     1.24
+    ],
+    "min": [
+     -0.65,
+     0,
+     -0.62
+    ],
+    "max": [
+     0.65,
+     4.08,
+     0.62
+    ]
+   },
+   "detail-awning-wide": {
+    "file": "city/commercial/detail-awning-wide.glb",
+    "size": [
+     0.8,
+     0.4,
+     0.15
+    ],
+    "min": [
+     -0.4,
+     0,
+     0.1
+    ],
+    "max": [
+     0.4,
+     0.4,
+     0.25
+    ]
+   },
+   "detail-awning": {
+    "file": "city/commercial/detail-awning.glb",
+    "size": [
+     0.4,
+     0.4,
+     0.15
+    ],
+    "min": [
+     -0.2,
+     0,
+     0.1
+    ],
+    "max": [
+     0.2,
+     0.4,
+     0.25
+    ]
+   },
+   "detail-overhang-wide": {
+    "file": "city/commercial/detail-overhang-wide.glb",
+    "size": [
+     1,
+     0.4,
+     0.2
+    ],
+    "min": [
+     -0.5,
+     0,
+     0.05
+    ],
+    "max": [
+     0.5,
+     0.4,
+     0.25
+    ]
+   },
+   "detail-overhang": {
+    "file": "city/commercial/detail-overhang.glb",
+    "size": [
+     0.5,
+     0.4,
+     0.2
+    ],
+    "min": [
+     -0.25,
+     0,
+     0.05
+    ],
+    "max": [
+     0.25,
+     0.4,
+     0.25
+    ]
+   },
+   "detail-parasol-a": {
+    "file": "city/commercial/detail-parasol-a.glb",
+    "size": [
+     0.35,
+     0.45,
+     0.4
+    ],
+    "min": [
+     -0.17,
+     0,
+     -0.2
+    ],
+    "max": [
+     0.17,
+     0.45,
+     0.2
+    ]
+   },
+   "detail-parasol-b": {
+    "file": "city/commercial/detail-parasol-b.glb",
+    "size": [
+     0.35,
+     0.45,
+     0.4
+    ],
+    "min": [
+     -0.17,
+     0,
+     -0.2
+    ],
+    "max": [
+     0.17,
+     0.45,
+     0.2
+    ]
+   },
+   "low-detail-building-a": {
+    "file": "city/commercial/low-detail-building-a.glb",
+    "size": [
+     0.5,
+     2,
+     0.5
+    ],
+    "min": [
+     -0.25,
+     0,
+     -0.25
+    ],
+    "max": [
+     0.25,
+     2,
+     0.25
+    ]
+   },
+   "low-detail-building-b": {
+    "file": "city/commercial/low-detail-building-b.glb",
+    "size": [
+     0.5,
+     2.23,
+     0.5
+    ],
+    "min": [
+     -0.25,
+     0,
+     -0.25
+    ],
+    "max": [
+     0.25,
+     2.23,
+     0.25
+    ]
+   },
+   "low-detail-building-c": {
+    "file": "city/commercial/low-detail-building-c.glb",
+    "size": [
+     0.5,
+     2.25,
+     0.5
+    ],
+    "min": [
+     -0.25,
+     0,
+     -0.25
+    ],
+    "max": [
+     0.25,
+     2.25,
+     0.25
+    ]
+   },
+   "low-detail-building-d": {
+    "file": "city/commercial/low-detail-building-d.glb",
+    "size": [
+     0.5,
+     1.75,
+     0.5
+    ],
+    "min": [
+     -0.25,
+     0,
+     -0.25
+    ],
+    "max": [
+     0.25,
+     1.75,
+     0.25
+    ]
+   },
+   "low-detail-building-e": {
+    "file": "city/commercial/low-detail-building-e.glb",
+    "size": [
+     0.5,
+     1.8,
+     0.5
+    ],
+    "min": [
+     -0.25,
+     0,
+     -0.25
+    ],
+    "max": [
+     0.25,
+     1.8,
+     0.25
+    ]
+   },
+   "low-detail-building-f": {
+    "file": "city/commercial/low-detail-building-f.glb",
+    "size": [
+     0.5,
+     2,
+     0.5
+    ],
+    "min": [
+     -0.25,
+     0,
+     -0.25
+    ],
+    "max": [
+     0.25,
+     2,
+     0.25
+    ]
+   },
+   "low-detail-building-g": {
+    "file": "city/commercial/low-detail-building-g.glb",
+    "size": [
+     0.5,
+     2,
+     0.5
+    ],
+    "min": [
+     -0.25,
+     0,
+     -0.25
+    ],
+    "max": [
+     0.25,
+     2,
+     0.25
+    ]
+   },
+   "low-detail-building-h": {
+    "file": "city/commercial/low-detail-building-h.glb",
+    "size": [
+     0.5,
+     2.1,
+     0.5
+    ],
+    "min": [
+     -0.25,
+     0,
+     -0.25
+    ],
+    "max": [
+     0.25,
+     2.1,
+     0.25
+    ]
+   },
+   "low-detail-building-i": {
+    "file": "city/commercial/low-detail-building-i.glb",
+    "size": [
+     0.5,
+     1.77,
+     0.5
+    ],
+    "min": [
+     -0.25,
+     0,
+     -0.25
+    ],
+    "max": [
+     0.25,
+     1.77,
+     0.25
+    ]
+   },
+   "low-detail-building-j": {
+    "file": "city/commercial/low-detail-building-j.glb",
+    "size": [
+     0.5,
+     1.75,
+     0.5
+    ],
+    "min": [
+     -0.25,
+     0,
+     -0.25
+    ],
+    "max": [
+     0.25,
+     1.75,
+     0.25
+    ]
+   },
+   "low-detail-building-k": {
+    "file": "city/commercial/low-detail-building-k.glb",
+    "size": [
+     0.5,
+     1.55,
+     0.5
+    ],
+    "min": [
+     -0.25,
+     0,
+     -0.25
+    ],
+    "max": [
+     0.25,
+     1.55,
+     0.25
+    ]
+   },
+   "low-detail-building-l": {
+    "file": "city/commercial/low-detail-building-l.glb",
+    "size": [
+     0.5,
+     1.85,
+     0.5
+    ],
+    "min": [
+     -0.25,
+     0,
+     -0.25
+    ],
+    "max": [
+     0.25,
+     1.85,
+     0.25
+    ]
+   },
+   "low-detail-building-m": {
+    "file": "city/commercial/low-detail-building-m.glb",
+    "size": [
+     0.5,
+     1.98,
+     0.5
+    ],
+    "min": [
+     -0.25,
+     0,
+     -0.25
+    ],
+    "max": [
+     0.25,
+     1.98,
+     0.25
+    ]
+   },
+   "low-detail-building-n": {
+    "file": "city/commercial/low-detail-building-n.glb",
+    "size": [
+     0.5,
+     0.7,
+     0.5
+    ],
+    "min": [
+     -0.25,
+     0,
+     -0.25
+    ],
+    "max": [
+     0.25,
+     0.7,
+     0.25
+    ]
+   },
+   "low-detail-building-wide-a": {
+    "file": "city/commercial/low-detail-building-wide-a.glb",
+    "size": [
+     1,
+     1.1,
+     0.5
+    ],
+    "min": [
+     -0.5,
+     0,
+     -0.25
+    ],
+    "max": [
+     0.5,
+     1.1,
+     0.25
+    ]
+   },
+   "low-detail-building-wide-b": {
+    "file": "city/commercial/low-detail-building-wide-b.glb",
+    "size": [
+     1,
+     1.15,
+     0.5
+    ],
+    "min": [
+     -0.5,
+     0,
+     -0.25
+    ],
+    "max": [
+     0.5,
+     1.15,
+     0.25
+    ]
+   }
+  },
+  "suburban": {
+   "building-type-a": {
+    "file": "city/suburban/building-type-a.glb",
+    "size": [
+     1.3,
+     0.83,
+     1.03
+    ],
+    "min": [
+     -0.65,
+     0,
+     -0.51
+    ],
+    "max": [
+     0.65,
+     0.83,
+     0.51
+    ]
+   },
+   "building-type-b": {
+    "file": "city/suburban/building-type-b.glb",
+    "size": [
+     1.83,
+     1.14,
+     1.14
+    ],
+    "min": [
+     -0.91,
+     0,
+     -0.57
+    ],
+    "max": [
+     0.91,
+     1.14,
+     0.57
+    ]
+   },
+   "building-type-c": {
+    "file": "city/suburban/building-type-c.glb",
+    "size": [
+     1.29,
+     1.03,
+     1.03
+    ],
+    "min": [
+     -0.64,
+     0,
+     -0.51
+    ],
+    "max": [
+     0.64,
+     1.03,
+     0.51
+    ]
+   },
+   "building-type-d": {
+    "file": "city/suburban/building-type-d.glb",
+    "size": [
+     1.76,
+     1.24,
+     1.03
+    ],
+    "min": [
+     -0.88,
+     0,
+     -0.51
+    ],
+    "max": [
+     0.88,
+     1.24,
+     0.51
+    ]
+   },
+   "building-type-e": {
+    "file": "city/suburban/building-type-e.glb",
+    "size": [
+     1.3,
+     1.14,
+     1.03
+    ],
+    "min": [
+     -0.65,
+     0,
+     -0.51
+    ],
+    "max": [
+     0.65,
+     1.14,
+     0.51
+    ]
+   },
+   "building-type-f": {
+    "file": "city/suburban/building-type-f.glb",
+    "size": [
+     1.43,
+     1.14,
+     1.41
+    ],
+    "min": [
+     -0.71,
+     0,
+     -0.7
+    ],
+    "max": [
+     0.71,
+     1.14,
+     0.7
+    ]
+   },
+   "building-type-g": {
+    "file": "city/suburban/building-type-g.glb",
+    "size": [
+     1.45,
+     0.77,
+     1.18
+    ],
+    "min": [
+     -0.73,
+     0,
+     -0.59
+    ],
+    "max": [
+     0.73,
+     0.77,
+     0.59
+    ]
+   },
+   "building-type-h": {
+    "file": "city/suburban/building-type-h.glb",
+    "size": [
+     1.3,
+     0.74,
+     0.92
+    ],
+    "min": [
+     -0.65,
+     0,
+     -0.46
+    ],
+    "max": [
+     0.65,
+     0.74,
+     0.46
+    ]
+   },
+   "building-type-i": {
+    "file": "city/suburban/building-type-i.glb",
+    "size": [
+     1.29,
+     0.74,
+     1.03
+    ],
+    "min": [
+     -0.64,
+     0,
+     -0.51
+    ],
+    "max": [
+     0.64,
+     0.74,
+     0.51
+    ]
+   },
+   "building-type-j": {
+    "file": "city/suburban/building-type-j.glb",
+    "size": [
+     1.37,
+     1.04,
+     0.92
+    ],
+    "min": [
+     -0.69,
+     0,
+     -0.46
+    ],
+    "max": [
+     0.69,
+     1.04,
+     0.46
+    ]
+   },
+   "building-type-k": {
+    "file": "city/suburban/building-type-k.glb",
+    "size": [
+     0.92,
+     1.15,
+     1.02
+    ],
+    "min": [
+     -0.46,
+     0,
+     -0.51
+    ],
+    "max": [
+     0.46,
+     1.15,
+     0.51
+    ]
+   },
+   "building-type-l": {
+    "file": "city/suburban/building-type-l.glb",
+    "size": [
+     1.03,
+     1.05,
+     1.02
+    ],
+    "min": [
+     -0.52,
+     0,
+     -0.51
+    ],
+    "max": [
+     0.52,
+     1.05,
+     0.51
+    ]
+   },
+   "building-type-m": {
+    "file": "city/suburban/building-type-m.glb",
+    "size": [
+     1.43,
+     0.74,
+     1.43
+    ],
+    "min": [
+     -0.71,
+     0,
+     -0.71
+    ],
+    "max": [
+     0.71,
+     0.74,
+     0.71
+    ]
+   },
+   "building-type-n": {
+    "file": "city/suburban/building-type-n.glb",
+    "size": [
+     1.78,
+     1.14,
+     1.38
+    ],
+    "min": [
+     -0.89,
+     0,
+     -0.69
+    ],
+    "max": [
+     0.89,
+     1.14,
+     0.69
+    ]
+   },
+   "building-type-o": {
+    "file": "city/suburban/building-type-o.glb",
+    "size": [
+     1.27,
+     1.14,
+     1.03
+    ],
+    "min": [
+     -0.64,
+     0,
+     -0.51
+    ],
+    "max": [
+     0.63,
+     1.14,
+     0.51
+    ]
+   },
+   "building-type-p": {
+    "file": "city/suburban/building-type-p.glb",
+    "size": [
+     1.24,
+     0.92,
+     0.99
+    ],
+    "min": [
+     -0.62,
+     0,
+     -0.5
+    ],
+    "max": [
+     0.62,
+     0.92,
+     0.5
+    ]
+   },
+   "building-type-q": {
+    "file": "city/suburban/building-type-q.glb",
+    "size": [
+     1.24,
+     0.92,
+     0.89
+    ],
+    "min": [
+     -0.62,
+     0,
+     -0.42
+    ],
+    "max": [
+     0.62,
+     0.92,
+     0.46
+    ]
+   },
+   "building-type-r": {
+    "file": "city/suburban/building-type-r.glb",
+    "size": [
+     1.03,
+     1.14,
+     1.02
+    ],
+    "min": [
+     -0.51,
+     0,
+     -0.51
+    ],
+    "max": [
+     0.51,
+     1.14,
+     0.51
+    ]
+   },
+   "building-type-s": {
+    "file": "city/suburban/building-type-s.glb",
+    "size": [
+     1.41,
+     1.14,
+     1.09
+    ],
+    "min": [
+     -0.7,
+     0,
+     -0.54
+    ],
+    "max": [
+     0.7,
+     1.14,
+     0.54
+    ]
+   },
+   "building-type-t": {
+    "file": "city/suburban/building-type-t.glb",
+    "size": [
+     1.31,
+     1.16,
+     1.41
+    ],
+    "min": [
+     -0.66,
+     0,
+     -0.7
+    ],
+    "max": [
+     0.65,
+     1.16,
+     0.7
+    ]
+   },
+   "building-type-u": {
+    "file": "city/suburban/building-type-u.glb",
+    "size": [
+     1.43,
+     1.14,
+     1.09
+    ],
+    "min": [
+     -0.71,
+     0,
+     -0.54
+    ],
+    "max": [
+     0.71,
+     1.14,
+     0.54
+    ]
+   },
+   "driveway-long": {
+    "file": "city/suburban/driveway-long.glb",
+    "size": [
+     0.36,
+     0.01,
+     0.4
+    ],
+    "min": [
+     -0.18,
+     0,
+     -0.2
+    ],
+    "max": [
+     0.18,
+     0.01,
+     0.2
+    ]
+   },
+   "driveway-short": {
+    "file": "city/suburban/driveway-short.glb",
+    "size": [
+     0.36,
+     0.01,
+     0.2
+    ],
+    "min": [
+     -0.18,
+     0,
+     -0.1
+    ],
+    "max": [
+     0.18,
+     0.01,
+     0.1
+    ]
+   },
+   "fence-1x2": {
+    "file": "city/suburban/fence-1x2.glb",
+    "size": [
+     0.88,
+     0.27,
+     0.44
+    ],
+    "min": [
+     -0.44,
+     0,
+     -0.2
+    ],
+    "max": [
+     0.44,
+     0.27,
+     0.24
+    ]
+   },
+   "fence-1x3": {
+    "file": "city/suburban/fence-1x3.glb",
+    "size": [
+     1.28,
+     0.27,
+     0.44
+    ],
+    "min": [
+     -0.64,
+     0,
+     -0.2
+    ],
+    "max": [
+     0.64,
+     0.27,
+     0.24
+    ]
+   },
+   "fence-1x4": {
+    "file": "city/suburban/fence-1x4.glb",
+    "size": [
+     1.68,
+     0.27,
+     0.44
+    ],
+    "min": [
+     -0.84,
+     0,
+     -0.2
+    ],
+    "max": [
+     0.84,
+     0.27,
+     0.24
+    ]
+   },
+   "fence-2x2": {
+    "file": "city/suburban/fence-2x2.glb",
+    "size": [
+     0.88,
+     0.27,
+     0.84
+    ],
+    "min": [
+     -0.44,
+     0,
+     -0.4
+    ],
+    "max": [
+     0.44,
+     0.27,
+     0.44
+    ]
+   },
+   "fence-2x3": {
+    "file": "city/suburban/fence-2x3.glb",
+    "size": [
+     1.28,
+     0.27,
+     0.84
+    ],
+    "min": [
+     -0.64,
+     0,
+     -0.4
+    ],
+    "max": [
+     0.64,
+     0.27,
+     0.44
+    ]
+   },
+   "fence-3x2": {
+    "file": "city/suburban/fence-3x2.glb",
+    "size": [
+     0.88,
+     0.27,
+     1.24
+    ],
+    "min": [
+     -0.44,
+     0,
+     -0.6
+    ],
+    "max": [
+     0.44,
+     0.27,
+     0.64
+    ]
+   },
+   "fence-3x3": {
+    "file": "city/suburban/fence-3x3.glb",
+    "size": [
+     1.28,
+     0.27,
+     1.24
+    ],
+    "min": [
+     -0.64,
+     0,
+     -0.6
+    ],
+    "max": [
+     0.64,
+     0.27,
+     0.64
+    ]
+   },
+   "fence-low": {
+    "file": "city/suburban/fence-low.glb",
+    "size": [
+     1.28,
+     0.17,
+     0.84
+    ],
+    "min": [
+     -0.64,
+     0,
+     -0.44
+    ],
+    "max": [
+     0.64,
+     0.17,
+     0.4
+    ]
+   },
+   "fence": {
+    "file": "city/suburban/fence.glb",
+    "size": [
+     0.48,
+     0.27,
+     0.08
+    ],
+    "min": [
+     -0.24,
+     0,
+     -0.04
+    ],
+    "max": [
+     0.24,
+     0.27,
+     0.04
+    ]
+   },
+   "path-long": {
+    "file": "city/suburban/path-long.glb",
+    "size": [
+     0.2,
+     0.01,
+     0.4
+    ],
+    "min": [
+     -0.1,
+     0,
+     -0.2
+    ],
+    "max": [
+     0.1,
+     0.01,
+     0.2
+    ]
+   },
+   "path-short": {
+    "file": "city/suburban/path-short.glb",
+    "size": [
+     0.2,
+     0.01,
+     0.2
+    ],
+    "min": [
+     -0.1,
+     0,
+     -0.1
+    ],
+    "max": [
+     0.1,
+     0.01,
+     0.1
+    ]
+   },
+   "path-stones-long": {
+    "file": "city/suburban/path-stones-long.glb",
+    "size": [
+     0.14,
+     0.01,
+     0.4
+    ],
+    "min": [
+     -0.07,
+     0,
+     -0.2
+    ],
+    "max": [
+     0.07,
+     0.01,
+     0.2
+    ]
+   },
+   "path-stones-messy": {
+    "file": "city/suburban/path-stones-messy.glb",
+    "size": [
+     0.16,
+     0.01,
+     0.36
+    ],
+    "min": [
+     -0.08,
+     0,
+     -0.18
+    ],
+    "max": [
+     0.08,
+     0.01,
+     0.18
+    ]
+   },
+   "path-stones-short": {
+    "file": "city/suburban/path-stones-short.glb",
+    "size": [
+     0.14,
+     0.01,
+     0.2
+    ],
+    "min": [
+     -0.07,
+     0,
+     -0.1
+    ],
+    "max": [
+     0.07,
+     0.01,
+     0.1
+    ]
+   },
+   "planter": {
+    "file": "city/suburban/planter.glb",
+    "size": [
+     0.4,
+     0.18,
+     0.3
+    ],
+    "min": [
+     -0.2,
+     0,
+     -0.15
+    ],
+    "max": [
+     0.2,
+     0.18,
+     0.15
+    ]
+   },
+   "tree-large": {
+    "file": "city/suburban/tree-large.glb",
+    "size": [
+     0.21,
+     0.77,
+     0.24
+    ],
+    "min": [
+     -0.11,
+     0,
+     -0.12
+    ],
+    "max": [
+     0.11,
+     0.77,
+     0.12
+    ]
+   },
+   "tree-small": {
+    "file": "city/suburban/tree-small.glb",
+    "size": [
+     0.21,
+     0.57,
+     0.24
+    ],
+    "min": [
+     -0.11,
+     0,
+     -0.12
+    ],
+    "max": [
+     0.11,
+     0.57,
+     0.12
+    ]
+   }
+  }
+ },
+ "characters": {
+  "model": "animations/ual.glb",
+  "scale": 1,
+  "height": 1.83,
+  "forward": "+Z (vérifié)",
+  "skeleton": "Quaternius Universal Rig (DEF-hips, DEF-spine.001..003, DEF-upper_arm.L, DEF-thigh.L, …)",
+  "meshNode": "Mannequin",
+  "materials": [
+   "M_Main",
+   "M_Joints"
+  ],
+  "notes": "Un seul maillage (Mannequin, 2 matériaux). Les persos et piétons se distinguent par applyOutfit() de core/outfit.js (couleurs par zone du corps via les poids de squelette) ; les modules peuvent ajouter des accessoires procéduraux sur les os (ex. DEF-head). Pas de pack de personnages CC0 compatible téléchargeable sans passer par itch.io (122 Mo).",
+  "playable": {
+   "ines": {
+    "name": "Inès « Turbo » Moreau",
+    "outfit": {
+     "skin": "#e0ac8a",
+     "hair": "#2b1b14",
+     "top": "#d4513f",
+     "bottom": "#23283b",
+     "shoes": "#f2f2f2"
+    }
+   },
+   "malik": {
+    "name": "Malik « Clé à molette » Benali",
+    "outfit": {
+     "skin": "#8d5a3c",
+     "hair": "#111111",
+     "top": "#2f6fb3",
+     "bottom": "#5b4a33",
+     "shoes": "#2b2b2b"
+    }
+   },
+   "jade": {
+    "name": "Jade Okafor",
+    "outfit": {
+     "skin": "#5a3a28",
+     "hair": "#6b2fa0",
+     "top": "#2a2a2a",
+     "bottom": "#3b8f6a",
+     "shoes": "#d4d43f"
+    }
+   }
+  },
+  "pedestrians": [
+   {
+    "skin": "#f1c9a5",
+    "hair": "#7a4b2a",
+    "top": "#e8b949",
+    "bottom": "#3a4f7a",
+    "shoes": "#333333"
+   },
+   {
+    "skin": "#c68a63",
+    "hair": "#1a1a1a",
+    "top": "#7bbf6a",
+    "bottom": "#2b2b2b",
+    "shoes": "#ffffff"
+   },
+   {
+    "skin": "#8d5a3c",
+    "hair": "#2a1a10",
+    "top": "#c94c8f",
+    "bottom": "#4b5563",
+    "shoes": "#222222"
+   },
+   {
+    "skin": "#f1c9a5",
+    "hair": "#d8c27a",
+    "top": "#4aa3df",
+    "bottom": "#8a6b4a",
+    "shoes": "#6b3f2a"
+   },
+   {
+    "skin": "#e0ac8a",
+    "hair": "#555555",
+    "top": "#9b9b9b",
+    "bottom": "#1f2a44",
+    "shoes": "#111111"
+   },
+   {
+    "skin": "#5a3a28",
+    "hair": "#0d0d0d",
+    "top": "#f2f2f2",
+    "bottom": "#b3402f",
+    "shoes": "#2b2b2b"
+   },
+   {
+    "skin": "#c68a63",
+    "hair": "#9a3b1d",
+    "top": "#6b3fa0",
+    "bottom": "#3a3a3a",
+    "shoes": "#e8e8e8"
+   },
+   {
+    "skin": "#f1c9a5",
+    "hair": "#3a2a1a",
+    "top": "#e86f2c",
+    "bottom": "#2f5d3a",
+    "shoes": "#222222"
+   }
+  ]
+ },
+ "animations": {
+  "file": "animations/ual.glb",
+  "note": "Les 46 clips sont dans animations/ual.glb (gltf.animations) et s’appliquent au maillage du même fichier ou à tout clone partageant les noms d’os.",
+  "clips": [
+   "A_TPose",
+   "Crouch_Fwd_Loop",
+   "Crouch_Idle_Loop",
+   "Dance_Loop",
+   "Death01",
+   "Driving_Loop",
+   "Fixing_Kneeling",
+   "Hit_Chest",
+   "Hit_Head",
+   "Idle_Loop",
+   "Idle_Talking_Loop",
+   "Idle_Torch_Loop",
+   "Interact",
+   "Jog_Fwd_Loop",
+   "Jump_Land",
+   "Jump_Loop",
+   "Jump_Start",
+   "PickUp_Table",
+   "Pistol_Aim_Down",
+   "Pistol_Aim_Neutral",
+   "Pistol_Aim_Up",
+   "Pistol_Idle_Loop",
+   "Pistol_Reload",
+   "Pistol_Shoot",
+   "Punch_Cross",
+   "Punch_Enter",
+   "Punch_Jab",
+   "Push_Loop",
+   "Roll",
+   "Roll_RM",
+   "Sitting_Enter",
+   "Sitting_Exit",
+   "Sitting_Idle_Loop",
+   "Sitting_Talking_Loop",
+   "Spell_Simple_Enter",
+   "Spell_Simple_Exit",
+   "Spell_Simple_Idle_Loop",
+   "Spell_Simple_Shoot",
+   "Sprint_Loop",
+   "Swim_Fwd_Loop",
+   "Swim_Idle_Loop",
+   "Sword_Attack",
+   "Sword_Attack_RM",
+   "Sword_Idle",
+   "Walk_Formal_Loop",
+   "Walk_Loop"
+  ],
+  "suggested": {
+   "idle": "Idle_Loop",
+   "walk": "Walk_Loop",
+   "run": "Jog_Fwd_Loop",
+   "sprint": "Sprint_Loop",
+   "jumpStart": "Jump_Start",
+   "jumpLoop": "Jump_Loop",
+   "land": "Jump_Land",
+   "punch": [
+    "Punch_Jab",
+    "Punch_Cross"
+   ],
+   "dodge": "Roll",
+   "drive": "Sitting_Idle_Loop",
+   "driveWheel": "Driving_Loop",
+   "sitEnter": "Sitting_Enter",
+   "sitExit": "Sitting_Exit",
+   "ko": "Death01",
+   "hit": [
+    "Hit_Chest",
+    "Hit_Head"
+   ],
+   "crouch": "Crouch_Idle_Loop",
+   "swim": "Swim_Fwd_Loop",
+   "swimIdle": "Swim_Idle_Loop",
+   "interact": "Interact",
+   "talk": "Idle_Talking_Loop",
+   "pistolAim": "Pistol_Aim_Neutral",
+   "swing": "Sword_Attack",
+   "dance": "Dance_Loop"
+  },
+  "missing": [
+   "chute (utiliser Jump_Loop)",
+   "coup de pied (utiliser Punch_Cross ou Sword_Attack)",
+   "esquive latérale (Roll)"
+  ]
+ },
+ "textures": {
+  "asphalt": "textures/asphalt.jpg",
+  "concrete": "textures/concrete.jpg",
+  "grass": "textures/grass.jpg",
+  "sand": "textures/sand.jpg",
+  "size": "1024x1024, diffuse seule",
+  "note": "Pas de texture d'eau (à générer par shader)."
+ },
+ "sounds": {
+  "rpg": "sounds/rpg/*.ogg (pas, portes, métal, tissu, chop)",
+  "ui": "sounds/ui/*.ogg (clics, confirmations, erreurs…)",
+  "note": "Pas de pack « Impact Sounds » obtenu : utiliser sounds/rpg/chop, metalPot1-3, metalClick ; les chocs de voiture sont synthétisés par AUDIO."
+ }
+}
