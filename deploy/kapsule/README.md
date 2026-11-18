@@ -61,9 +61,12 @@ Puis dans `values-kube-city.yaml` : `tls: true` et `annotations: { cert-manager.
 kubectl create namespace kube-city
 kubectl -n kube-city create secret generic redis-auth --from-literal=REDIS_PASSWORD="$(openssl rand -hex 16)"
 helm upgrade --install redis oci://registry-1.docker.io/bitnamicharts/redis \
-  -n kube-city -f deploy/kapsule/values-redis.yaml
+  -n kube-city -f deploy/kapsule/values-redis.yaml --version 28.3.12
 kubectl -n kube-city rollout status sts/redis-node       # 3 pods, chacun 2/2 (Redis + Sentinel)
 ```
+
+> Version du chart épinglée (28.3.12, testée sur kind). Les images Bitnami gratuites ne sont publiées qu'en `latest` :
+> faites un `docker pull bitnami/redis:latest` la veille pour vérifier qu'elles se tirent toujours.
 
 Ce que fait `values-redis.yaml` : 3 pods Redis (1 maître + 2 réplicas) avec un Sentinel dans chacun ;
 `downAfterMilliseconds: 2000` (maître muet 2 s = en panne), `failoverTimeout: 10000`, `quorum: 2` ;
