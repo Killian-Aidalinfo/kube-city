@@ -1,0 +1,42 @@
+{{- if .Values.redis.enabled }}
+# Redis simple, pour démarrer. ATTENTION : un seul pod = point de défaillance unique.
+# Pour viser 100 % : redis.enabled=false et une base Redis managée en HA.
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: {{ include "pn.name" . }}-redis
+  labels: {{- include "pn.labels" . | nindent 4 }}
+spec:
+  serviceName: {{ include "pn.name" . }}-redis
+  replicas: 1
+  selector:
+    matchLabels: { app.kubernetes.io/instance: {{ .Release.Name }}, app.kubernetes.io/component: redis }
+  template:
+    metadata:
+      labels: { app.kubernetes.io/instance: {{ .Release.Name }}, app.kubernetes.io/component: redis }
+    spec:
+      containers:
+        - name: redis
+          image: {{ .Values.redis.image }}
+          args: ["--appendonly", "{{ if .Values.redis.persistence.enabled }}yes{{ else }}no{{ end }}"]
+          ports: [{ containerPort: 6379, name: redis }]
+          readinessProbe: { exec: { command: [redis-cli, ping] }, periodSeconds: 5 }
+          resources: { requests: { cpu: 50m, memory: 64Mi }, limits: { memory: 256Mi } }
+          {{- if .Values.redis.persistence.enabled }}
+          volumeMounts: [{ name: data, mountPath: /data }]
+          {{- end }}
+  {{- if .Values.redis.persistence.enabled }}
+  volumeClaimTemplates:
+    - metadata: { name: data }
+      spec: { accessModes: [ReadWriteOnce], resources: { requests: { storage: {{ .Values.redis.persistence.size }} } } }
+  {{- end }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "pn.name" . }}-redis
+  labels: {{- include "pn.labels" . | nindent 4 }}
+spec:
+  selector: { app.kubernetes.io/instance: {{ .Release.Name }}, app.kubernetes.io/component: redis }
+  ports: [{ port: 6379, targetPort: redis }]
+{{- end }}

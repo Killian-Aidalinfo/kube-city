@@ -1,0 +1,69 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Port Néon</title>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='6' fill='%230b0420'/><path d='M7 22 L16 8 L25 22' stroke='%23ff3cac' stroke-width='3' fill='none'/></svg>">
+  <style>
+    :root { --pink: #ff3cac; --cyan: #2de2e6; --violet: #7b2ff7; --ink: #0b0420; --soft: #c9c3e6; }
+    * { box-sizing: border-box; }
+    html, body { margin: 0; height: 100%; background: var(--ink); color: #fff; font: 15px/1.4 system-ui, -apple-system, "Segoe UI", sans-serif; overflow: hidden; }
+    canvas { display: block; }
+    .hud { position: fixed; pointer-events: none; text-shadow: 0 1px 3px #000; }
+    .panel { background: rgba(11, 4, 32, .72); border: 1px solid rgba(255, 60, 172, .35); border-radius: 10px; padding: 8px 12px; backdrop-filter: blur(4px); }
+    #server { top: 12px; right: 12px; text-align: right; font: 13px/1.5 ui-monospace, Menlo, monospace; }
+    #server b { color: var(--cyan); }
+    #status { top: 12px; left: 50%; transform: translateX(-50%); display: none; font-weight: 600; }
+    #status.off { display: block; border-color: #ff5b5b; color: #ffb3b3; }
+    #me { top: 12px; left: 12px; }
+    #me .name { font-weight: 700; font-size: 18px; }
+    #stars { color: #ffd23f; letter-spacing: 2px; font-size: 18px; }
+    #race { top: 64px; left: 50%; transform: translateX(-50%); display: none; text-align: center; }
+    #board { top: 96px; left: 12px; min-width: 190px; font-size: 13px; }
+    #board ol { margin: 4px 0 0; padding-left: 18px; }
+    #chat { bottom: 12px; left: 12px; width: min(440px, 60vw); font-size: 13px; }
+    #chat .line { opacity: .92; }
+    #chat .from { color: var(--pink); font-weight: 600; }
+    #chat .radio { color: var(--cyan); }
+    #chatin { position: fixed; bottom: 12px; left: 12px; width: min(440px, 60vw); display: none; pointer-events: auto; padding: 8px 10px; border-radius: 8px; border: 1px solid var(--pink); background: #160a35; color: #fff; font: inherit; }
+    #help { bottom: 12px; right: 232px; font-size: 12px; color: var(--soft); text-align: right; }
+    #toast { top: 22%; left: 50%; transform: translateX(-50%); font-size: 26px; font-weight: 800; display: none; text-align: center; }
+    #intro { position: fixed; inset: 0; display: grid; place-items: center; background: radial-gradient(circle at 50% 30%, #2a0b5e, var(--ink) 70%); z-index: 10; }
+    #intro form { width: min(420px, 90vw); text-align: center; }
+    #intro h1 { font-size: 56px; margin: 0 0 4px; letter-spacing: 2px; background: linear-gradient(90deg, var(--pink), var(--cyan)); -webkit-background-clip: text; background-clip: text; color: transparent; }
+    #intro p { color: var(--soft); margin: 0 0 24px; }
+    #intro input[type=text] { width: 100%; padding: 12px 14px; border-radius: 10px; border: 1px solid var(--violet); background: #160a35; color: #fff; font-size: 18px; }
+    #intro .colors { display: flex; gap: 10px; justify-content: center; margin: 16px 0 22px; }
+    #intro .colors button { width: 34px; height: 34px; border-radius: 50%; border: 3px solid transparent; cursor: pointer; }
+    #intro .colors button.sel { border-color: #fff; }
+    #intro .go { padding: 12px 28px; border-radius: 10px; border: 0; background: linear-gradient(90deg, var(--pink), var(--violet)); color: #fff; font-size: 18px; font-weight: 700; cursor: pointer; }
+    #menu { top: 50%; left: 50%; transform: translate(-50%, -50%); display: none; pointer-events: auto; min-width: 300px; }
+    #menu h3 { margin: 0 0 8px; color: var(--pink); }
+    #menu div { padding: 3px 0; }
+  </style>
+</head>
+<body>
+  <canvas id="c"></canvas>
+  <div id="me" class="hud panel"><div class="name" id="myname"></div><div>Score : <b id="score">0</b></div><div id="stars"></div></div>
+  <div id="server" class="hud panel"></div>
+  <div id="status" class="hud panel">Connexion perdue : reconnexion…</div>
+  <div id="race" class="hud panel"></div>
+  <div id="board" class="hud panel"><b>Classement</b><ol id="boardlist"></ol></div>
+  <div id="chat" class="hud panel"></div>
+  <div id="help" class="hud">Flèches/ZQSD rouler · Espace frein à main · T parler · N lancer une course · R rejoindre · M mission</div>
+  <div id="toast" class="hud panel"></div>
+  <div id="menu" class="hud panel"></div>
+  <input id="chatin" maxlength="160" placeholder="Message… (Entrée pour envoyer, Échap pour annuler)">
+  <div id="intro">
+    <form id="introform">
+      <h1>PORT NÉON</h1>
+      <p>Une ville, des courses, la police à vos trousses.<br>Le serveur peut tomber : pas vous.</p>
+      <input type="text" id="pseudo" maxlength="20" placeholder="Votre pseudo" required autofocus>
+      <div class="colors" id="colors"></div>
+      <button class="go" type="submit">Entrer en ville</button>
+    </form>
+  </div>
+  <script type="module" src="/game.js"></script>
+</body>
+</html>

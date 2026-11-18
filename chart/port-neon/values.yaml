@@ -1,0 +1,74 @@
+# Valeurs par défaut : pensées pour un Kapsule multi-zone. Chaque réglage HA est commenté.
+
+image:
+  repository: ghcr.io/killian-aidalinfo/port-neon
+  tag: ""            # vide = appVersion du chart
+  pullPolicy: IfNotPresent
+
+# Au moins 3 pods : on peut en perdre un (panne) pendant qu'un autre est remplacé (mise à jour)
+replicaCount: 3
+
+# Mise à jour sans jamais descendre sous le nombre de pods voulu
+strategy:
+  maxUnavailable: 0
+  maxSurge: 1
+
+# Délai entre « je ne suis plus prêt » et la fermeture des WebSocket :
+# le temps que le Service et l'Ingress retirent le pod
+drainDelayMs: 5000
+terminationGracePeriodSeconds: 30
+
+# Une panne (ou un kubectl drain) ne peut pas emporter plus d'un pod à la fois
+podDisruptionBudget:
+  enabled: true
+  minAvailable: 2
+
+# Répartir les pods sur des nœuds ET des zones différents
+topologySpread:
+  enabled: true
+  zone: DoNotSchedule        # passer à ScheduleAnyway sur un cluster mono-zone
+  node: ScheduleAnyway
+
+autoscaling:
+  enabled: true
+  minReplicas: 3
+  maxReplicas: 10
+  cpu: 70
+
+resources:
+  requests: { cpu: 100m, memory: 128Mi }
+  limits: { memory: 256Mi }
+
+# Redis : tout l'état du jeu. C'est le point faible à traiter !
+redis:
+  # true = un Redis simple dans le cluster (pratique, mais c'est un SPOF : s'il tombe, le jeu tombe)
+  # false = Redis externe en HA (ex. base Redis managée Scaleway) via redis.url ou redis.existingSecret
+  enabled: true
+  url: ""
+  existingSecret: ""         # Secret contenant la clé REDIS_URL
+  image: redis:7-alpine
+  persistence:
+    enabled: false
+    size: 1Gi
+
+# Jeton optionnel pour le serveur MCP (/mcp). Vide = ouvert.
+mcp:
+  token: ""
+
+service:
+  port: 80
+
+ingress:
+  enabled: true
+  className: traefik         # nginx, traefik…
+  host: jeu.example.com
+  annotations:
+    cert-manager.io/cluster-issuer: letsencrypt
+  tls: true
+
+serviceMonitor:
+  enabled: false             # true si kube-prometheus-stack est installé
+
+podAnnotations: {}
+nodeSelector: {}
+tolerations: []

@@ -1,0 +1,90 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "pn.name" . }}
+  labels: {{- include "pn.labels" . | nindent 4 }}
+spec:
+  {{- if not .Values.autoscaling.enabled }}
+  replicas: {{ .Values.replicaCount }}
+  {{- end }}
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: {{ .Values.strategy.maxUnavailable }}
+      maxSurge: {{ .Values.strategy.maxSurge }}
+  selector:
+    matchLabels: {{- include "pn.selector" . | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "pn.selector" . | nindent 8 }}
+        app.kubernetes.io/version: {{ .Values.image.tag | default .Chart.AppVersion | quote }}
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "8080"
+        {{- with .Values.podAnnotations }}{{ toYaml . | nindent 8 }}{{ end }}
+    spec:
+      terminationGracePeriodSeconds: {{ .Values.terminationGracePeriodSeconds }}
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        seccompProfile: { type: RuntimeDefault }
+      {{- if .Values.topologySpread.enabled }}
+      topologySpreadConstraints:
+        - maxSkew: 1
+          topologyKey: topology.kubernetes.io/zone
+          whenUnsatisfiable: {{ .Values.topologySpread.zone }}
+          labelSelector:
+            matchLabels: {{- include "pn.selector" . | nindent 14 }}
+        - maxSkew: 1
+          topologyKey: kubernetes.io/hostname
+          whenUnsatisfiable: {{ .Values.topologySpread.node }}
+          labelSelector:
+            matchLabels: {{- include "pn.selector" . | nindent 14 }}
+      {{- end }}
+      containers:
+        - name: game
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          ports:
+            - { name: http, containerPort: 8080 }
+          env:
+            - name: POD_NAME
+              valueFrom: { fieldRef: { fieldPath: metadata.name } }
+            - name: DRAIN_DELAY_MS
+              value: {{ .Values.drainDelayMs | quote }}
+            {{- if .Values.redis.existingSecret }}
+            - name: REDIS_URL
+              valueFrom: { secretKeyRef: { name: {{ .Values.redis.existingSecret }}, key: REDIS_URL } }
+            {{- else }}
+            - name: REDIS_URL
+              value: {{ include "pn.redisUrl" . | quote }}
+            {{- end }}
+            {{- if .Values.mcp.token }}
+            - name: MCP_TOKEN
+              valueFrom: { secretKeyRef: { name: {{ include "pn.name" . }}-mcp, key: token } }
+            {{- end }}
+          # prêt = Redis joignable et pas en train de s'arrêter
+          readinessProbe:
+            httpGet: { path: /readyz, port: http }
+            periodSeconds: 2
+            failureThreshold: 2
+          livenessProbe:
+            httpGet: { path: /healthz, port: http }
+            periodSeconds: 10
+            failureThreshold: 3
+          startupProbe:
+            httpGet: { path: /healthz, port: http }
+            periodSeconds: 2
+            failureThreshold: 30
+          resources: {{- toYaml .Values.resources | nindent 12 }}
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities: { drop: [ALL] }
+      {{- with .Values.nodeSelector }}
+      nodeSelector: {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.tolerations }}
+      tolerations: {{- toYaml . | nindent 8 }}
+      {{- end }}

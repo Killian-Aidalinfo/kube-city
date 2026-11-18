@@ -1,0 +1,24 @@
+# Trois « pods » derrière un répartiteur, et Redis : de quoi tester la HA sur son poste.
+#   docker compose up --build        puis http://localhost:8080
+#   docker compose stop game-2       le joueur servi par game-2 doit continuer à jouer
+x-game: &game
+  build: .
+  environment:
+    REDIS_URL: redis://redis:6379
+    APP_VERSION: local
+    DRAIN_DELAY_MS: "1000"
+  depends_on: [redis]
+  stop_grace_period: 20s
+  restart: unless-stopped
+
+services:
+  redis:
+    image: redis:7-alpine
+  game-1: { <<: *game, hostname: game-1, environment: { REDIS_URL: "redis://redis:6379", APP_VERSION: local, DRAIN_DELAY_MS: "1000", POD_NAME: game-1 } }
+  game-2: { <<: *game, hostname: game-2, environment: { REDIS_URL: "redis://redis:6379", APP_VERSION: local, DRAIN_DELAY_MS: "1000", POD_NAME: game-2 } }
+  game-3: { <<: *game, hostname: game-3, environment: { REDIS_URL: "redis://redis:6379", APP_VERSION: local, DRAIN_DELAY_MS: "1000", POD_NAME: game-3 } }
+  lb:
+    image: nginx:1.27-alpine
+    volumes: ["./deploy/local/nginx.conf:/etc/nginx/conf.d/default.conf:ro"]
+    ports: ["8080:80"]
+    depends_on: [game-1, game-2, game-3]
