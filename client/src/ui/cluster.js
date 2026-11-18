@@ -32,7 +32,7 @@ export function createCluster(game, ui) {
       ${row('Leader des agents IA', esc(leader), leader ? 'warn' : '', true)}
       ${row('Redis (synchro)', redis[0], redis[1])}
       ${row('Reconnexions', esc(s.reconnects ?? 0), s.reconnects ? 'warn' : '')}
-      ${row('Version · activité du pod', `${esc(s.version ?? info?.version)} · ${fmtUp(info?.uptimeSec)}`)}
+      ${row('Version · activité', `${esc(s.version ?? info?.version)} · ${String(fmtUp(info?.uptimeSec)).replace(/ /g, '\u00a0')}`)}
       <div class="foot">Essayez : supprimez le pod qui vous sert, puis regardez ce panneau.</div>`;
   }
   game.bus.on('net:status', render);

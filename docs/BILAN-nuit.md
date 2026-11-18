@@ -1,6 +1,6 @@
 # Bilan de la nuit du 18 au 19 novembre 2026
 
-Commits `412bc9c` → `7527d38` sur `main`. Tests : 93/93, build OK, smoke OK (60 i/s, jour ~180 draw calls, nuit ~110).
+Commits `412bc9c` → `7527d38` sur `main`. Tests : 93/93, build OK, smoke OK (60 i/s, jour ~210 draw calls, nuit ~160 depuis la moto, le bus et les pigeons).
 
 ## Jeu
 - **Missions** : script `scripts/playtest/missions.mjs` (les 9 missions + casse + activités + boutique, ~4 min) ; course contre le Cluster à gagner pour de vrai ; textes et récompenses cohérents ; dialogues réécrits autour du « Cluster ».
