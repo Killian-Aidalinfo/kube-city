@@ -4,7 +4,7 @@ import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/
 import { z } from "zod";
 import * as store from "./store.js";
 import * as game from "./game.js";
-import { districtAt } from "../public/shared/world.js";
+import { districtAt } from "./city.js";
 
 const VERSION = process.env.APP_VERSION || "dev";
 const text = (obj) => ({ content: [{ type: "text", text: typeof obj === "string" ? obj : JSON.stringify(obj, null, 2) }] });
@@ -13,7 +13,7 @@ const fail = (msg) => ({ content: [{ type: "text", text: msg }], isError: true }
 function buildServer(players) {
   const s = new McpServer({ name: "kube-city", version: VERSION }, {
     instructions:
-      "Tu pilotes un agent dans Kube City, une ville de jeu multijoueur. Crée d'abord ton agent avec spawn_agent, " +
+      "Tu pilotes un agent (un véhicule) dans Kube City, une ville 3D de 1200 m x 1200 m ; coordonnées x/z en mètres. Crée d'abord ton agent avec spawn_agent, " +
       "garde son agentId, puis regarde autour (look), déplace-toi (drive_to), parle aux joueurs (say) et propose des courses de rue (propose_race). " +
       "Reste fair-play et bienveillant dans le chat : de vrais étudiants jouent.",
   });
@@ -29,7 +29,7 @@ function buildServer(players) {
 
   s.registerTool("list_places", {
     title: "Lieux de la ville",
-    description: "Liste les lieux nommés où l'on peut se rendre ou finir une course.",
+    description: "Liste les lieux nommés (clé, nom, coordonnées x/z en mètres) où l'on peut se rendre ou finir une course.",
     inputSchema: {},
   }, async () => text(game.placeList()));
 
@@ -42,7 +42,7 @@ function buildServer(players) {
     if (!bot) return fail("Agent inconnu : recrée-le avec spawn_agent.");
     const near = [...players().values()]
       .filter((p) => p.id !== bot.id)
-      .map((p) => ({ name: p.name, bot: !!p.bot, distance: Math.round(Math.hypot(p.x - bot.x, p.y - bot.y)), quartier: districtAt(p.x, p.y).name }))
+      .map((p) => ({ name: p.name, bot: !!p.bot, distance: Math.round(Math.hypot(p.p[0] - bot.x, p.p[2] - bot.z)), quartier: districtAt(p.p[0], p.p[2]).name }))
       .sort((a, b) => a.distance - b.distance)
       .slice(0, 8);
     const races = (await store.listRaces()).map((r) => ({ raceId: r.id, vers: r.toLabel, par: r.creatorName, statut: game.raceStatus(r), departDansSec: Math.max(0, Math.round((r.startAt - Date.now()) / 1000)) }));
@@ -58,7 +58,7 @@ function buildServer(players) {
   s.registerTool("drive_to", {
     title: "Rouler vers un lieu",
     description: "L'agent roule par les rues jusqu'à un lieu nommé (voir list_places).",
-    inputSchema: { agentId: z.string(), place: z.string().describe("Clé du lieu, ex. plage, port, mairie") },
+    inputSchema: { agentId: z.string(), place: z.string().describe("Clé du lieu, ex. jetee, port, mairie, stade") },
   }, async ({ agentId, place }) => {
     try { return text(game.describe(await game.botDriveTo(agentId, place))); } catch (e) { return fail(e.message); }
   });
@@ -76,7 +76,7 @@ function buildServer(players) {
 
   s.registerTool("propose_race", {
     title: "Proposer une course de rue",
-    description: "Lance une course depuis la position de l'agent vers un lieu. Départ dans 20 s ; les joueurs rejoignent avec la touche R. L'agent y participe.",
+    description: "Lance une course depuis la position de l'agent vers un lieu. Départ dans 20 s ; les joueurs la rejoignent depuis leur téléphone. L'agent y participe.",
     inputSchema: { agentId: z.string(), to: z.string().describe("Clé du lieu d'arrivée") },
   }, async ({ agentId, to }) => {
     const bot = await store.loadBot(agentId);

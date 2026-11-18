@@ -1,6 +1,10 @@
 node_modules
+client/node_modules
+client/dist
 .git
 chart
 deploy
 scripts
-*.md
+docs
+test
+/*.md

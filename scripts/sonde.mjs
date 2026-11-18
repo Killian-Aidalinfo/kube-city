@@ -10,7 +10,7 @@ const started = Date.now();
 
 function openWs() {
   const ws = new WebSocket(wsUrl);
-  ws.onopen = () => { wsOpen = true; ws.send(JSON.stringify({ t: "hello", id: "sonde-ha", name: "Sonde", color: "#ffffff", re: reconnects ? 1 : 0 })); };
+  ws.onopen = () => { wsOpen = true; ws.send(JSON.stringify({ t: "hello", v: 2, id: "sonde-ha", name: "Sonde", ch: "ines", re: reconnects ? 1 : 0 })); };
   ws.onclose = () => { if (wsOpen) reconnects++; wsOpen = false; setTimeout(openWs, 200); };
   ws.onerror = () => {};
 }

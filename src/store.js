@@ -202,3 +202,16 @@ export async function deleteBot(id) {
   await redis.srem("pn:bots", id);
   await publish({ k: "gone", id });
 }
+
+// --- Profils de joueur (persos, argent, progression) : clé par id joueur, TTL long (90 jours, rafraîchi à chaque écriture) ---
+const PROFILE_TTL = 90 * 24 * 3600;
+
+export async function saveProfile(id, profile) {
+  await redis.set(`pn:profile:${id}`, JSON.stringify(profile), "EX", PROFILE_TTL);
+}
+
+export async function loadProfile(id) {
+  const raw = await redis.get(`pn:profile:${id}`);
+  if (!raw) return null;
+  try { return JSON.parse(raw); } catch { return null; }
+}
