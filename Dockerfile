@@ -21,6 +21,8 @@ WORKDIR /app
 COPY --from=deps /app/node_modules ./node_modules
 COPY package.json ./
 COPY src ./src
+# génération de la ville partagée avec les agents IA (module pur)
+COPY client/src/world/citygen.js ./client/src/world/citygen.js
 COPY --from=build /app/client/dist ./client/dist
 USER node
 EXPOSE 8080

@@ -49,3 +49,15 @@
 - Touche R radio gérée par AUDIO : vérifier que VÉHICULES ne la gère pas aussi.
 - Garage : vehicle.paint/setColor/applyUpgrades si présents (sinon teinte matériaux body/paint) ; doit aussi notifier la police (vehicle:repainted / police.notifyRepaint).
 - Erreur vue par joueur+véhicules : « st is not defined » dans play() de l'UI (peut-être corrigée depuis).
+
+## STATUT APRÈS INTÉGRATION (revue Opus, 2026-11-18)
+- Temps : `game.time.setScale(source, k)`, facteur = plus fort ralenti (roue 0,2 > Focus 0,5), appliqué par core/loop.js ; abonnés `{ real: true }` = entrées, caméra, UI, audio, réseau, rendu. Les `sdt` locaux (PNJ, police, combat) sont neutralisés. Durée de Focus en temps réel.
+- Combat ↔ joueur : `playAnim(clip, {once, lock})`, `player.knockOut` public (seul émetteur de player:ko), `player.dash`, `setAiming` (compat), `aimAnim` par arme, `combat.currentWeapon`, `npc:ko` émis par le combat, garde contre les faux object3d (e.traverse).
+- Caméra figée pendant la roue. Garage → `vehicle:repainted` → police.notifyRepaint (plus de double baisse).
+- Touche R : seul l'audio la gère (vérifié). Klaxon PNJ unifié en `vehicle:horn { npc: true }`. net écoute `outfit:changed` (au lieu de character:outfit).
+- net/remote.js : véhicules distants = vrais véhicules `owner: 'remote'` + `setRemoteState` (y clampé au sol pour les agents IA) ; vitesse envoyée = châssis.
+- Circulation : conducteurs PNJ exposés en `veh.driver` avec `onEjected` (carjacking → fuite). Feux : lecture de `tl.state(axis)` (les PNJ grillaient les feux). Panne de réseau de Jade branchée sur `world.forceGreen`.
+- src/city.js : lieux, quartiers et itinéraires tirés de citygen.js (copié dans l'image Docker).
+- Erreurs console : « st is not defined » (radio) corrigé ; PCFSoftShadowMap → PCFShadowMap ; « vFogDepth » et « Illegal invocation » non reproduits (renderer.compile dans le smoke).
+- Perf : LOD véhicules (ombres, roues, feux selon la distance caméra) + ombres des piétons < 30 m + piétons masqués > 120 m : passe d'ombre 107-131 → 19-43 appels ; total en rue 134-170 (avant 235-335).
+- public/ (client 2D v1) supprimé.

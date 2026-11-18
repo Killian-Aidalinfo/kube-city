@@ -120,3 +120,37 @@ test('réglages : persistance et notification', () => {
   assert.deepEqual(seen, ['quality', 'high']);
   assert.equal(createSettings(storage).get('quality'), 'high');
 });
+
+test('events : chaque événement émis ou écouté dans le client est déclaré dans core/events.js', async () => {
+  const { readdirSync, readFileSync, statSync } = await import('node:fs');
+  const { join } = await import('node:path');
+  const declared = new Set(Object.values(EVENTS));
+  const used = new Set();
+  const walk = (d) => { for (const f of readdirSync(d)) { const p = join(d, f); if (statSync(p).isDirectory()) walk(p); else if (p.endsWith('.js')) {
+    for (const m of readFileSync(p, 'utf8').matchAll(/\.(?:emit|on|once|off)\(\s*'([a-zA-Z]+(?::[a-zA-Z]+)?)'/g)) used.add(m[1]);
+  } } };
+  walk(new URL('../client/src', import.meta.url).pathname);
+  // événements DOM (window/document) : hors bus
+  for (const dom of ['keydown', 'keyup', 'wheel', 'resize', 'message', 'open', 'close', 'error']) used.delete(dom);
+  const missing = [...used].filter((e) => e.includes(':') || e === 'crime' || e === 'notify' || e === 'subtitle').filter((e) => !declared.has(e));
+  assert.deepEqual(missing, []);
+});
+
+test('boucle : time.scale = ralenti le plus fort (roue 0,2 > Focus 0,5), dt réel pour les abonnés { real }', async () => {
+  const { createLoop, effectiveScale } = await import('../client/src/core/loop.js');
+  assert.equal(effectiveScale({}), 1);
+  assert.equal(effectiveScale({ focus: 0.5, wheel: 0.2 }), 0.2);
+  const game = { time: { now: 0, dt: 0, elapsed: 0, dayTime: 10 }, input: null };
+  const loop = createLoop(game);
+  const seen = { game: 0, real: 0 };
+  game.onUpdate((dt) => { seen.game += dt; });
+  game.onUpdate((dt) => { seen.real += dt; }, 50, { real: true });
+  game.time.setScale('focus', 0.5);
+  loop.step(0.1);
+  assert.ok(Math.abs(seen.game - 0.05) < 1e-9 && Math.abs(seen.real - 0.1) < 1e-9);
+  game.time.setScale('wheel', 0.2);
+  assert.equal(game.time.scale, 0.2);
+  game.time.setScale('wheel', 1); game.time.setScale('focus', 1);
+  assert.equal(game.time.scale, 1);
+  assert.deepEqual(game.time.scales, {});
+});

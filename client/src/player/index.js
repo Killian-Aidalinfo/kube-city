@@ -163,6 +163,16 @@ export async function install(game) {
       startRagdoll(impulse);
       if (damage > 0) player.applyDamage(damage, source);
     },
+    /** Met le perso K.-O. (anim + événement player:ko, émis ici seulement). */
+    knockOut(cause) { if (player.state !== 'ko') knockOut(cause); },
+    /** Compatibilité combat : la visée est lue directement sur les entrées (player.aiming). */
+    setAiming() {},
+    /** Esquive : déplacement horizontal forcé de `dist` m en `dur` s dans la direction `dir`. */
+    dash(dir, dist = 3.5, dur = 0.4) {
+      if (player.state !== 'onFoot') return;
+      const l = Math.hypot(dir.x, dir.z) || 1, v = dist / Math.max(0.05, dur);
+      motion.dash = { x: (dir.x / l) * v, z: (dir.z / l) * v, t: dur };
+    },
     /** Ajoute un fournisseur d'invite : fn(player) → { id, key, text, priority, onTrigger } | null. Renvoie un retrait. */
     addPromptProvider(fn) { providers.push(fn); return () => { const i = providers.indexOf(fn); if (i >= 0) providers.splice(i, 1); }; },
     /** Endurance (0-100), modifiable par le gameplay. */
@@ -272,6 +282,7 @@ export async function install(game) {
     const accel = ts === 0 ? P.decel : (grounded || swimming ? P.accelGround : P.accelAir);
     const ex = tvx - vel.x, ez = tvz - vel.z, el = Math.hypot(ex, ez);
     if (el > 1e-4) { const k = Math.min(1, accel * fdt / el); vel.x += ex * k; vel.z += ez * k; }
+    if (motion.dash?.t > 0) { vel.x = motion.dash.x; vel.z = motion.dash.z; motion.dash.t -= fdt; }
     // vertical
     let desiredY;
     if (swimming) {
@@ -375,7 +386,7 @@ export async function install(game) {
     if (playing && game.input.pressed('interact') && player.prompt?.onTrigger) player.prompt.onTrigger(player);
   }, 5);
   // la caméra suit après toutes les autres mises à jour de pose (ordre 90, spec 3.1)
-  game.onUpdate((dt) => player.camera.update(dt), 90);
+  game.onUpdate((dt) => player.camera.update(dt), 90, { real: true });
 
   function footAnimation() {
     if (anim.lock > 0) return;

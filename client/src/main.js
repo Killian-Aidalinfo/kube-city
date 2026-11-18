@@ -53,9 +53,9 @@ export async function boot() {
 
   const loop = createLoop(game);
   game.loop = loop;
-  game.onUpdate((dt) => input.poll(dt), -100);
+  game.onUpdate((dt) => input.poll(dt), -100, { real: true });
   game.onUpdate((dt) => { if (game.state !== 'paused') physics.update(dt); }, 0);
-  game.onUpdate(() => renderer.render(scene, camera), 1000);
+  game.onUpdate(() => renderer.render(scene, camera), 1000, { real: true });
 
   // Le manifest décrit les assets (chemins, échelles, animations) ; absent => replis procéduraux.
   await assets.loadManifest();

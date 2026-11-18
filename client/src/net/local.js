@@ -19,7 +19,9 @@ export function readState(game) {
   if (!pl) return null;
   const pos = pl.position || pl.object3d?.position;
   if (!pos) return null;
-  const vel = pl.velocity || { x: 0, y: 0, z: 0 };
+  // en voiture : vitesse du châssis (extrapolation et vitesse des roues chez les autres)
+  const lv = pl.vehicle?.chassis?.linvel?.();
+  const vel = lv || pl.velocity || { x: 0, y: 0, z: 0 };
   const speed = Math.hypot(vel.x || 0, vel.z || 0);
   const veh = pl.vehicle || null;
   const seat = veh ? (veh.driver === pl || veh.driver === pl.character ? 0 : Math.max(1, (veh.passengers?.indexOf?.(pl) ?? 0) + 1)) : 0;
@@ -43,7 +45,7 @@ export function readVehicle(game) {
   return {
     t: 'vehicle', id: String(v.id), type: String(v.type || 'sedan'),
     p: arr(o.position), q: [q.x, q.y, q.z, q.w],
-    w: [v.steer ?? v.steering ?? 0, v.wheelSpin ?? 0],
+    w: [v.controls?.steer ?? v.steer ?? 0, v.wheelSpin ?? 0],
     col: typeof v.color === 'string' ? v.color : undefined,
     sir: v.siren ? 1 : 0, li: v.lights ? 1 : 0,
   };

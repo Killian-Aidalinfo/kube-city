@@ -334,7 +334,8 @@ export function install(game) {
       }
     },
     play(e, t, sd) {
-      const out = this.gain, dur = e.dur * sd, v = e.vel;
+      const st = this.station, out = this.gain, dur = e.dur * sd, v = e.vel;
+      if (!st || !out) return;
       const hz = e.midi !== undefined ? midiToHz(e.midi) : 0;
       switch (e.kind) {
         case 'kick': tone(out, { freq: 150, freqEnd: 42, t, dur: 0.16, vol: 0.85 * v, release: 0.08 }); break;
@@ -414,5 +415,5 @@ export function install(game) {
       else if (game.input.pressed('radioPrev')) audio.prevStation();
     }
     updateTalk();
-  }, 95);
+  }, 95, { real: true });
 }

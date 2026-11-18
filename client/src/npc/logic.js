@@ -55,8 +55,10 @@ export function lightState(light, dx, dz) {
   if (!light) return 'green';
   if (typeof light.stateFor === 'function') return light.stateFor(dx, dz);
   if (typeof light.canGo === 'function') return light.canGo(dx, dz) ? 'green' : 'red';
-  const s = light.state;
   const nsAxis = Math.abs(dz) >= Math.abs(dx);
+  // forme du monde : tl.state('ns'|'ew') → 'green'|'yellow'|'red'
+  if (typeof light.state === 'function') return light.state(nsAxis ? 'ns' : 'ew') ?? 'green';
+  const s = light.state;
   if (s && typeof s === 'object') return (nsAxis ? s.ns ?? s.z : s.ew ?? s.x) ?? 'green';
   if (typeof s === 'string') {
     const axis = String(light.axis ?? 'ns').toLowerCase();

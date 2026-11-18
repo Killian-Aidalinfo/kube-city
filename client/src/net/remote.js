@@ -106,6 +106,15 @@ export function createRemotes(game, players) {
 
   // ---------- Véhicules des autres joueurs ----------
   function buildVehicle(v) {
+    // Module véhicules présent : vrai véhicule cinématique (owner 'remote') piloté par setRemoteState
+    if (game.vehicles?.spawn) {
+      try {
+        const p = { x: v.p?.[0] ?? 0, y: (v.p?.[1] ?? 0), z: v.p?.[2] ?? 0 };
+        const veh = game.vehicles.spawn(v.type || 'sedan', p, 0, { owner: 'remote', color: v.col });
+        if (veh?.setRemoteState) return { id: v.id, veh, buf: [], dead: false, owner: null, type: v.type, color: v.col };
+        if (veh) game.vehicles.remove?.(veh);
+      } catch (e) { console.warn('[net] véhicule distant :', e.message); }
+    }
     const root = new THREE.Group();
     const man = manifest()?.vehicles;
     const info = man?.models?.[v.type] || man?.models?.sedan;
@@ -149,6 +158,7 @@ export function createRemotes(game, players) {
 
   function dropVehicle(rec) {
     rec.dead = true;
+    if (rec.veh) { try { game.vehicles?.remove?.(rec.veh); } catch {} vehs.delete(rec.id); return; }
     group.remove(rec.root); disposeObject(rec.root);
     try { if (rec.body) rec.world.removeRigidBody(rec.body); } catch {}
     vehs.delete(rec.id);
@@ -177,6 +187,7 @@ export function createRemotes(game, players) {
       if (e.vh) {
         let v = vehs.get(e.vh.id);
         if (!v) { v = buildVehicle(e.vh); v.owner = e.id; vehs.set(e.vh.id, v); }
+        if (v.veh && e.vh.col && v.color !== e.vh.col) v.veh.setColor?.(e.vh.col);
         v.type = e.vh.type; v.color = e.vh.col; v.sir = e.vh.sir; v.lastSeen = t; v.owner = e.id;
         pushSample(v.buf, t, { p: e.vh.p, q: e.vh.q, w: e.vh.w, vel: e.vel });
         en.vehicle = { id: e.vh.id, type: e.vh.type, color: e.vh.col, siren: !!e.vh.sir };
@@ -205,6 +216,14 @@ export function createRemotes(game, players) {
       for (const v of vehs.values()) {
         const s = sampleAt(v.buf, t);
         if (!s) continue;
+        if (v.veh) {
+          const H0 = v.veh.geom?.H0 ?? 0, q = s.q ? { x: s.q[0], y: s.q[1], z: s.q[2], w: s.q[3] } : undefined;
+          const speed = s.vel ? Math.hypot(s.vel[0], s.vel[2]) * 3.6 : 0;
+          v.veh.siren = !!v.sir;
+          const gy = game.world?.groundHeight?.(s.p[0], s.p[2]) ?? -1e9; // agents IA : y = sol
+          v.veh.setRemoteState({ x: s.p[0], y: Math.max(s.p[1] - H0, gy), z: s.p[2], quaternion: q, steer: s.w?.[0] || 0, speed });
+          continue;
+        }
         v.root.position.set(s.p[0], s.p[1], s.p[2]);
         if (s.q) v.root.quaternion.set(s.q[0], s.q[1], s.q[2], s.q[3]);
         if (v.model && s.w) for (const w of v.wheels) { w.node.rotation.x = s.w[1] || 0; if (w.front) w.node.rotation.y = s.w[0] || 0; }

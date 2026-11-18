@@ -13,7 +13,7 @@ export const EVENTS = Object.freeze({
   PLAYER_EXIT_VEHICLE: 'player:exitVehicle',
   /** COMBAT — { amount, source } */
   PLAYER_DAMAGED: 'player:damaged',
-  /** COMBAT — { cause } */
+  /** JOUEUR — { cause } émis une seule fois par player.knockOut (le combat ne le réémet pas) */
   PLAYER_KO: 'player:ko',
   /** GAMEPLAY — { where: 'hôpital'|'commissariat', cost } */
   PLAYER_RESPAWN: 'player:respawn',
@@ -42,7 +42,7 @@ export const EVENTS = Object.freeze({
   SUBTITLE: 'subtitle',
   /** GAMEPLAY — { from, to } */
   CHARACTER_SWITCH: 'character:switch',
-  /** RÉSEAU — { connected, pod, version, reconnects, ping, leader } */
+  /** RÉSEAU — { connected, pod, version, reconnects, ping, leader, sync, previousPod } */
   NET_STATUS: 'net:status',
   /** AUDIO — { name } */
   RADIO_STATION: 'radio:station',
@@ -52,4 +52,56 @@ export const EVENTS = Object.freeze({
   ASSETS_PROGRESS: 'assets:progress',
   /** FONDATION (ajout) — { from, to } quand game.state change */
   STATE_CHANGED: 'state:changed',
+
+  // ---- ajouts des modules (intégration) ----
+  /** JOUEUR — { id, key, text } de l'invite contextuelle courante, ou null */
+  PLAYER_PROMPT: 'player:prompt',
+  /** VÉHICULES — { vehicle, npc? } coup de klaxon (joueur ou PNJ) */
+  VEHICLE_HORN: 'vehicle:horn',
+  /** VÉHICULES — { vehicle, driver, position } conducteur PNJ éjecté (carjacking) */
+  VEHICLE_DRIVER_EJECTED: 'vehicle:driverEjected',
+  /** VÉHICULES — { vehicle, type, color } véhicule personnel livré */
+  VEHICLE_PERSONAL: 'vehicle:personal',
+  /** GAMEPLAY (garage) — { vehicle, color } ; la police appelle notifyRepaint() */
+  VEHICLE_REPAINTED: 'vehicle:repainted',
+  /** COMBAT — { weapon, kind, combo?, clip } */
+  COMBAT_ATTACK: 'combat:attack',
+  /** COMBAT — { weapon, kind } un coup a porté */
+  COMBAT_HIT: 'combat:hit',
+  /** COMBAT — { aiming } */
+  COMBAT_AIM: 'combat:aim',
+  /** COMBAT — { dir: { x, z } } */
+  COMBAT_DODGE: 'combat:dodge',
+  /** COMBAT — { weapon, previous } */
+  COMBAT_WEAPON: 'combat:weapon',
+  /** COMBAT — { open } roue d'armes (ralenti 0,2, caméra gelée) */
+  COMBAT_WHEEL: 'combat:wheel',
+  /** COMBAT — { npc, kind: 'ped'|'cop', cause, position } un PNJ est mis K.-O. */
+  NPC_KO: 'npc:ko',
+  /** GAMEPLAY — { id, name, duration } capacité spéciale (G) */
+  ABILITY_USED: 'ability:used',
+  /** GAMEPLAY — { character, outfit } */
+  OUTFIT_CHANGED: 'outfit:changed',
+  /** MONDE — { state: 'clair'|'nuageux'|'pluie'… } */
+  WEATHER_CHANGED: 'weather:changed',
+  /** GAMEPLAY — { id, text } invite de mission/activité (null text = effacer) */
+  UI_PROMPT: 'ui:prompt',
+  /** INTERFACE — { dataUrl, selfie } photo prise au téléphone */
+  UI_PHOTO: 'ui:photo',
+  /** GAMEPLAY → INTERFACE — { id } ouvrir une boutique */
+  UI_SHOP: 'ui:shop',
+  /** INTERFACE → AUDIO — { name, volume } son d'interface */
+  UI_SOUND: 'ui:sound',
+  /** RÉSEAU — { profile, reconnect } profil chargé depuis Redis */
+  NET_PROFILE: 'net:profile',
+  /** RÉSEAU — { name, text, at, history? } */
+  NET_CHAT: 'net:chat',
+  /** RÉSEAU — { id, e } emote d'un autre joueur */
+  NET_EMOTE: 'net:emote',
+  /** RÉSEAU — { from, kind, data } événement de jeu diffusé */
+  NET_EVENT: 'net:event',
+  /** RÉSEAU — { count } nombre de joueurs distants */
+  NET_PLAYERS: 'net:players',
+  /** RÉSEAU — message brut non reconnu */
+  NET_MESSAGE: 'net:message',
 });

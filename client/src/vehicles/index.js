@@ -384,6 +384,7 @@ export function install(game) {
       const far = pp ? Math.hypot(v.object3d.position.x - pp.x, v.object3d.position.z - pp.z) : 0;
       v.object3d.visible = far < 320;
       if (far < 320 || v.driver) v.update(dt, alpha);
+      if (far < 320) { const cp = game.three.camera.position, o = v.object3d.position; v.setLod(Math.hypot(o.x - cp.x, o.z - cp.z)); }
       // retournement : remise sur roues après 3 s (5 s avec le joueur au volant)
       if (v.pv && v.pv.flipT > (v.driver === player ? 5 : 3) && !v.wrecked) { v.flip(); }
       // fumée / feu

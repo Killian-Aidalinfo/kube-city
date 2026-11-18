@@ -16,7 +16,7 @@ export function createPeds(game, rng) {
   let kit = null, kitReady = false, outfits = pedOutfits(game), graph = null, lastSubtitle = -99, frame = 0;
   loadKit(game).then((k) => { kit = k; kitReady = true; });
 
-  const sdt = (dt) => dt * (game.time.scale ?? 1);
+  const sdt = (dt) => dt; // la boucle applique déjà game.time.scale
   const quality = () => game.settings.get('quality');
   const maxPeds = () => Math.round((QUALITY_PEDS[quality()] ?? 45) * game.settings.get('pedDensity'));
   const playerPos = () => game.player?.position ?? { x: 0, y: 0, z: 0 };
@@ -188,10 +188,13 @@ export function createPeds(game, rng) {
         continue;
       }
       const d = Math.hypot(ped.position.x - pp.x, ped.position.z - pp.z);
-      // LOD : masqué au-delà de 150 m, recyclé au-delà de 170 m
+      // LOD : masqué au-delà de 120 m, recyclé au-delà de 170 m
       if (d > 170 || (activeCount > target + 3 && d > 60)) { ped.active = false; ped.root.visible = false; activeCount--; continue; }
-      const show = d < 150;
+      const show = d < 120;
       if (show !== ped.vis) { ped.vis = show; ped.root.visible = show; }
+      // ombres portées seulement près du joueur (draw calls de la passe d'ombre)
+      const sh = d < 30;
+      if (show && sh !== ped.shadow) { ped.shadow = sh; ped.root.traverse((o) => { if (o.isSkinnedMesh || o.isMesh) o.castShadow = sh; }); }
       ped.cooldown -= dt;
       if (show) think(ped, dt, d, pp, driver, pv);
       // animation : tous les 3 images au loin

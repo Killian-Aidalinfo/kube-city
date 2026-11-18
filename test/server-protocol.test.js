@@ -4,7 +4,7 @@ import assert from "node:assert/strict";
 import * as proto from "../src/protocol.js";
 import { advance, botAsPlayer, minDurationMs } from "../src/game.js";
 import * as store from "../src/store.js";
-import { roadPath, PLACES, resolvePlace } from "../src/city.js";
+import { roadPath, PLACES, resolvePlace, GRAPH } from "../src/city.js";
 
 test("hello : nettoie nom, perso et tenue", () => {
   const h = proto.parseHello({ v: 2, id: "joueur-abc123", name: "  x".repeat(30), ch: "jade<", outfit: { top: "#112233", skin: "rouge", extra: "#ffffff" }, re: 1 });
@@ -54,12 +54,13 @@ test("snapshot : champs rares seulement dans la version complète", () => {
   assert.equal(full.ch, "jade");
 });
 
-test("itinéraire : rues de la grille, départ et arrivée sur des carrefours", () => {
+test("itinéraire : suit les rues de la ville générée (citygen) jusqu'au lieu", () => {
   const path = roadPath({ x: 12, z: -30 }, resolvePlace("jetee"));
   assert.ok(path.length > 2);
-  for (const pt of path) { assert.equal(pt.x % 100, 0); assert.equal(pt.z % 100, 0); }
-  // jamais de diagonale : chaque segment reste sur un axe
-  for (let i = 1; i < path.length; i++) assert.ok(path[i].x === path[i - 1].x || path[i].z === path[i - 1].z);
+  // départ sur un carrefour du graphe partagé avec le client
+  assert.ok(GRAPH.nodes.some((n) => n.x === path[0].x && n.z === path[0].z));
+  // pas de saut : chaque segment reste court (tracé des rues, virages compris)
+  for (let i = 1; i < path.length; i++) assert.ok(Math.hypot(path[i].x - path[i - 1].x, path[i].z - path[i - 1].z) <= 130);
   const last = path.at(-1);
   assert.equal(last.x, PLACES.jetee.x);
   assert.equal(last.z, PLACES.jetee.z);

@@ -10,7 +10,7 @@ const fwd = { x: 0, z: 1 };
 export function createTraffic(game, rng) {
   const cars = [];        // { veh, lane, stuck, honkAt, panic, avoidT, ... }
   let graph = null, frame = 0;
-  const sdt = (dt) => dt * (game.time.scale ?? 1);
+  const sdt = (dt) => dt; // la boucle applique déjà game.time.scale
   const pos = () => game.player?.position ?? { x: 0, y: 0, z: 0 };
 
   function spawnPoint() {
@@ -40,6 +40,15 @@ export function createTraffic(game, rng) {
     if (!veh) return;
     veh.owner = 'npc';
     veh.npcDriver = { npc: true, flee: () => { const c = cars.find((q) => q.veh === veh); if (c) c.panic = 8; } };
+    // conducteur PNJ visible du module véhicules : carjacking → onEjected (le PNJ sort et s'enfuit)
+    veh.driver = {
+      npc: true, kind: 'ped',
+      onEjected(v, at) {
+        v.npcEjected = true;
+        release(v);
+        game.npc.spawnFleeing?.({ x: at.x, z: at.z }, { x: v.object3d.position.x, z: v.object3d.position.z });
+      },
+    };
     veh.engineOn = true;
     claim(veh, s.arc);
   }
@@ -91,7 +100,7 @@ export function createTraffic(game, rng) {
     if (t - car.honkAt < 3) return;
     car.honkAt = t;
     if (typeof car.veh.honk === 'function') car.veh.honk(0.5);
-    game.bus.emit('vehicle:honk', { vehicle: car.veh });
+    game.bus.emit('vehicle:horn', { vehicle: car.veh, npc: true });
   }
 
   function drive(car, dt, t) {
@@ -178,6 +187,7 @@ export function createTraffic(game, rng) {
     const i = cars.findIndex((c) => c.veh === vehicle);
     if (i < 0) return;
     cars.splice(i, 1);
+    if (vehicle.npcEjected) return; // déjà sorti par le carjacking (onEjected)
     const q = vehicle.object3d.position;
     game.npc.spawnFleeing?.({ x: q.x + 1.8, z: q.z }, { x: q.x, z: q.z });
   });

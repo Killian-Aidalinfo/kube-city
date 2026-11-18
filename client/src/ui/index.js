@@ -130,7 +130,7 @@ export function install(game) {
       if (p && wp.manual && Math.hypot(p.x - w.x, p.z - w.z) < 14) { bus.emit('notify', { text: 'Destination atteinte.', kind: 'success', duration: 3 }); ui.setWaypoint(null); }
       else computeRoute();
     }
-  }, 100);
+  }, 100, { real: true });
 
   screens.showTitle();
 }

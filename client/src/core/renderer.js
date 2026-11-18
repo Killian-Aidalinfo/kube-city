@@ -6,7 +6,7 @@ export function createRenderer(canvas, settings) {
   renderer.outputColorSpace = THREE.SRGBColorSpace;
   renderer.toneMapping = THREE.ACESFilmicToneMapping;
   renderer.toneMappingExposure = 1;
-  renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+  renderer.shadowMap.type = THREE.PCFShadowMap; // PCFSoft a été retiré de Three r18x
 
   const scene = new THREE.Scene();
   scene.background = new THREE.Color(0x87b8e8);

@@ -88,6 +88,7 @@ export class Vehicle {
       this.bodyMats.forEach((mt) => { mt.userData.base = mt.color.clone(); });
       if (this.color) this.setColor(this.color);
       this._applyTint();
+      this._lod = undefined; // modèle arrivé après le premier setLod : réappliquer le niveau de détail
     } catch {
       this._fallbackModel();
     }
@@ -105,6 +106,7 @@ export class Vehicle {
       n.geometry.rotateZ(Math.PI / 2);
       this.model.add(n); return n;
     });
+    this._lod = undefined;
   }
   _buildLamps(glowTex) {
     const g = this.geom, h = Math.min(0.72, g.size[1] * SCALE * 0.42), dx = g.halfW * 0.68;
@@ -243,6 +245,27 @@ export class Vehicle {
       this.bar[0].material.color.setHex(ph === 0 ? 0xff2010 : 0x300000); this.bar[1].material.color.setHex(ph === 1 ? 0x3050ff : 0x000030);
       this.glow[0].material.opacity = ph === 0 ? 0.9 : 0; this.glow[1].material.opacity = ph === 1 ? 0.9 : 0;
     }
+  }
+  /**
+   * Niveau de détail selon la distance à la caméra (m) : 0 = complet, 1 = sans ombres de roues ni feux éteints,
+   * 2 = carrosserie seule sans ombre (roues et feux masqués sauf phares allumés). Économise les draw calls.
+   */
+  setLod(d) {
+    const lod = d < 35 ? 0 : d < 85 ? 1 : 2;
+    if (lod === this._lod && lod !== 2) return;
+    const lit = !!this.lights || !!this.siren || this.braking;
+    if (lod === this._lod && lit === this._lodLit) return;
+    this._lod = lod; this._lodLit = lit;
+    const wheels = new Set(this.wheelNodes.filter(Boolean));
+    for (const n of wheels) { n.visible = lod < 2; n.traverse?.((o) => { if (o.isMesh) o.castShadow = lod === 0; }); }
+    this.model.traverse((o) => {
+      if (!o.isMesh) return;
+      let w = false; for (let q = o; q && q !== this.model; q = q.parent) if (wheels.has(q)) { w = true; break; }
+      if (!w) o.castShadow = lod < 2;
+    });
+    const lamps = [...(this.head ?? []), ...(this.tail ?? []), ...(this.blink ?? [])];
+    for (const l of lamps) l.visible = lod < 2 || lit;
+    for (const l of this.blink ?? []) l.visible = lod === 0;
   }
   /** Libère la physique et le rendu. */
   dispose() {

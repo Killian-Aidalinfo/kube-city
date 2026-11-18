@@ -150,11 +150,11 @@ export function install(game) {
     const v = readVehicle(game);
     if (v) conn.send(v); // le véhicule part juste avant l'état : le serveur les publie ensemble
     conn.send(s);
-  }, 50);
+  }, 50, { real: true });
 
   game.bus.on('player:spawned', () => sendLook(false));
   game.bus.on('character:switch', () => sendLook(false));
-  game.bus.on('character:outfit', () => sendLook(false));
+  game.bus.on('outfit:changed', () => sendLook(false));
 
   net.connect();
   window.addEventListener('beforeunload', () => conn.close());

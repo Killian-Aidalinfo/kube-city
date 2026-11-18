@@ -110,3 +110,10 @@ test('simulation : PNJ, police et combat tournent sans erreur et réagissent aux
   game.player.applyDamage(500, 'chute');
   assert.equal(kos.length, 1);
 });
+
+test('feux : forme du monde tl.state(axis) lue par les conducteurs PNJ', async () => {
+  const { lightState } = await import('../client/src/npc/logic.js');
+  const tl = { x: 0, z: 0, state: (axis) => (axis === 'ns' ? 'red' : 'green') };
+  assert.equal(lightState(tl, 0, 1), 'red');   // roule selon z → axe ns
+  assert.equal(lightState(tl, 1, 0), 'green'); // roule selon x → axe ew
+});

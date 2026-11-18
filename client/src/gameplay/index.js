@@ -369,13 +369,20 @@ export function install(game) {
       v.health = 100; v.repair?.();
     }
     st.gauge -= a.cost;
-    if (a.duration) { abil.until = game.time.elapsed + a.duration; st.active = a.duration; }
+    if (a.duration) { abil.until = game.time.now + a.duration; st.active = a.duration; }
     if (a.id === 'blackout') {
       if (game.world) game.world.hackUntil = game.time.now + a.duration;
-      for (const l of game.world?.trafficLights || []) l.forceGreen?.(a.duration);
+      // feux au vert sur l'axe où roule Jade (le monde consulte world.forceGreen(tl, axis))
+      if (game.world) game.world.forceGreen = (tl, axis) => {
+        if (game.time.now >= (game.world.hackUntil ?? 0)) return false;
+        const pl = game.player, o = pl?.vehicle?.object3d;
+        const h = o ? pl.vehicle.heading : (pl?.heading ?? 0);
+        const mine = Math.abs(Math.sin(h)) > Math.abs(Math.cos(h)) ? 'ew' : 'ns';
+        return axis === mine && Math.hypot((tl.x ?? 0) - pl.position.x, (tl.z ?? 0) - pl.position.z) < 150;
+      };
       if (game.police) { game.police.jammedUntil = game.time.now + a.duration; game.police.jam?.(a.duration); }
     }
-    if (a.id === 'focus') game.time.scale = 0.5;
+    if (a.id === 'focus') game.time.setScale?.('focus', 0.5);
     bus.emit('ability:used', { id: a.id, name: a.name, duration: a.duration });
     bus.emit('notify', { text: `${a.name} !`, kind: 'success', duration: 2 });
     return true;
@@ -385,8 +392,8 @@ export function install(game) {
     if (st.id !== a.id) { st.id = a.id; st.name = a.name; st.cost = a.cost; st.gauge = 1; }
     st.gauge = Math.min(1, st.gauge + (a.cost / a.cooldown) * dt);
     if (st.active > 0) {
-      st.active = Math.max(0, abil.until - game.time.elapsed);
-      if (st.active === 0 && a.id === 'focus') game.time.scale = 1;
+      st.active = Math.max(0, abil.until - game.time.now);
+      if (st.active === 0 && a.id === 'focus') game.time.setScale?.('focus', 1);
     }
     // résistance des véhicules de Malik
     const v = game.player?.vehicle;
@@ -430,8 +437,8 @@ export function install(game) {
       if (kind === 'repair') { if (v) { v.health = 100; v.repair?.(); } }
       if (kind === 'paint' && v) {
         paintVehicle(v, arg);
-        // repeindre fait baisser la recherche (spec 9)
-        if (game.police?.level > 0) game.police.setLevel?.(game.police.level - 1);
+        // repeindre fait baisser la recherche (spec 9) : la police écoute vehicle:repainted (→ notifyRepaint)
+        bus.emit('vehicle:repainted', { vehicle: v, color: arg });
       }
       if (kind === 'upgrade' && v) {
         v.upgrades = { ...(v.upgrades || {}), [arg]: ((v.upgrades || {})[arg] || 0) + 1 };

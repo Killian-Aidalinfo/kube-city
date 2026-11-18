@@ -19,7 +19,7 @@ export function install(game) {
   const cars = [];   // unités véhicule : { veh, role: 'chase'|'block', path, repath, stuck, rev, parked }
   const blocks = [];
 
-  const sdt = (dt) => dt * (game.time.scale ?? 1);
+  const sdt = (dt) => dt; // la boucle applique déjà game.time.scale
   const pp = () => game.player?.position ?? { x: 0, y: 0, z: 0 };
   const playerVel = () => {
     const l = game.player?.vehicle?.chassis?.linvel?.();

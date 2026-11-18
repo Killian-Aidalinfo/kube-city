@@ -4,6 +4,7 @@ import { WEAPONS, WEAPON_ORDER, PAINT_COLORS, MAX_HEALTH, COMBO_WINDOW, comboNex
 import { createCombatUI } from './wheel.js';
 
 const v3 = (x = 0, y = 0, z = 0) => new THREE.Vector3(x, y, z);
+const AIM_ANIM = { taser: 'Pistol_Aim_Neutral', paintball: 'Pistol_Aim_Neutral', batte: 'Sword_Idle' };
 
 /** @param {object} game contexte (spec 3.1) */
 export function install(game) {
@@ -45,8 +46,9 @@ export function install(game) {
     game.bus.emit('player:damaged', { amount: r.taken, source });
     if (pl.health <= 0) {
       ko = true; pl.health = 0;
-      if (typeof pl.knockOut === 'function') pl.knockOut(source); else pl.state = 'ko';
-      game.bus.emit('player:ko', { cause: source });
+      // le joueur émet player:ko lui-même dans knockOut : pas de double émission
+      if (typeof pl.knockOut === 'function') pl.knockOut(source);
+      else { pl.state = 'ko'; game.bus.emit('player:ko', { cause: source }); }
     }
     return r.taken;
   }
@@ -58,9 +60,21 @@ export function install(game) {
   });
 
   // ---------- coups ----------
+  /** Applique un coup ; émet npc:ko { npc, kind, cause, position } quand la cible tombe K.-O. */
+  function strike(t, hit) {
+    const wasKo = t.state === 'ko';
+    const ok = t.receiveHit(hit);
+    if (ok && !wasKo && t.state === 'ko') {
+      const p = t.position;
+      game.bus.emit('npc:ko', { npc: t, kind: t.kind ?? 'ped', cause: hit.kind, position: { x: p.x, y: p.y, z: p.z } });
+    }
+    return ok;
+  }
+
   function playClip(clip) {
     const pl = player();
-    if (typeof pl?.playAction === 'function') pl.playAction(clip); else if (typeof pl?.playAnimation === 'function') pl.playAnimation(clip);
+    if (typeof pl?.playAnim === 'function') pl.playAnim(clip, { once: true, lock: true, fade: 0.08, restart: true });
+    else if (typeof pl?.playAction === 'function') pl.playAction(clip);
   }
 
   function crimeFor(t, severity = 1) {
@@ -74,7 +88,7 @@ export function install(game) {
     for (const t of targets(o, def.range + 1)) {
       if (t.isDown || !inCone(o, d, t.position, def.range)) continue;
       const dir = { x: d.x * push, z: d.z * push };
-      if (t.receiveHit({ amount: def.damage * mult, kind, from: { x: o.x, z: o.z }, dir, source: 'player' })) { hit = true; crimeFor(t); }
+      if (strike(t, { amount: def.damage * mult, kind, from: { x: o.x, z: o.z }, dir, source: 'player' })) { hit = true; crimeFor(t); }
     }
     if (hit) { ui.hitMarker(); game.bus.emit('combat:hit', { weapon, kind }); }
     return hit;
@@ -150,7 +164,7 @@ export function install(game) {
     }
     if (best) {
       end.set(best.position.x, best.position.y + 1, best.position.z);
-      best.receiveHit({ amount: 0, kind: 'taser', from: { x: from.x, z: from.z }, source: 'player' });
+      strike(best, { amount: 0, kind: 'taser', from: { x: from.x, z: from.z }, source: 'player' });
       crimeFor(best, 1); ui.hitMarker();
     }
     // éclair visuel court
@@ -205,7 +219,7 @@ export function install(game) {
       for (const t of targets(s.p, 6)) {
         const c = { x: t.position.x, y: t.position.y + 0.9, z: t.position.z };
         if (distToSegment(c, prev, s.p).d < 0.6) {
-          t.receiveHit({ amount: 0, kind: 'paint', color: s.color, from: { x: prev.x, z: prev.z }, source: 'player' });
+          strike(t, { amount: 0, kind: 'paint', color: s.color, from: { x: prev.x, z: prev.z }, source: 'player' });
           crimeFor(t, 0.6); ui.hitMarker(); done = true; break;
         }
       }
@@ -236,7 +250,7 @@ export function install(game) {
 
   function syncProps() {
     const obj = player()?.object3d;
-    if (!obj) return;
+    if (!obj || typeof obj.traverse !== 'function' || typeof obj.add !== 'function') return;
     if (propHost !== obj) {
       propHost = obj;
       let hand = null;
@@ -282,7 +296,7 @@ export function install(game) {
   }
 
   // ---------- boucle ----------
-  function update(realDt) {
+  function update(dt) { // dt de jeu (déjà ralenti par la boucle)
     const inp = game.input, pl = player();
     const now = game.time.elapsed;
     if (!pl) return;
@@ -301,10 +315,11 @@ export function install(game) {
         game.bus.emit('combat:wheel', { open: false });
       }
     }
-    const goal = wheelOpen ? 0.2 : 1;
-    scale += (goal - scale) * Math.min(1, realDt * 10);
-    if (game.state === 'playing' || scale < 0.99) game.time.scale = Math.abs(scale - 1) < 0.01 ? 1 : scale;
-    const dt = realDt * (game.time.scale ?? 1);
+    // ralenti de la roue : la boucle applique le plus fort ralenti actif (roue 0,2 > Focus 0,5)
+    const goal = wheelOpen ? 0.2 : 1, real = game.time.realDt ?? dt;
+    scale += (goal - scale) * Math.min(1, real * 10);
+    if (Math.abs(scale - 1) < 0.01) scale = 1;
+    game.time.setScale?.('wheel', scale);
 
     for (const k in cd) cd[k] = Math.max(0, cd[k] - dt);
     dodgeCd = Math.max(0, dodgeCd - dt);
@@ -370,6 +385,8 @@ export function install(game) {
     cooldowns: cd,
     get current() { return weapon; },
     get weapon() { return weapon; },
+    /** Alias lu par l'interface. */
+    get currentWeapon() { return weapon; },
     set weapon(id) { combat.setWeapon(id); },
     get aiming() { return aiming; },
     get wheelOpen() { return wheelOpen; },
@@ -379,12 +396,13 @@ export function install(game) {
     setWeapon(id) {
       if (!WEAPONS[id] || id === weapon) return;
       const previous = weapon; weapon = id; combo = { index: -1, last: -99 };
+      if (game.player) game.player.aimAnim = AIM_ANIM[id] ?? null;
       game.bus.emit('combat:weapon', { weapon: id, previous });
     },
     /** Inflige un coup à une cible (piéton, policier) ; renvoie vrai si pris en compte. */
     hit(target, amount, source = 'player', kind = 'punch') {
-      if (!target?.receiveHit) return false;
-      const ok = target.receiveHit({ amount, kind, from: { x: pPos().x, z: pPos().z }, source });
+      if (!target?.receiveHit) return false; // cible sans API de coup
+      const ok = strike(target, { amount, kind, from: { x: pPos().x, z: pPos().z }, source });
       if (ok) crimeFor(target);
       return ok;
     },

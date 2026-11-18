@@ -1,6 +1,6 @@
 // Règles du jeu côté serveur : courses de rue et agents IA (coordonnées x/z en mètres).
 import crypto from "node:crypto";
-import { PLACES, roadPath, districtAt, resolvePlace, randomRoadPoint } from "./city.js";
+import { PLACES, roadPath, districtAt, resolvePlace, randomRoadPoint, groundHeight } from "./city.js";
 import * as store from "./store.js";
 
 export const BOT_SPEED = 14;         // m/s (~50 km/h) : les agents roulent sagement
@@ -181,15 +181,16 @@ async function stepBot(bot, dt, now) {
 
 /** Entrée « joueur » diffusée pour un agent : même forme qu'un joueur dans un véhicule. */
 export function botAsPlayer(bot) {
+  const y = Math.round(Math.max(0, groundHeight(bot.x, bot.z)) * 100) / 100; // collines : on suit le relief
   return {
     id: bot.id, name: bot.name, ch: "agent", o: null, bot: true,
-    p: [Math.round(bot.x * 100) / 100, 0, Math.round(bot.z * 100) / 100],
+    p: [Math.round(bot.x * 100) / 100, y, Math.round(bot.z * 100) / 100],
     r: Math.round(bot.yaw * 100) / 100,
     vel: [Math.round(Math.sin(bot.yaw) * bot.v * 100) / 100, 0, Math.round(Math.cos(bot.yaw) * bot.v * 100) / 100],
     a: "drive", veh: `${bot.id}-v`, seat: 0, st: 0,
     vh: {
       id: `${bot.id}-v`, type: bot.vtype || "sedan",
-      p: [Math.round(bot.x * 100) / 100, 0, Math.round(bot.z * 100) / 100],
+      p: [Math.round(bot.x * 100) / 100, y, Math.round(bot.z * 100) / 100],
       q: [0, Math.round(Math.sin(bot.yaw / 2) * 1000) / 1000, 0, Math.round(Math.cos(bot.yaw / 2) * 1000) / 1000],
       w: [0, 0], col: bot.color, sir: 0, li: 0,
     },

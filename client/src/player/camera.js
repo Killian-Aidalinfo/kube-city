@@ -44,7 +44,8 @@ export function createCameraRig(game, player) {
   };
 
   rig.update = function update(dt) {
-    const playing = game.state === 'playing';
+    // caméra gelée pendant la roue d'armes : la souris sert à choisir l'arme
+    const playing = game.state === 'playing' && !game.combat?.wheelOpen;
     const lx = playing ? game.input.axis('lookX') : 0;
     const ly = playing ? game.input.axis('lookY') : 0;
     const veh = player.state === 'inVehicle' ? player.vehicle : null;

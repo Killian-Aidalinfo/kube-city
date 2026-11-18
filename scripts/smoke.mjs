@@ -1,4 +1,5 @@
-// Smoke test : ouvre le jeu dans Chrome headless, simule quelques touches, capture, échoue sur erreur console ou canvas noir.
+// Smoke test du jeu 3D : Chrome headless, parcours complet, une capture par étape, échec sur toute erreur console.
+// Étapes : __quickStart → marcher → entrer dans une voiture (F) → rouler → police → carte (M) → changer de perso.
 // Usage : node scripts/smoke.mjs [url]   (sans argument : lance le serveur local, nécessite Redis sur REDIS_URL)
 import { chromium } from 'playwright-core';
 import { spawn } from 'node:child_process';
@@ -22,48 +23,134 @@ if (!url) {
 }
 
 const errors = [];
-let failed = false;
-const browser = await chromium.launch({ executablePath: CHROME, headless: true, args: ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist'] });
+const report = {};
+// GPU réel par défaut (Metal sur macOS : ~60 i/s) ; SMOKE_GL=swiftshader pour une machine sans GPU (le jeu tourne alors au ralenti)
+const GL_ARGS = process.env.SMOKE_GL === 'swiftshader'
+  ? ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist']
+  : ['--use-angle=' + (process.env.SMOKE_GL || (process.platform === 'darwin' ? 'metal' : 'default')), '--ignore-gpu-blocklist', '--enable-gpu'];
+const browser = await chromium.launch({ executablePath: CHROME, headless: true, args: GL_ARGS });
+let step = 0;
 try {
   const page = await browser.newPage({ viewport: { width: 1280, height: 720 } });
-  page.on('console', (m) => { if (m.type() === 'error') errors.push('console: ' + m.text()); });
-  page.on('pageerror', (e) => errors.push('exception: ' + e.message));
-  page.on('requestfailed', (r) => errors.push('requête échouée: ' + r.url()));
-  page.on('response', (r) => { if (r.status() >= 400) errors.push(`HTTP ${r.status()}: ${r.url()}`); });
+  page.on('console', (m) => {
+    if (m.type() === 'error') errors.push(`console (étape ${step}) : ${m.text()}`);
+    else if (m.type() === 'warning' && /shader|WebGL|GL_INVALID|vFogDepth/i.test(m.text())) errors.push(`avertissement GL (étape ${step}) : ${m.text().slice(0, 300)}`);
+  });
+  page.on('pageerror', (e) => errors.push(`exception (étape ${step}) : ${e.message}`));
+  page.on('requestfailed', (r) => { if (!/favicon/.test(r.url())) errors.push('requête échouée : ' + r.url()); });
+  page.on('response', (r) => { if (r.status() >= 400 && !/favicon/.test(r.url())) errors.push(`HTTP ${r.status()} : ${r.url()}`); });
+
+  const shot = async (name) => { step++; await page.screenshot({ path: path.join(out, `smoke-${step}-${name}.png`) }); };
+  const state = () => page.evaluate(() => { const g = window.__game; return { state: g.state, p: g.player?.state, x: g.player?.position.x, z: g.player?.position.z }; });
+  const must = (cond, msg) => { if (!cond) errors.push(`étape ${step} : ${msg}`); };
 
   await page.goto(url, { waitUntil: 'load' });
-  await page.waitForFunction(() => window.__game && window.__game.state === 'playing', null, { timeout: 30000 });
-  await page.screenshot({ path: path.join(out, 'smoke-1-start.png') });
+  await page.waitForFunction(() => typeof window.__quickStart === 'function' && window.__game, null, { timeout: 60000 });
+  await page.evaluate(() => window.__quickStart());
+  await page.waitForFunction(() => window.__game.state === 'playing', null, { timeout: 30000 });
+  // compile tous les matériaux de la scène (eau, ciel…) quelle que soit la vue : toute erreur de shader remonte ici
+  await page.evaluate(() => { const { renderer, scene, camera } = window.__game.three; renderer.compile(scene, camera); });
+  await sleep(1500);
+  await shot('depart');
 
-  // marche ~3 s (Z puis D), saut, ouverture de la carte (M) ; les modules réels réagiront à ces actions
-  await page.keyboard.down('KeyW'); await sleep(1500); await page.keyboard.down('KeyD'); await sleep(1500);
+  // 1. marcher
+  const s0 = await state();
+  await page.keyboard.down('KeyW'); await sleep(1800); await page.keyboard.down('KeyD'); await sleep(700);
   await page.keyboard.up('KeyW'); await page.keyboard.up('KeyD');
-  await page.keyboard.press('Space'); await page.keyboard.press('KeyF'); await sleep(500);
-  await page.keyboard.press('KeyM'); await sleep(500);
-  await page.screenshot({ path: path.join(out, 'smoke-2-end.png') });
+  await page.keyboard.press('Space'); await sleep(600);
+  const s1 = await state();
+  report.marche = Math.hypot(s1.x - s0.x, s1.z - s0.z).toFixed(1) + ' m';
+  must(Math.hypot(s1.x - s0.x, s1.z - s0.z) > 1, 'le perso ne marche pas');
+  await shot('marche');
 
-  // canvas noir ? on rend puis on lit les pixels dans la même tâche (le buffer est valide à cet instant)
-  const stats = await page.evaluate(() => {
+  // 2. entrer dans la voiture la plus proche (F)
+  await page.evaluate(() => {
+    const g = window.__game, p = g.player.position;
+    const cars = g.vehicles.list.filter((v) => !v.driver && !v.destroyed && v.owner !== 'remote' && v.owner !== 'police');
+    cars.sort((a, b) => Math.hypot(a.object3d.position.x - p.x, a.object3d.position.z - p.z) - Math.hypot(b.object3d.position.x - p.x, b.object3d.position.z - p.z));
+    const v = cars[0], o = v.object3d.position, yaw = v.object3d.rotation.y;
+    // côté conducteur (gauche du véhicule, avant +Z)
+    g.player.teleport({ x: o.x + Math.cos(yaw) * 2.0, z: o.z - Math.sin(yaw) * 2.0 });
+  });
+  await sleep(400);
+  await page.keyboard.press('KeyF');
+  await page.waitForFunction(() => window.__game.player.state === 'inVehicle', null, { timeout: 8000 }).catch(() => must(false, 'pas entré dans la voiture'));
+  await sleep(500);
+  await shot('voiture');
+
+  // 3. rouler
+  const v0 = await state();
+  await page.keyboard.down('KeyW'); await sleep(2500);
+  report.vitesse = await page.evaluate(() => Math.round(window.__game.player.vehicle?.speed ?? 0) + ' km/h');
+  await page.keyboard.up('KeyW'); await sleep(300);
+  const v1 = await state();
+  must(Math.hypot(v1.x - v0.x, v1.z - v0.z) > 3, 'la voiture n\'avance pas');
+  await shot('roule');
+
+  // 4. provoquer la police (vol signalé + agression)
+  await page.evaluate(() => {
+    const g = window.__game, p = g.player.position;
+    for (let i = 0; i < 3; i++) g.bus.emit('crime', { kind: 'carjack', severity: 2, witnessed: true, position: { x: p.x, y: p.y, z: p.z } });
+  });
+  await sleep(2500);
+  report.police = await page.evaluate(() => `niveau ${window.__game.police.level}, ${window.__game.police.units?.length ?? 0} unités`);
+  must(await page.evaluate(() => window.__game.police.level >= 1), 'la police ne réagit pas');
+  await shot('police');
+
+  // 5. carte (M)
+  await page.keyboard.press('KeyM'); await sleep(800);
+  await shot('carte');
+  await page.keyboard.press('KeyM'); await sleep(300);
+  await page.evaluate(() => window.__game.police.clear?.());
+
+  // 6. changer de perso
+  const before = await page.evaluate(() => window.__game.gameplay.currentCharacter);
+  const target = await page.evaluate((b) => { const ids = window.__game.gameplay.characters; return ids.find((c) => c !== b); }, before);
+  await page.evaluate((t) => window.__game.gameplay.switchCharacter(t), target);
+  await page.waitForFunction((t) => window.__game.gameplay.currentCharacter === t && window.__game.state === 'playing', target, { timeout: 15000 })
+    .catch(() => must(false, 'changement de perso non terminé'));
+  await sleep(800);
+  report.perso = `${before} → ${await page.evaluate(() => window.__game.gameplay.currentCharacter)}`;
+  await shot('perso');
+
+  // 7. combat non létal : batte, coup, roue d'armes (ralenti 0,2 puis retour à 1)
+  await page.keyboard.press('Digit2'); await sleep(200);
+  await page.mouse.click(640, 360); await sleep(600);
+  await page.keyboard.down('Tab'); await sleep(700);
+  const slow = await page.evaluate(() => window.__game.time.scale);
+  await shot('roue');
+  await page.keyboard.up('Tab'); await sleep(800);
+  const back = await page.evaluate(() => window.__game.time.scale);
+  report.combat = `arme ${await page.evaluate(() => window.__game.combat.currentWeapon)}, ralenti ${slow.toFixed(2)} → ${back}`;
+  must(slow < 0.5 && back === 1, `ralenti de la roue incorrect (${slow} → ${back})`);
+
+  // mesures : draw calls (vue de rue), canvas non noir, cadence
+  const stats = await page.evaluate(async () => {
     const g = window.__game, { renderer, scene, camera } = g.three;
+    const t0 = g.time.elapsed, f0 = renderer.info.render.frame;
+    await new Promise((r) => setTimeout(r, 2000));
+    const fps = (renderer.info.render.frame - f0) / 2;
     renderer.render(scene, camera);
+    const calls = renderer.info.render.calls, tris = renderer.info.render.triangles;
     const gl = renderer.getContext(), w = gl.drawingBufferWidth, h = gl.drawingBufferHeight;
     const px = new Uint8Array(4); const seen = new Set(); let lum = 0, n = 0;
     for (let i = 1; i < 10; i++) for (let j = 1; j < 10; j++) {
       gl.readPixels(Math.floor(w * i / 10), Math.floor(h * j / 10), 1, 1, gl.RGBA, gl.UNSIGNED_BYTE, px);
       seen.add(px.join(',')); lum += (px[0] + px[1] + px[2]) / 3; n++;
     }
-    return { colors: seen.size, lum: lum / n, frames: Math.round(g.time.elapsed * 10) / 10 };
+    return { colors: seen.size, lum: Math.round(lum / n), calls, tris, fps, elapsed: Math.round((g.time.elapsed - t0) * 10) / 10 };
   });
-  console.log('canvas :', JSON.stringify(stats));
-  if (stats.lum < 8) { errors.push('canvas noir (luminosité moyenne ' + stats.lum.toFixed(1) + ')'); }
-  if (stats.colors < 2) { errors.push('canvas uni (une seule couleur)'); }
-  if (stats.frames < 1) { errors.push('la boucle ne tourne pas'); }
+  report.rendu = stats;
+  if (stats.lum < 8) errors.push('canvas noir (luminosité moyenne ' + stats.lum + ')');
+  if (stats.colors < 2) errors.push('canvas uni (une seule couleur)');
+  if (stats.elapsed <= 0) errors.push('la boucle ne tourne pas');
+  if (process.env.SMOKE_MAX_CALLS && stats.calls > +process.env.SMOKE_MAX_CALLS) errors.push(`trop de draw calls : ${stats.calls}`);
 } catch (e) {
-  errors.push('smoke : ' + e.message);
+  errors.push(`smoke (étape ${step}) : ${e.message}`);
 } finally {
   await browser.close();
   server?.kill('SIGTERM');
 }
-if (errors.length) { console.error('ÉCHEC du smoke test :\n- ' + [...new Set(errors)].join('\n- ')); failed = true; }
-else console.log('smoke OK (captures dans scripts/out/)');
-process.exit(failed ? 1 : 0);
+console.log('mesures :', JSON.stringify(report));
+if (errors.length) { console.error('ÉCHEC du smoke test :\n- ' + [...new Set(errors)].join('\n- ')); process.exit(1); }
+console.log('smoke OK (captures dans scripts/out/)');
