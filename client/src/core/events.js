@@ -19,6 +19,10 @@ export const EVENTS = Object.freeze({
   PLAYER_RESPAWN: 'player:respawn',
   /** VÉHICULES — { vehicle } */
   VEHICLE_SPAWNED: 'vehicle:spawned',
+  /** VÉHICULES — { vehicle, speed (km/h) } le pilote d'une moto est éjecté après un choc violent */
+  VEHICLE_FALL: 'vehicle:fall',
+  /** GAMEPLAY — { position, air (s), bonus } cascade réussie (les piétons applaudissent) */
+  STUNT: 'stunt',
   /** VÉHICULES — { vehicle } */
   VEHICLE_DESTROYED: 'vehicle:destroyed',
   /** VÉHICULES — { vehicle, other, impulse } */

@@ -1,5 +1,6 @@
 // Playtest multijoueur VU PAR LES JOUEURS, pendant les pannes. Nécessite `docker compose up -d` (nginx :8080, game-1..3, redis).
 // A conduit (ligne droite puis virage), B regarde : saccades, véhicule visible/orienté, perso/tenue ; puis panne du pod de A, puis de Redis.
+// SENTINEL=1 : scénario HA complet (maître Redis, pod tué, pod redémarré, nouveau maître) + 20 joueurs simulés, mesures côté navigateur.
 // Usage : node scripts/playtest/multi.mjs [url]   (SKIP_REDIS=1 : ne pas tuer Redis ; HARD=1 : SIGKILL du pod)   Sortie : JSON + code 1 si un critère échoue.
 import { chromium } from 'playwright-core';
 import { execSync } from 'node:child_process';
@@ -15,24 +16,153 @@ const GL = ['--use-angle=' + (process.platform === 'darwin' ? 'metal' : 'default
 const fails = [], R = {};
 const check = (ok, msg) => { if (!ok) fails.push(msg); };
 
-const browser = await chromium.launch({ executablePath: CHROME, headless: true, args: GL });
-async function player(name) {
-  const ctx = await browser.newContext({ viewport: { width: 960, height: 540 } });
-  const page = await ctx.newPage();
-  page.on('pageerror', (e) => fails.push(`${name} exception : ${e.message}`));
-  await page.goto(URL_, { waitUntil: 'load' });
-  await page.waitForFunction(() => typeof window.__quickStart === 'function' && window.__game, null, { timeout: 60000 });
-  return page;
-}
-try {
-  const A = await player('A'), B = await player('B');
-  await A.evaluate(() => window.__quickStart(window.__game.gameplay.characters.at(-1))); // A : un perso qui n'est pas celui par défaut
-  await B.evaluate(() => window.__quickStart());
-  for (const p of [A, B]) await p.waitForFunction(() => window.__game.state === 'playing' && window.__game.net.connected, null, { timeout: 30000 });
-  await sleep(1500);
-  const aInfo = await A.evaluate(() => { const g = window.__game; return { id: g.net.id, pod: g.net.status.pod, ch: g.gameplay.currentCharacter }; });
-  R.A = aInfo;
 
+// ---------- SENTINEL=1 : objectif du cours (bascule détectée en 1-2 s, coupure <= 5 s) avec le vrai client + 20 joueurs simulés ----------
+// Enchaîne : kill du maître Redis, kill d'un pod de jeu, restart d'un pod (mise à jour simulée), kill du nouveau maître.
+// Nécessite COMPOSE_FILE=docker-compose.yml:deploy/sentinel/docker-compose.sentinel.yml et la pile démarrée.
+const OBJ = { syncPauseMs: 5000, disconnectMs: 5000, visibilityMs: 5000 };
+async function sentinel(A, B, aInfo) {
+  const { spawn } = await import('node:child_process');
+  const sh = (c) => { try { return dc(c).trim(); } catch (e) { return ''; } };
+  const masterNow = () => sh('exec -T sentinel-1 redis-cli -p 26379 sentinel get-master-addr-by-name mymaster').split('\n')[0];
+  const bIdent = await B.evaluate(() => ({ id: window.__game.net.id, pod: window.__game.net.status.pod }));
+  const ids = { A: aInfo.id, B: bIdent.id };
+  R.start = { podA: aInfo.pod, podB: bIdent.pod, master: masterNow() };
+  // joueurs simulés (20) pendant tout le scénario ; SIGTERM = bilan anticipé
+  const charge = spawn('node', [path.join(root, 'scripts/charge.mjs'), '--players', '20', '--agents', '0', '--duration', '900'], { stdio: ['ignore', 'pipe', 'ignore'] });
+  let chargeOut = ''; charge.stdout.on('data', (d) => { chargeOut += d; });
+  // enregistreurs navigateur : transitions de connexion/synchro, et visibilité de l'autre joueur (window.__oid)
+  const attach = (P, oid) => P.evaluate((oid) => {
+    const g = window.__game; window.__ev = []; window.__vis = []; window.__oid = oid;
+    const push = (s) => window.__ev.push({ t: Date.now(), c: s.connected, s: s.sync, pod: s.pod, r: s.reconnects });
+    push(g.net.status); g.bus.on('net:status', push);
+    let last = null;
+    setInterval(() => { const v = g.net.players.has(window.__oid); if (v !== last) { last = v; window.__vis.push({ t: Date.now(), v }); } }, 50);
+  }, oid);
+  await attach(A, ids.B); await attach(B, ids.A);
+  // A et B doivent être sur des pods DIFFÉRENTS (sinon la diffusion passe sans Redis) : on remplace B tant que ce n'est pas le cas
+  async function apart() {
+    for (let i = 0; i < 8; i++) {
+      const [pa, pb] = await Promise.all([A, B].map((P) => P.evaluate(() => window.__game.net.status.pod)));
+      if (pa !== pb) return true;
+      await B.keyboard.up('KeyW').catch(() => {});
+      await B.context().close();
+      B = await player('B'); await B.evaluate(() => window.__quickStart());
+      await B.waitForFunction(() => window.__game.state === 'playing' && window.__game.net.connected, null, { timeout: 30000 });
+      ids.B = await B.evaluate(() => window.__game.net.id);
+      await attach(B, ids.A); await A.evaluate((o) => { window.__oid = o; }, ids.B);
+      await B.keyboard.down('KeyW'); await sleep(2500);
+    }
+    return false;
+  }
+  for (const P of [A, B]) await P.keyboard.down('KeyW'); // les deux marchent : leurs états partent en continu
+  await sleep(3000);
+  const intervals = (evs, key, t0, t1, bad) => { // durées (ms) des périodes « mauvaises » dans [t0, t1]
+    const out = []; let st = null;
+    const upto = evs.filter((e) => e.t <= t1);
+    let cur = upto.filter((e) => e.t < t0).at(-1); if (cur && bad(cur[key])) st = t0;
+    for (const e of upto.filter((e) => e.t >= t0)) {
+      if (bad(e[key]) && st === null) st = e.t;
+      else if (!bad(e[key]) && st !== null) { out.push(e.t - st); st = null; }
+    }
+    if (st !== null) out.push(t1 - st);
+    return out;
+  };
+  const states = async () => Promise.all([A, B].map((P) => P.evaluate(() => ({ c: window.__game.net.connected, s: window.__game.net.status.sync, pod: window.__game.net.status.pod, m: window.__game.gameplay.money })))); 
+  const settled = async (timeout = 45000) => {
+    const t = Date.now();
+    while (Date.now() - t < timeout) {
+      const st = await states(); const vis = await Promise.all([A, B].map((P) => P.evaluate(() => window.__vis.at(-1)?.v)));
+      if (st.every((x) => x.c && x.s) && vis.every(Boolean)) return true;
+      await sleep(300);
+    }
+    return false;
+  };
+  const waitMaster = async (old, timeout = 20000) => { const t = Date.now(); while (Date.now() - t < timeout) { const m = masterNow(); if (m && m !== old) return Date.now(); await sleep(150); } return null; };
+  let step = 0;
+  const rows = [];
+  async function phase(name, action) {
+    step++;
+    if (!(await settled())) check(false, `${name} : cluster pas stable avant le scénario`);
+    const apartOk = await apart(); if (!apartOk) check(false, `${name} : A et B sur le même pod`);
+    await settled();
+    // progression à protéger : argent + mission, sauvegardés
+    const prog = {};
+    for (const [k, P] of [['A', A], ['B', B]]) {
+      await P.evaluate((n) => { const g = window.__game; g.gameplay.addMoney(100, 'ha'); g.gameplay.profile.missions['ha_' + n] = { done: true }; g.gameplay.save(); }, step);
+      prog[k] = await P.evaluate(() => window.__game.gameplay.money);
+    }
+    await sleep(1500);
+    const t0 = Date.now();
+    const info = await action(t0);
+    // pendant la coupure, le joueur continue de jouer : gain d'argent local à rejouer vers le serveur
+    for (const P of [A, B]) await P.evaluate(() => window.__game.gameplay.addMoney(5, 'ha-pendant'));
+    for (const k of Object.keys(prog)) prog[k] += 5;
+    const ok = await settled();
+    const t1 = Date.now();
+    await sleep(3000);
+    const res = { phase: name, settled: ok, pods: await podsNow(), ...info };
+    const perPlayer = {};
+    for (const [k, P] of [['A', A], ['B', B]]) {
+      const ev = await P.evaluate(() => window.__ev), vis = await P.evaluate(() => window.__vis);
+      const cut = intervals(ev, 'c', t0, t1, (v) => !v), pause = intervals(ev, 's', t0, t1, (v) => !v), hid = intervals(vis, 'v', t0, t1, (v) => !v);
+      const r0 = ev.filter((e) => e.t < t0).at(-1)?.r ?? 0, r1 = ev.at(-1)?.r ?? 0;
+      await P.evaluate(() => window.__game.gameplay.save());
+      await sleep(1500);
+      const srv = await P.evaluate(async () => { const p = await window.__game.net.loadProfile(); return p?.chars?.[p.current]?.money; });
+      const loc = await P.evaluate(() => window.__game.gameplay.money);
+      perPlayer[k] = { syncPauseMs: Math.max(0, ...pause), disconnectMs: Math.max(0, ...cut), otherInvisibleMs: Math.max(0, ...hid), reconnects: r1 - r0, moneyLocal: loc, moneyServer: srv, moneyExpected: prog[k] };
+      check(loc === prog[k], `${name} : argent local ${prog[k]} -> ${loc} (${k})`);
+      check(srv === loc, `${name} : profil serveur ${srv} != local ${loc} (${k})`);
+    }
+    res.players = perPlayer;
+    const worst = (f) => Math.max(...Object.values(perPlayer).map(f));
+    res.max = { syncPauseMs: worst((x) => x.syncPauseMs), disconnectMs: worst((x) => x.disconnectMs), otherInvisibleMs: worst((x) => x.otherInvisibleMs) };
+    check(res.max.syncPauseMs <= OBJ.syncPauseMs, `${name} : synchro en pause ${res.max.syncPauseMs} ms > ${OBJ.syncPauseMs}`);
+    check(res.max.disconnectMs <= OBJ.disconnectMs, `${name} : coupure ${res.max.disconnectMs} ms > ${OBJ.disconnectMs}`);
+    check(res.max.otherInvisibleMs <= OBJ.visibilityMs, `${name} : l'autre joueur invisible ${res.max.otherInvisibleMs} ms > ${OBJ.visibilityMs}`);
+    check(ok, `${name} : cluster non rétabli`);
+    rows.push(res);
+    return res;
+  }
+  const podsNow = async () => (await states()).map((x) => x.pod);
+  let killedMaster;
+  await phase('1. kill du maître Redis', async () => {
+    killedMaster = masterNow(); R.start.master = killedMaster;
+    const tk = Date.now(); dc(`kill ${killedMaster}`);
+    const tm = await waitMaster(killedMaster);
+    return { killed: killedMaster, newMasterAfterMs: tm ? tm - tk : null };
+  });
+  dc(`start ${killedMaster}`); await sleep(6000); // redevient réplica
+  await phase('2. kill d\'un pod de jeu', async () => {
+    const pod = (await podsNow())[0]; dc(`kill ${pod}`);
+    return { killed: pod };
+  });
+  const dead = rows.at(-1).killed; dc(`start ${dead}`); await sleep(5000);
+  await phase('3. restart d\'un pod (mise à jour)', async () => {
+    const pod = (await podsNow())[1]; dc(`restart -t 20 ${pod}`);
+    return { restarted: pod };
+  });
+  await sleep(3000);
+  let m2;
+  await phase('4. kill du nouveau maître', async () => {
+    m2 = masterNow(); const tk = Date.now(); dc(`kill ${m2}`);
+    const tm = await waitMaster(m2);
+    return { killed: m2, newMasterAfterMs: tm ? tm - tk : null };
+  });
+  dc(`start ${m2}`);
+  for (const P of [A, B]) await P.keyboard.up('KeyW');
+  charge.kill('SIGTERM');
+  await new Promise((r) => { charge.on('exit', r); setTimeout(r, 15000); });
+  const bil = Object.fromEntries((chargeOut.split('BILAN')[1] || '').split('\n').map((l) => l.trim().match(/^(\w+): (.*)$/)).filter(Boolean).map((m) => [m[1], m[2]]));
+  R.charge = { connectesALaFin: bil.connectesALaFin, deconnexions: bil.deconnexions, reconnexionsMs: bil.reconnexionsMs };
+  check(+bil.connectesALaFin >= 20, `joueurs simulés connectés à la fin : ${bil.connectesALaFin}/20`);
+  R.phases = rows;
+  const f = (n) => (n == null ? '-' : (n / 1000).toFixed(1) + ' s');
+  R.table = '| Épreuve | Bascule Redis | Synchro en pause | Coupure joueur | Autre joueur invisible | Reconnexions | Progression |\n|---|---|---|---|---|---|---|\n' + rows.map((r) => `| ${r.phase} | ${f(r.newMasterAfterMs)} | ${f(r.max.syncPauseMs)} | ${f(r.max.disconnectMs)} | ${f(r.max.otherInvisibleMs)} | ${Object.values(r.players).map((x) => x.reconnects).join(' / ')} | ${Object.values(r.players).every((x) => x.moneyLocal === x.moneyExpected && x.moneyServer === x.moneyLocal) ? 'intacte' : 'PERDUE'} |`).join('\n');
+}
+
+async function standard(A, B, aInfo) {
   // A monte dans la voiture la plus proche ; B se place à ~12 m de A
   await A.evaluate(() => {
     const g = window.__game, p = g.player.position;
@@ -155,8 +285,30 @@ try {
   const hidden = await A.evaluate(() => [...document.querySelectorAll('[role=status]')].every((x) => !/Reconnexion au cluster/.test(x.textContent) || getComputedStyle(x).opacity === '0'));
   R.totalOutage = { indicatorShown: shown, indicatorHiddenAfter: hidden };
   check(shown && hidden, 'indication « Reconnexion au cluster… » absente ou persistante');
+}
+
+const browser = await chromium.launch({ executablePath: CHROME, headless: true, args: GL });
+async function player(name) {
+  const ctx = await browser.newContext({ viewport: { width: 960, height: 540 } });
+  const page = await ctx.newPage();
+  page.on('pageerror', (e) => fails.push(`${name} exception : ${e.message}`));
+  await page.goto(URL_, { waitUntil: 'load' });
+  await page.waitForFunction(() => typeof window.__quickStart === 'function' && window.__game, null, { timeout: 60000 });
+  return page;
+}
+try {
+  const A = await player('A'), B = await player('B');
+  await A.evaluate(() => window.__quickStart(window.__game.gameplay.characters.at(-1))); // A : un perso qui n'est pas celui par défaut
+  await B.evaluate(() => window.__quickStart());
+  for (const p of [A, B]) await p.waitForFunction(() => window.__game.state === 'playing' && window.__game.net.connected, null, { timeout: 30000 });
+  await sleep(1500);
+  const aInfo = await A.evaluate(() => { const g = window.__game; return { id: g.net.id, pod: g.net.status.pod, ch: g.gameplay.currentCharacter }; });
+  R.A = aInfo;
+
+  if (process.env.SENTINEL) await sentinel(A, B, aInfo); else await standard(A, B, aInfo);
 } catch (e) { fails.push('script : ' + e.stack); }
 finally { try { dc('start redis game-1 game-2 game-3'); } catch {} await browser.close(); }
 console.log(JSON.stringify(R, null, 1));
+if (R.table) console.log('\n' + R.table + '\n');
 console.log(fails.length ? 'ÉCHECS :\n- ' + fails.join('\n- ') : 'OK');
 process.exit(fails.length ? 1 : 0);

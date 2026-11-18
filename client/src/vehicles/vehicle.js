@@ -2,6 +2,7 @@
 import * as THREE from 'three';
 import { createPhysicsVehicle, driveStep, flipUpright, buildGeometry, quatY, rotateByQuat } from './drive.js';
 import { damageLevel } from './tuning.js';
+import { PROCEDURAL } from './procedural.js';
 
 const SCALE = 1.4;
 const _q = new THREE.Quaternion(), _v = new THREE.Vector3();
@@ -21,7 +22,7 @@ export class Vehicle {
    */
   constructor(ctx, opts) {
     const { game, spec, geom } = ctx;
-    this.game = game; this.id = ctx.id; this.type = spec.id; this.spec = spec; this.geom = geom;
+    this._entry = ctx.entry; this.game = game; this.id = ctx.id; this.type = spec.id; this.spec = spec; this.geom = geom;
     this.category = spec.category; this.label = spec.label;
     this.owner = opts.owner ?? 'npc';
     this.driver = null; this.passengers = []; this.seats = spec.seats ?? 4;
@@ -69,9 +70,14 @@ export class Vehicle {
   async _loadModel(url) {
     const { assets } = this.game;
     try {
-      const gltf = await assets.loadGLTF(url);
-      if (this._disposed) return;
-      const m = assets.clone(gltf, { materials: true });
+      let m;
+      if (this.spec.procedural) m = PROCEDURAL[this.spec.model](this.game.assets.manifest?.vehicles?.models?.[this.spec.model] ?? this._entry);
+      else {
+        const gltf = await assets.loadGLTF(url);
+        if (this._disposed) return;
+        m = assets.clone(gltf, { materials: true });
+      }
+      this.riderNode = m.getObjectByName('rider') ?? null;
       this.model.add(m);
       const names = new Set(this.geom.wheels.map((w) => w.name));
       this.wheelNodes = this.geom.wheels.map((w) => {
@@ -82,7 +88,7 @@ export class Vehicle {
       m.traverse((o) => {
         if (o.isMesh) {
           o.castShadow = true; o.receiveShadow = false;
-          if (!names.has(o.name) && !names.has(o.parent?.name)) { (Array.isArray(o.material) ? o.material : [o.material]).forEach((mt) => this.bodyMats.push(mt)); }
+          if (!names.has(o.name) && !names.has(o.parent?.name) && !(o.parent?.name === 'rider') && !o.material?.userData?.noTint) { (Array.isArray(o.material) ? o.material : [o.material]).forEach((mt) => this.bodyMats.push(mt)); }
         }
       });
       this.bodyMats.forEach((mt) => { mt.userData.base = mt.color.clone(); });
@@ -109,7 +115,7 @@ export class Vehicle {
     this._lod = undefined;
   }
   _buildLamps(glowTex) {
-    const g = this.geom, h = Math.min(0.72, g.size[1] * SCALE * 0.42), dx = g.halfW * 0.68;
+    const g = this.geom, h = Math.min(0.72, g.size[1] * SCALE * 0.42), dx = this.spec.twoWheel ? 0.11 : g.halfW * 0.68;
     this.head = [lamp(0.34, 0.17, 0.06, 0x8a8a78), lamp(0.34, 0.17, 0.06, 0x8a8a78)];
     this.tail = [lamp(0.3, 0.14, 0.06, 0x4a0808), lamp(0.3, 0.14, 0.06, 0x4a0808)];
     this.head[0].position.set(dx, h, g.halfL + 0.02); this.head[1].position.set(-dx, h, g.halfL + 0.02);
@@ -215,6 +221,11 @@ export class Vehicle {
     } else { this.object3d.position.copy(this._curP); this.object3d.quaternion.copy(this._curQ); }
     this._wheels();
     this._lamps();
+    if (this.spec.twoWheel) {
+      // inclinaison dans les virages (autour de la ligne de contact au sol) ; pilote PNJ visible
+      this.inner.rotation.z = this.pv ? this.pv.out.lean : 0;
+      if (this.riderNode) this.riderNode.visible = !!this.driver && !this.driver.isPlayer && this.driver !== this.game.player;
+    }
   }
   _wheels() {
     const g = this.geom;

@@ -3,10 +3,11 @@ import * as THREE from 'three';
 import { Vehicle } from './vehicle.js';
 import { buildGeometry } from './drive.js';
 import { TYPES, ALIASES, specFor, collisionDamage, damageLevel } from './tuning.js';
+import { topple } from './drive.js';
 
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 const FIXED = 1 / 60;
-const PARKED_POOL = ['sedan', 'hatchback-sports', 'sedan-sports', 'suv', 'taxi', 'van', 'truck', 'suv-luxury', 'race', 'delivery', 'sedan', 'hatchback-sports', 'suv', 'taxi', 'police', 'ambulance'];
+const PARKED_POOL = ['moto', 'bus', 'moto', 'sedan', 'hatchback-sports', 'sedan-sports', 'suv', 'taxi', 'van', 'truck', 'suv-luxury', 'race', 'delivery', 'sedan', 'hatchback-sports', 'suv', 'taxi', 'police', 'ambulance'];
 
 /** Petit générateur pseudo-aléatoire déterministe (mulberry32). */
 function rng(seed) { let a = seed >>> 0; return () => { a = (a + 0x6D2B79F5) >>> 0; let t = a; t = Math.imul(t ^ (t >>> 15), t | 1); t ^= t + Math.imul(t ^ (t >>> 7), t | 61); return ((t ^ (t >>> 14)) >>> 0) / 4294967296; }; }
@@ -78,7 +79,7 @@ export function install(game) {
       const geom = buildGeometry(models[spec.model]);
       const p = { x: position.x, y: position.y, z: position.z };
       if (typeof p.y !== 'number') p.y = (game.world?.groundHeight?.(p.x, p.z) ?? 0) + 0.3;
-      const v = new Vehicle({ game, spec, geom, id: 'veh-' + nextId++, glow, url: '/assets/' + (models[spec.model]?.file ?? `vehicles/${spec.model}.glb`) }, { ...opts, position: p, rotation });
+      const v = new Vehicle({ game, spec, geom, id: 'veh-' + nextId++, glow, entry: models[spec.model], url: '/assets/' + (models[spec.model]?.file ?? `vehicles/${spec.model}.glb`) }, { ...opts, position: p, rotation });
       scene.add(v.object3d);
       byBody.set(v.chassis.handle, v);
       vehicles.list.push(v);
@@ -155,6 +156,7 @@ export function install(game) {
   // ---------- géométrie : portes et sièges ----------
   /** Position locale du siège (repère châssis au sol) : 0 conducteur G, 1 passager D, 2/3 arrière, 4 centre. */
   function seatLocal(v, seat) {
+    if (v.spec.twoWheel) return { x: 0, y: 0.5, z: -0.12 };
     const side = seat === 4 ? 0 : (seat % 2 === 0 ? 1 : -1), row = seat === 4 ? 1 : Math.floor(seat / 2);
     return { x: side * Math.min(0.5, v.geom.halfW * 0.42), y: 0.42, z: v.geom.halfL * 0.05 - row * 0.85 };
   }
@@ -317,7 +319,23 @@ export function install(game) {
     game.bus.emit('vehicle:collision', { vehicle: v, other, impulse });
     const dmg = collisionDamage(dv, v.spec.mass, other?.spec?.mass);
     v.damage(dmg, 'collision');
+    if (v.spec.twoWheel && dv > 7 && v.driver) fallOff(v, lv, dv);
     if (v.driver === player && dv > 9) player.applyDamage(Math.round((dv - 9) * 2.2), 'accident');
+  }
+  /** Choc violent à moto : le pilote est éjecté et la moto se couche. */
+  function fallOff(v, lv, dv) {
+    topple(v.pv, 2.2, (v._age % 2 ? 1 : -1));
+    const d = v.driver, spd = Math.hypot(lv.x, lv.z);
+    if (d === player) {
+      beginExit(true);
+      if (player.ragdoll) player.ragdoll({ x: lv.x * 0.7, y: 3 + dv * 0.15, z: lv.z * 0.7 }, Math.min(40, Math.round(6 + dv * 1.6)), 'chute de moto');
+      game.bus.emit('notify', { text: 'Vous avez chuté de la moto !', kind: 'warning', duration: 2.5 });
+    } else if (d) {
+      v.driver = null; v.engineOn = false; v.controls.throttle = 0;
+      const p = v.object3d.position, ox = p.x + lv.x * 0.15 + 1.2, oz = p.z + lv.z * 0.15;
+      try { d.onEjected?.(v, { x: ox, y: p.y, z: oz }); } catch { /* PNJ sans réaction */ }
+    }
+    game.bus.emit('vehicle:fall', { vehicle: v, speed: spd * 3.6 });
   }
   // joueur à pied percuté par un véhicule rapide
   let hitCool = 0;
@@ -418,8 +436,10 @@ export function install(game) {
     const cv = player?.state === 'inVehicle' ? player.vehicle : null;
     if (!cv) return;
     const s = seatLocal(cv, player.seat ?? 0), o = player.object3d;
-    cv.localToWorld(s.x, s.y, s.z, o.position);
+    const lean = cv.spec.twoWheel ? (cv.inner.rotation.z || 0) : 0; // moto : le pilote s'incline avec elle
+    cv.localToWorld(s.x - Math.sin(lean) * s.y, s.y * Math.cos(lean), s.z, o.position);
     o.quaternion.copy(cv.object3d.quaternion);
+    if (lean) o.quaternion.multiply(_q.setFromAxisAngle(_v.set(0, 0, 1), lean));
   }, 80);
 
   // ---------- véhicules garés ----------

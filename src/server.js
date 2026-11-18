@@ -110,11 +110,14 @@ setInterval(() => {
 const NEAR_M = Number(process.env.NEAR_M || 300), FAR_EVERY = 4;
 const fullSnapshot = () => ({ t: "snap", full: 1, players: [...players.values()].map((p) => proto.packPlayer(p, true)) });
 const snapHead = '{"t":"snap","players":[';
-let snapN = 0;
+let snapN = 0, recoveredAt = 0, redisWasUp = true;
 const dirtyFar = new Set(); // modifiés depuis le dernier envoi « lointain »
 setInterval(() => {
   const now = Date.now();
-  for (const [id, p] of players) if (now - p.ts > 6000) { players.delete(id); dirty.delete(id); dirtyFar.delete(id); broadcast({ t: "gone", id }); }
+  const up = store.redisReady();
+  if (up && !redisWasUp) recoveredAt = now;
+  redisWasUp = up;
+  for (const [id, p] of players) if (proto.isStale(p.ts, now, up, recoveredAt)) { players.delete(id); dirty.delete(id); dirtyFar.delete(id); broadcast({ t: "gone", id }); }
   mPlayers.set(players.size);
   if (++snapN % 30 === 0) { broadcastSnap(fullSnapshot(), true); dirty.clear(); dirtyFar.clear(); return; }
   if (!dirty.size && !dirtyFar.size) return;

@@ -122,13 +122,15 @@ const report = setInterval(() => {
   last = { rx: st.rx, tx: st.tx, b: st.rxBytes };
 }, 5000);
 
-setTimeout(async () => {
+let finishing = false;
+async function finish() {
+  if (finishing) return; finishing = true;
   clearInterval(report); clearInterval(agentTimer);
   await new Promise((r) => setTimeout(r, 6000)); // laisse les reconnexions finir
   const up = bots.filter((b) => b.opened).length;
   for (const b of bots) { b.stopped = true; b.ws?.close(); }
   for (const id of agentIds) await mcp("despawn_agent", { agentId: id }).catch(() => {});
-  const secs = DURATION + 6, perPod = {};
+  const secs = Math.max(1, Math.round((Date.now() - t0) / 1000)), perPod = {};
   for (const d of docker) (perPod[d.name] ||= []).push(d);
   const dockerSum = Object.fromEntries(Object.entries(perPod).map(([k, v]) => [k, { cpuMoy: Math.round(v.reduce((a, x) => a + x.cpu, 0) / v.length), cpuMax: Math.round(Math.max(...v.map((x) => x.cpu))), memMaxMo: Math.round(Math.max(...v.map((x) => x.mem))) }]));
   const out = {
@@ -142,4 +144,6 @@ setTimeout(async () => {
   };
   console.log("\nBILAN\n" + Object.entries(out).map(([k, v]) => `  ${k}: ${JSON.stringify(v)}`).join("\n"));
   process.exit(0);
-}, DURATION * 1000);
+}
+setTimeout(finish, DURATION * 1000);
+process.on("SIGTERM", finish); // bilan anticipé (utilisé par playtest/multi.mjs)

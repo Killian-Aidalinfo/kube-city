@@ -7,12 +7,16 @@ import { pedTarget, QUALITY_PEDS } from './logic.js';
 const LINES_BUMP = ['Hé ! Regardez où vous allez !', 'Non mais oh, ça va pas ?', 'Pardon, hein !', 'Vous avez cru que c’était un circuit ?', 'Aïe, mon café !', 'Quel manque de savoir-vivre.'];
 const LINES_FLEE = ['Au secours !', 'Appelez la police !', 'Sauve qui peut !', 'Il est fou !'];
 const LINES_BRAVE = ['Tu veux te battre ? Viens !', 'Je vais t’apprendre les bonnes manières !'];
+const LINES_CAR = ['Attention, le trottoir !', 'Eh ! On est sur le trottoir !', 'Vous êtes fou, ralentissez !', 'Pousse-toi, il arrive !'];
+const LINES_RAIN = ['Quelle averse !', 'Vite, à l’abri !', 'Il pleut des cordes…'];
+const LINES_CHEER = ['Bravo ! Quelle cascade !', 'Waouh, il a volé !', 'Encore, encore !'];
 const WALK = 1.4, RUN = 4.6;
 const tmp = new THREE.Vector3();
 
 export function createPeds(game, rng) {
   const { scene, camera } = game.three;
   const peds = [];
+  let rainy = false, dry = true, boxes = null, shelterBudget = 0, fast = [], stuntAt = null;
   let kit = null, kitReady = false, outfits = pedOutfits(game), graph = null, lastSubtitle = -99, frame = 0;
   loadKit(game).then((k) => { kit = k; kitReady = true; });
 
@@ -61,7 +65,7 @@ export function createPeds(game, rng) {
     scene.add(ch.root);
     const ped = {
       kind: 'ped', id: i, ch, root: ch.root, position: ch.root.position, radius: 0.4, height: 1.8,
-      active: false, state: 'walk', t: 0, yaw: 0, speed: WALK, arc: null, hp: 40, brave: rng() < 0.15,
+      active: false, state: 'walk', t: 0, yaw: 0, speed: WALK, arc: null, hp: 40, brave: rng() < 0.15, shelterer: rng() < 0.7,
       threat: null, callCb: null, lodAcc: 0, vis: false, side: rng() < 0.5 ? 1.6 : -1.6, cooldown: 0,
       get isDown() { return this.state === 'ko' || this.state === 'stun'; },
       receiveHit(hit) { return onHit(ped, hit); },
@@ -107,6 +111,7 @@ export function createPeds(game, rng) {
       case 'flee': ped.ch.play('Sprint_Loop', { speed: 1 }); break;
       case 'fight': ped.ch.play('Jog_Fwd_Loop'); break;
       case 'call': ped.ch.play('Idle_Talking_Loop'); break;
+      case 'cheer': ped.ch.play('Idle_Talking_Loop', { speed: 2.6 }); break;
       case 'idle': ped.ch.play('Idle_Loop'); break;
       default: ped.ch.play('Walk_Loop', { speed: ped.speed / WALK });
     }
@@ -179,6 +184,15 @@ export function createPeds(game, rng) {
     for (const p of peds) if (p.active) activeCount++;
     const driver = game.player?.vehicle ?? null;
     const pv = driver?.speed ?? 0;
+    shelterBudget = 2;
+    rainy = (game.world?.weather?.rain ?? 0) > 0.45;
+    dry = (game.world?.weather?.rain ?? 0) < 0.15;
+    fast.length = 0;
+    for (const v of game.vehicles?.list ?? []) {
+      if (!v.object3d || v.wrecked || Math.abs(v.speed) < 22) continue;
+      const q = v.object3d.position;
+      if (Math.abs(q.x - pp.x) < 80 && Math.abs(q.z - pp.z) < 80) fast.push(v);
+    }
 
     for (const ped of peds) {
       if (!ped.active) {
@@ -208,6 +222,20 @@ export function createPeds(game, rng) {
       case 'ko': ped.t -= dt; if (ped.t <= 0) { ped.hp = 25; setState(ped, 'walk'); } return;
       case 'stun': ped.t -= dt; if (ped.t <= 0) { ped.hp = Math.max(ped.hp, 15); setState(ped, 'walk'); } return;
       case 'idle': ped.t -= dt; if (ped.t <= 0) setState(ped, 'walk'); break;
+      case 'cheer':
+        ped.t -= dt;
+        if (stuntAt) faceMove(ped, stuntAt.x - ped.position.x, stuntAt.z - ped.position.z, dt);
+        if (ped.t <= 0) setState(ped, 'walk');
+        return;
+      case 'shelter': {
+        const g = ped.goal;
+        if (!g) { setState(ped, 'walk'); return; }
+        const dx = g.x - ped.position.x, dz = g.z - ped.position.z, dd = Math.hypot(dx, dz);
+        if (dd > 0.7 && !ped.arrived) { faceMove(ped, dx, dz, dt, 10); moveBy(ped, (dx / dd) * 3.4 * dt, (dz / dd) * 3.4 * dt); }
+        else if (!ped.arrived) { ped.arrived = true; ped.ch.play('Idle_Torch_Loop'); }
+        if (dry) { ped.shelterer = rng() < 0.7; ped.goal = null; setState(ped, 'walk'); }
+        break;
+      }
       case 'call':
         ped.t -= dt; faceMove(ped, pp.x - ped.position.x, pp.z - ped.position.z, dt);
         if (ped.t <= 0) { const cb = ped.callCb; ped.callCb = null; cb?.(); setState(ped, 'flee', 5); } return;
@@ -236,6 +264,25 @@ export function createPeds(game, rng) {
       default: break;
     }
     if (ped.state === 'walk') walk(ped, dt);
+    // un véhicule fonce sur le trottoir : on s'écarte en criant
+    if ((ped.state === 'walk' || ped.state === 'idle' || ped.state === 'shelter') && fast.length && d < 70) {
+      for (const v of fast) {
+        const q = v.object3d.position, dx = ped.position.x - q.x, dz = ped.position.z - q.z, dd = Math.hypot(dx, dz);
+        if (dd > 9 || dd < 0.01) continue;
+        const h = v.heading;
+        if ((dx * Math.sin(h) + dz * Math.cos(h)) / dd < 0.45) continue; // ne vient pas vers lui
+        if (game.world?.isRoad?.(q.x, q.z)) continue;                      // sur la chaussée : il traverse à ses risques
+        ped.threat = { x: q.x, z: q.z }; setState(ped, 'flee', 3 + rng() * 2); say(ped, LINES_CAR);
+        return;
+      }
+    }
+    // la pluie : on file se coller à la façade la plus proche
+    if (rainy && ped.shelterer && ped.state === 'walk' && shelterBudget > 0 && d < 80) {
+      shelterBudget--;
+      const g = shelterPoint(ped.position.x, ped.position.z);
+      if (g) { ped.goal = g; ped.arrived = false; setState(ped, 'shelter'); if (rng() < 0.3) say(ped, LINES_RAIN); }
+      else ped.shelterer = false;
+    }
     // réactions au voisinage du joueur
     if (d < 12 && ped.state !== 'flee') {
       if (driver) {
@@ -251,6 +298,39 @@ export function createPeds(game, rng) {
       }
     }
   }
+
+  /** Point devant la façade la plus proche (≤ 45 m), ou null. Boîtes alignées sur les axes seulement. */
+  function shelterPoint(x, z) {
+    if (!boxes) {
+      boxes = [];
+      for (const b of game.world?.buildings ?? []) for (const p of b.parts ?? []) {
+        if (p.t === 'box' && !p.rot && p.y1 - p.y0 > 4 && p.w > 4 && p.d > 4) boxes.push(p.cx, p.cz, p.w / 2, p.d / 2);
+      }
+    }
+    let best = null, bd = 45;
+    for (let i = 0; i < boxes.length; i += 4) {
+      const cx = boxes[i], cz = boxes[i + 1], hw = boxes[i + 2], hd = boxes[i + 3];
+      const nx = Math.max(cx - hw, Math.min(cx + hw, x)), nz = Math.max(cz - hd, Math.min(cz + hd, z));
+      const d = Math.hypot(nx - x, nz - z);
+      if (d > 0.3 && d < bd) { bd = d; best = { nx, nz, d }; }
+    }
+    if (!best) return null;
+    const ux = (x - best.nx) / best.d, uz = (z - best.nz) / best.d;
+    return { x: best.nx + ux * 0.8, z: best.nz + uz * 0.8 };
+  }
+
+  // cascade réussie : les piétons proches applaudissent quelques secondes
+  game.bus.on('stunt', ({ position }) => {
+    if (!position) return;
+    stuntAt = { x: position.x, z: position.z };
+    let n = 0;
+    for (const ped of peds) {
+      if (!ped.active || !ped.vis || (ped.state !== 'walk' && ped.state !== 'idle')) continue;
+      if (Math.hypot(ped.position.x - position.x, ped.position.z - position.z) > 40) continue;
+      setState(ped, 'cheer', 3.5 + rng() * 2);
+      if (n++ === 0) say(ped, LINES_CHEER, true);
+    }
+  });
 
   function hitByVehicle(ped, veh, dir) {
     const p = ped.position;

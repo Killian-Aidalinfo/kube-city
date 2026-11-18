@@ -43,6 +43,13 @@ export const sub = connect();
 
 for (const [n, c] of [["redis", redis], ["sub", sub]]) {
   c.on("error", (e) => console.error(`[${n}] ${e.message}`));
+  // ioredis peut passer en « end » pour de bon (si une annonce de bascule tombe pendant qu'il cherche déjà le maître) :
+  // sans cette relance, le pod resterait sans Redis jusqu'à son redémarrage.
+  c.on("end", () => {
+    if (c.manuallyClosing) return; // arrêt voulu (quit/disconnect) : pas de relance
+    console.error(`[${n}] connexion terminée, relance`);
+    setTimeout(() => { if (c.status === "end") c.connect().catch(() => {}); }, 200);
+  });
 }
 
 export function redisReady() {
@@ -55,6 +62,7 @@ export async function publish(ev) {
 
 export async function subscribe(onEvent) {
   await sub.subscribe(CHANNEL);
+  sub.on("ready", () => { sub.subscribe(CHANNEL).catch(() => {}); }); // après une relance « end » : on se réabonne
   sub.on("message", (_ch, msg) => {
     try { onEvent(JSON.parse(msg)); } catch { /* message illisible : ignoré */ }
   });

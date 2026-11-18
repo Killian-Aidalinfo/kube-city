@@ -12,7 +12,7 @@ test('chaque type a un modèle du manifest et des réglages cohérents', () => {
   for (const id of Object.keys(TYPES)) {
     const s = specFor(id);
     assert.ok(manifest.vehicles.models[s.model], 'modèle manquant : ' + id);
-    assert.ok(s.mass > 500 && s.top > 80 && s.accel > 2 && s.seats >= 2, id);
+    assert.ok(s.mass > (s.twoWheel ? 150 : 500) && s.top > 80 && s.accel > 2 && s.seats >= (s.twoWheel ? 1 : 2), id);
   }
   assert.equal(specFor('berline').id, 'sedan');            // alias de catégorie
   assert.equal(specFor('inconnu'), null);

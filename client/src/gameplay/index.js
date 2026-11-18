@@ -654,6 +654,7 @@ export function install(game) {
         if (r) {
           profile.stats.jumps++;
           gp.addMoney(r.bonus, 'cascade');
+          bus.emit('stunt', { position: { x: vp.x, y: vp.y, z: vp.z }, air: r.air, bonus: r.bonus });
           bus.emit('notify', { text: `Cascade ! ${r.air.toFixed(1)} s en l'air (+${r.bonus} €)`, kind: 'success', duration: 3 });
         }
       }

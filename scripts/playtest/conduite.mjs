@@ -1,5 +1,5 @@
 // Playtest de conduite (headless, Rapier sous node, sol plat) : 0→100 km/h, freinage, rayon de braquage, retournement.
-// Usage : node scripts/playtest/conduite.mjs [type ...]   (défaut : sedan race suv van)
+// Usage : node scripts/playtest/conduite.mjs [type ...]   (défaut : sedan race suv van moto bus)
 import fs from 'node:fs';
 import RAPIER from '@dimforge/rapier3d-compat';
 import { specFor } from '../../client/src/vehicles/tuning.js';
@@ -17,18 +17,19 @@ function monde(type) {
   for (let i = 0; i < 90; i++) step({});
   return { pv, step };
 }
-const types = process.argv.slice(2).length ? process.argv.slice(2) : ['sedan', 'race', 'suv', 'van'];
+const types = process.argv.slice(2).length ? process.argv.slice(2) : ['sedan', 'race', 'suv', 'van', 'moto', 'bus'];
 const fails = [];
 const check = (ok, msg) => { if (!ok) fails.push(msg); };
 for (const type of types) {
   const spec = specFor(type);
-  // 0→100 km/h
+  // 0→V km/h (V = 100, ou 85 % de la vitesse max pour les lents comme le bus)
+  const V = Math.min(100, Math.round(spec.top * 0.85));
   let { pv, step } = monde(type);
   let t100 = null;
-  for (let i = 0; i < 60 * 25 && t100 === null; i++) { step({ throttle: 1 }); if (pv.out.kmh >= 100) t100 = (i + 1) * DT; }
+  for (let i = 0; i < 60 * 25 && t100 === null; i++) { step({ throttle: 1 }); if (pv.out.kmh >= V) t100 = (i + 1) * DT; }
   // freinage depuis 100 km/h
   ({ pv, step } = monde(type));
-  for (let i = 0; i < 60 * 25 && pv.out.kmh < 100; i++) step({ throttle: 1 });
+  for (let i = 0; i < 60 * 25 && pv.out.kmh < V; i++) step({ throttle: 1 });
   const z0 = pv.body.translation().z; let n = 0;
   while (pv.out.kmh > 2 && n++ < 60 * 10) step({ brake: 1 });
   const brakeDist = pv.body.translation().z - z0;
@@ -50,14 +51,16 @@ for (const type of types) {
   pv.body.setRotation({ x: 0, y: 0, z: 1, w: 0 }, true); pv.body.setTranslation({ x: 0, y: 1.5, z: 0 }, true);
   for (let i = 0; i < 60 * 3; i++) step({});
   const roofUp = pv.out.up;
-  console.log(`${type.padEnd(16)} 0-100: ${t100?.toFixed(1) ?? '>25'} s | frein 100→0: ${brakeDist.toFixed(1)} m | rayon(braq. max, ${vEnd.toFixed(0)} km/h): ${radius.toFixed(1)} m | up min en virage rapide: ${minUp.toFixed(2)} | sur le toit: up=${roofUp.toFixed(2)}`);
-  check(t100 !== null && t100 < (spec.mass > 3000 ? 22 : 14), `${type}: 0-100 trop lent (${t100})`);
-  check(brakeDist > 20 && brakeDist < 60, `${type}: distance de freinage ${brakeDist.toFixed(1)} m hors 20..60`);
-  check(radius > 5 && radius < 25, `${type}: rayon de braquage ${radius.toFixed(1)} m hors 5..25`);
+  console.log(`${type.padEnd(16)} 0-${V}: ${t100?.toFixed(1) ?? '>25'} s | frein ${V}→0: ${brakeDist.toFixed(1)} m | rayon(braq. max, ${vEnd.toFixed(0)} km/h): ${radius.toFixed(1)} m | up min en virage rapide: ${minUp.toFixed(2)} | sur le toit: up=${roofUp.toFixed(2)}`);
+  check(t100 !== null && t100 < (spec.mass > 3000 ? 22 : 14), `${type}: 0-${V} trop lent (${t100})`);
+  const k2 = (V / 100) ** 2;
+  check(brakeDist > 20 * k2 && brakeDist < 60, `${type}: distance de freinage ${brakeDist.toFixed(1)} m hors ${(20 * k2).toFixed(0)}..60`);
+  check(radius > 4.5 && radius < 25, `${type}: rayon de braquage ${radius.toFixed(1)} m hors 4.5..25`);
   check(minUp > 0.5, `${type}: se retourne en virage rapide (up ${minUp.toFixed(2)})`);
   check(Math.abs(roofUp) <= 1.001, `${type}: état toit invalide`);
   // le jeu remet sur roues après 5 s quand flipT > 5 : on vérifie que le compteur croît bien sur le toit
-  check(pv.flipT > 2, `${type}: flipT ne croît pas sur le toit (${pv.flipT.toFixed(1)}), pas de redressement auto`);
+  // moto : le rappel de roulis la redresse seule (pas de remise sur roues par le jeu) ; sinon flipT doit croître
+  check(spec.twoWheel ? roofUp > 0.8 || pv.flipT > 2 : pv.flipT > 2, `${type}: flipT ne croît pas sur le toit (${pv.flipT.toFixed(1)}), pas de redressement auto`);
 }
 if (fails.length) { console.error('ÉCHECS :\n- ' + fails.join('\n- ')); process.exit(1); }
 console.log('conduite : OK');

@@ -27,8 +27,9 @@ export function buildGeometry(m, scale = 1.4) {
   const H0 = radius + 0.2;                 // hauteur de l'origine du châssis au repos
   const wheels = [];
   for (const [name, p] of Object.entries(wp)) {
-    const mm = /^wheel-(front|back)-(left|right)$/.exec(name);
+    const mm = /^wheel-(front|back)(?:-(left|right))?$/.exec(name);
     if (!mm) continue;
+    if (!mm[2]) { wheels.push({ name, front: mm[1] === 'front', left: true, x: 0, y: p[1] * scale - H0, z: p[2] * scale }); continue; } // deux-roues : sur l'axe
     const sx = mm[2] === 'left' ? 1 : -1;
     // le centre visuel de la roue est décalé vers l'extérieur par rapport au nœud
     wheels.push({ name, front: mm[1] === 'front', left: sx > 0, x: sx * (Math.abs(p[0]) + 0.125) * scale, y: p[1] * scale - H0, z: p[2] * scale });
@@ -69,8 +70,8 @@ export function createPhysicsVehicle(RAPIER, world, spec, geom, pos, yaw = 0) {
   return {
     body, collider, ctrl, spec, geom, n,
     steer: 0, steerVis: 0, spin: geom.wheels.map(() => 0), suspLen: geom.wheels.map(() => geom.rest),
-    out: { forwardSpeed: 0, lateral: 0, speed: 0, kmh: 0, skid: 0, rpm: 0.2, grounded: false, up: 1, braking: false },
-    flipT: 0, lastV: { x: 0, y: 0, z: 0 },
+    out: { forwardSpeed: 0, lateral: 0, speed: 0, kmh: 0, skid: 0, rpm: 0.2, grounded: false, up: 1, braking: false, lean: 0 },
+    lean: 0, fall: 0, flipT: 0, lastV: { x: 0, y: 0, z: 0 },
   };
 }
 
@@ -86,16 +87,17 @@ export function driveStep(pv, controls, dt, wet = 0) {
   const speed = Math.hypot(lv.x, lv.z);
   let contacts = 0;
   for (let i = 0; i < n; i++) if (ctrl.wheelIsInContact(i)) contacts++;
-  const grounded = contacts >= 2;
+  const grounded = contacts >= (n < 4 ? 1 : 2);
 
-  let thr = clamp(controls.throttle ?? 0, -1, 1), brake = clamp(controls.brake ?? 0, 0, 1);
+  const down = spec.twoWheel && pv.fall > 0; // deux-roues à terre : plus de commandes
+  let thr = down ? 0 : clamp(controls.throttle ?? 0, -1, 1), brake = clamp(controls.brake ?? 0, 0, 1);
   const hb = !!controls.handbrake;
   // appuyer dans le sens opposé au mouvement = freiner d'abord
   if ((thr > 0 && vF < -1.5) || (thr < 0 && vF > 1.5)) { brake = Math.max(brake, Math.abs(thr)); thr = 0; }
   const grip = spec.grip * (1 - 0.28 * clamp(wet, 0, 1));
 
   // direction : braquage lissé, plus étroit à haute vitesse
-  const steerIn = clamp(controls.steer ?? 0, -1, 1);
+  const steerIn = down ? 0 : clamp(controls.steer ?? 0, -1, 1);
   // braquage limité par l'accélération latérale que les pneus peuvent tenir (v²/r) : pas de virage « sur rails » vite
   const latCap = Math.atan(2.6 * 17 * grip / Math.max(1, speed * speed));
   const target = steerIn * Math.min(steerLimit(spec.steer, speed), Math.max(0.035, latCap));
@@ -137,9 +139,22 @@ export function driveStep(pv, controls, dt, wet = 0) {
     const d = Math.max(0, 1 - 1.2 * dt);
     body.setAngvel({ x: av.x * d, y: av.y * d, z: av.z * d }, true);
   }
-  // anti-roulis : freine la rotation autour de l'axe longitudinal
   const roll = av.x * f.x + av.y * f.y + av.z * f.z;
+  if (spec.twoWheel) {
+    // deux-roues : la physique reste droite (rappel PD sur l'angle de roulis), l'inclinaison est visuelle (out.lean)
+    pv.fall = Math.max(0, (pv.fall ?? 0) - dt);
+    if (pv.fall <= 0) {
+      const phi = Math.atan2(up.x * r.x + up.y * r.y + up.z * r.z, up.y);
+      const I = spec.mass * 0.06, t = I * (-130 * phi - 24 * roll) * dt;
+      body.applyTorqueImpulse({ x: f.x * t, y: f.y * t, z: f.z * t }, true);
+    }
+    const yawRate = av.y, target = pv.fall > 0 ? 0 : clamp(Math.atan(-yawRate * vF / 9.81) * 1.1, -0.75, 0.75);
+    pv.lean += (target - pv.lean) * Math.min(1, 9 * dt);
+    out.lean = pv.lean;
+  } else {
+  // anti-roulis : freine la rotation autour de l'axe longitudinal
   body.applyTorqueImpulse({ x: -f.x * roll * spec.mass * 0.18 * dt, y: -f.y * roll * spec.mass * 0.18 * dt, z: -f.z * roll * spec.mass * 0.18 * dt }, true);
+  }
 
   // --- sorties ---
   for (let i = 0; i < n; i++) {
@@ -157,6 +172,13 @@ export function driveStep(pv, controls, dt, wet = 0) {
   // retourné et à l'arrêt : compteur de remise sur roues
   pv.flipT = (up.y < 0.35 && speed < 2.5) ? pv.flipT + dt : 0;
   return out;
+}
+
+/** Chute d'un deux-roues : le rappel est coupé `secs` s et un couple le couche sur le côté. */
+export function topple(pv, secs = 2, side = 1) {
+  pv.fall = secs;
+  const q = pv.body.rotation(), f = rot(q, 0, 0, 1), m = pv.spec.mass * 1.4;
+  pv.body.applyTorqueImpulse({ x: f.x * m * side, y: f.y * m * side, z: f.z * m * side }, true);
 }
 
 /** Remet le véhicule sur ses roues à sa position actuelle (cap conservé). */

@@ -3,7 +3,7 @@ import { normalizeGraph } from './graph.js';
 import { LanePath, headingOf, steerTo, speedCommand, relocate } from './driver.js';
 import { carTarget, followSpeed, stopSpeed, lightState, lightPos, yawOf } from './logic.js';
 
-const TYPES = ['sedan', 'sedan', 'hatchback-sports', 'suv', 'taxi', 'van', 'delivery', 'sedan-sports', 'suv-luxury', 'truck'];
+const TYPES = ['sedan', 'sedan', 'hatchback-sports', 'suv', 'taxi', 'van', 'delivery', 'sedan-sports', 'suv-luxury', 'truck', 'moto', 'moto', 'bus'];
 const KMH = 1 / 3.6;
 const fwd = { x: 0, z: 1 };
 

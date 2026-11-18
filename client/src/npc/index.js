@@ -2,12 +2,14 @@
 import { createPeds } from './peds.js';
 import { createTraffic } from './traffic.js';
 import { makeRng } from './logic.js';
+import { createBirds } from './birds.js';
 
 /** @param {object} game contexte (spec 3.1) */
 export function install(game) {
   const rng = makeRng(20261118);
   const peds = createPeds(game, rng);
   const traffic = createTraffic(game, rng);
+  const birds = createBirds(game, rng);
 
   /**
    * API publique.
@@ -18,6 +20,7 @@ export function install(game) {
    */
   const npc = game.npc = {
     peds: peds.peds,
+    birds: birds.birds,
     traffic: traffic.cars,
     maxPeds: 0, maxCars: 0,
     nearby: peds.nearby,
@@ -39,5 +42,5 @@ export function install(game) {
     });
   });
 
-  game.onUpdate((dt) => { peds.update(dt); traffic.update(dt); }, 10);
+  game.onUpdate((dt) => { peds.update(dt); traffic.update(dt); birds.update(dt); }, 10);
 }

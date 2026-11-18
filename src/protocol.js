@@ -81,3 +81,11 @@ export function packPlayer(p, full) {
   if (full) Object.assign(e, { n: p.name, ch: p.ch, o: p.o || undefined, bot: p.bot ? 1 : undefined });
   return e;
 }
+
+// Un joueur « périmé » n'a plus donné signe de vie depuis ttl ms. Pendant une coupure Redis (redisUp=false), les joueurs
+// des AUTRES pods ne peuvent pas se mettre à jour : on les garde figés au lieu de les faire disparaître, et le délai
+// ne repart qu'au retour de Redis (recoveredAt), le temps que leurs lots reviennent.
+export function isStale(ts, now, redisUp, recoveredAt, ttl = 6000) {
+  if (!redisUp) return false;
+  return now - Math.max(ts, recoveredAt || 0) > ttl;
+}

@@ -20,5 +20,5 @@ Les fichiers ont été téléchargés sur OpenGameArt (uploads officiels de Kenn
 ## Absents (repli procédural prévu)
 - Pack de personnages compatible avec la Universal Animation Library (Universal Base Characters, Quaternius) : distribué uniquement via itch.io (122 Mo), non téléchargé. Les personnages sont le mannequin du pack d'animations, colorés par zones (`client/src/core/outfit.js`).
 - Kenney « Impact Sounds » : non obtenu ; les chocs sont à synthétiser ou à tirer de `sounds/rpg/`.
-- Moto, bus, hélicoptère : absents du Car Kit.
+- Moto, bus, hélicoptère : absents du Car Kit (moto et bus générés par `client/src/vehicles/procedural.js`).
 - Texture d'eau : à générer par shader.

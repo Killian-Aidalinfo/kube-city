@@ -15,6 +15,8 @@ export const CATEGORIES = {
   police:      { label: 'Police',      mass: 1500, accel: 10.5, top: 205, grip: 1.12, steer: 0.58, drive: 'rwd', seats: 4, siren: true },
   ambulance:   { label: 'Ambulance',   mass: 2400, accel: 6.8,  top: 150, grip: 0.95, steer: 0.5,  drive: 'rwd', seats: 3, siren: true },
   pompiers:    { label: 'Pompiers',    mass: 4600, accel: 5.2,  top: 115, grip: 0.9,  steer: 0.45, drive: 'rwd', seats: 3, siren: true },
+  bus:         { label: 'Bus',         mass: 9500, accel: 3.3,  top: 85,  grip: 0.85, steer: 0.4,  drive: 'rwd', seats: 2 },
+  moto:        { label: 'Moto',        mass: 230,  accel: 9.5,  top: 185, grip: 1.1,  steer: 0.5,  drive: 'rwd', seats: 1, twoWheel: true },
   poids_lourd: { label: 'Benne',       mass: 5200, accel: 4.6,  top: 100, grip: 0.9,  steer: 0.42, drive: 'rwd', seats: 2 },
 };
 
@@ -35,6 +37,8 @@ export const TYPES = {
   ambulance: { category: 'ambulance', label: 'Ambulance' },
   firetruck: { category: 'pompiers', label: 'Camion de pompiers' },
   'garbage-truck': { category: 'poids_lourd', label: 'Camion-benne' },
+  bus: { category: 'bus', label: 'Bus', procedural: true },
+  moto: { category: 'moto', label: 'Moto', procedural: true },
 };
 // alias lisibles (catégories) → premier modèle
 export const ALIASES = { compacte: 'hatchback-sports', berline: 'sedan', sport: 'race', muscle: 'sedan-sports', camionnette: 'van', 'pick-up': 'truck', pompiers: 'firetruck', poids_lourd: 'garbage-truck' };

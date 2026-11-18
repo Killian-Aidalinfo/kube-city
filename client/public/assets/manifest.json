@@ -781,6 +781,59 @@
     },
     "wheelRadius": 0.3,
     "extraNodes": []
+   },
+   "bus": {
+    "procedural": true,
+    "size": [
+     1.9,
+     2.1,
+     6.4
+    ],
+    "wheelPositions": {
+     "wheel-front-left": [
+      0.7,
+      0.4,
+      2.3
+     ],
+     "wheel-front-right": [
+      -0.7,
+      0.4,
+      2.3
+     ],
+     "wheel-back-left": [
+      0.7,
+      0.4,
+      -1.8
+     ],
+     "wheel-back-right": [
+      -0.7,
+      0.4,
+      -1.8
+     ]
+    },
+    "wheelRadius": 0.4
+   },
+   "moto": {
+    "procedural": true,
+    "size": [
+     0.55,
+     0.85,
+     1.5
+    ],
+    "twoWheel": true,
+    "wheelPositions": {
+     "wheel-front": [
+      0,
+      0.25,
+      0.52
+     ],
+     "wheel-back": [
+      0,
+      0.25,
+      -0.48
+     ]
+    },
+    "wheelRadius": 0.25
    }
   },
   "categories": {

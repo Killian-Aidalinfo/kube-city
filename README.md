@@ -185,6 +185,27 @@ docker compose kill redis-a        # le maître meurt brutalement
 
 Mesuré en local : **3,7 s** de synchro en pause (2 s de détection + bascule), **0 joueur déconnecté**, 100 % de disponibilité HTTP. Pendant la bascule, chacun continue de rouler et le HUD affiche « Synchro en pause ».
 
+### Preuve avec le vrai client (objectif : bascule détectée en 1-2 s, coupure ≤ 5 s)
+
+```bash
+export COMPOSE_FILE=docker-compose.yml:deploy/sentinel/docker-compose.sentinel.yml
+docker compose up -d --build
+SENTINEL=1 node scripts/playtest/multi.mjs      # code de sortie 1 si une mesure dépasse 5 s ou si de la progression est perdue
+```
+
+Deux navigateurs (sur deux pods différents) + 20 joueurs simulés (`scripts/charge.mjs`), qui enchaînent : kill du maître Redis, kill d'un pod de jeu, `docker compose restart` d'un pod (mise à jour simulée), kill du nouveau maître. Mesuré côté navigateur (local, 19/11/2026) :
+
+| Épreuve | Bascule Redis | Synchro en pause | Coupure joueur | Autre joueur invisible | Reconnexions (A / B) | Argent et missions |
+|---|---|---|---|---|---|---|
+| 1. kill du maître Redis | 3,3 s | 3,8 s | 0 s | 0 s | 0 / 0 | intacts |
+| 2. kill d'un pod de jeu | - | 0 s | 0,1 s | 0 s | 1 / 0 | intacts |
+| 3. restart d'un pod (mise à jour) | - | 0 s | 0,2 s | 0 s | 0 / 1 | intacts |
+| 4. kill du nouveau maître | 3,4 s | 3,8 s | 0 s | 0 s | 0 / 0 | intacts |
+
+Joueurs simulés : 20/20 connectés à la fin, 15 reconnexions (médiane 234 ms, max 829 ms) pour les deux pods perdus. La bascule Redis (2 s de détection + élection) reste sous les 5 s ; personne n'est coupé. Les deux joueurs ne disparaissent pas l'un pour l'autre : leur dernier état reste affiché (figé) pendant la bascule.
+
+Corrigé grâce à cette épreuve : ioredis pouvait passer définitivement en « end » si l'annonce d'un nouveau maître tombait pendant qu'il cherchait déjà le maître (le pod restait sans Redis jusqu'à son redémarrage, `synchro en pause` 48 s et plus) : `src/store.js` relance maintenant la connexion. Pendant une coupure Redis, les joueurs des autres pods sont gardés figés (au lieu d'être retirés après 6 s) et le délai ne repart qu'au retour de Redis (`isStale` dans `src/protocol.js`). Republier l'état au retour de Redis n'apporte rien : chaque client envoie déjà son état à 15 Hz, donc les autres pods le revoient dans les 70 ms.
+
 Ce qui rend ça possible :
 - `/readyz` ne dépend PAS de Redis : sinon tous les pods deviendraient « pas prêts » en même temps pendant la bascule et le Service couperait tout le monde ;
 - côté appli (`src/store.js`) : `failoverDetector` (écoute l'annonce du nouveau maître), délais courts (`commandTimeout`, reconnexion toutes les 100 ms), reconnexion sur l'erreur `READONLY` ;
