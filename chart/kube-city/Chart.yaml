@@ -1,0 +1,6 @@
+apiVersion: v2
+name: kube-city
+description: Kube City, jeu de ville multijoueur, déployé en haute disponibilité
+type: application
+version: 1.0.0
+appVersion: "1.0.0"

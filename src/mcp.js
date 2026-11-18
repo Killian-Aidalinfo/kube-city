@@ -11,9 +11,9 @@ const text = (obj) => ({ content: [{ type: "text", text: typeof obj === "string"
 const fail = (msg) => ({ content: [{ type: "text", text: msg }], isError: true });
 
 function buildServer(players) {
-  const s = new McpServer({ name: "port-neon", version: VERSION }, {
+  const s = new McpServer({ name: "kube-city", version: VERSION }, {
     instructions:
-      "Tu pilotes un agent dans Port Néon, une ville de jeu multijoueur. Crée d'abord ton agent avec spawn_agent, " +
+      "Tu pilotes un agent dans Kube City, une ville de jeu multijoueur. Crée d'abord ton agent avec spawn_agent, " +
       "garde son agentId, puis regarde autour (look), déplace-toi (drive_to), parle aux joueurs (say) et propose des courses de rue (propose_race). " +
       "Reste fair-play et bienveillant dans le chat : de vrais étudiants jouent.",
   });

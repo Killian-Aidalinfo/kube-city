@@ -1,4 +1,4 @@
-// Ville de Port Néon : carte déterministe partagée par le navigateur et le serveur.
+// Ville de Kube City : carte déterministe partagée par le navigateur et le serveur.
 // Même graine => même ville partout, donc rien à synchroniser.
 
 export const TILE = 40;            // taille d'une case, en pixels monde

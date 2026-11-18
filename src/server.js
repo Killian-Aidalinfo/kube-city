@@ -1,4 +1,4 @@
-// Port Néon : serveur HTTP + WebSocket + MCP. Sans état : tout ce qui compte est dans Redis.
+// Kube City : serveur HTTP + WebSocket + MCP. Sans état : tout ce qui compte est dans Redis.
 import http from "node:http";
 import fs from "node:fs/promises";
 import path from "node:path";
@@ -140,7 +140,7 @@ wss.on("connection", (ws) => {
           chat: await store.recentChat(20), races: await store.listRaces(), board: await store.leaderboard(10),
         }));
         // après une reconnexion (pod tué, mise à jour…), pas de message : le joueur ne doit rien remarquer
-        if (!m.re) await store.pushChat({ from: "Radio Néon", text: `${me.name} entre en ville.`, ts: Date.now() });
+        if (!m.re) await store.pushChat({ from: "Radio Kube", text: `${me.name} entre en ville.`, ts: Date.now() });
       } else if (m.t === "ping") {
         ws.send(JSON.stringify({ t: "pong", ts: m.ts }));
       } else if (!me) {
@@ -182,7 +182,7 @@ wss.on("connection", (ws) => {
   });
 });
 
-server.listen(PORT, () => console.log(`Port Néon ${VERSION} sur :${PORT} (pod ${store.POD})`));
+server.listen(PORT, () => console.log(`Kube City ${VERSION} sur :${PORT} (pod ${store.POD})`));
 
 // ---------- Arrêt propre ----------
 // 1. readyz passe en 503 : Kubernetes retire le pod du Service.

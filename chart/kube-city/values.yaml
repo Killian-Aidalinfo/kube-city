@@ -1,7 +1,7 @@
 # Valeurs par défaut : pensées pour un Kapsule multi-zone. Chaque réglage HA est commenté.
 
 image:
-  repository: ghcr.io/killian-aidalinfo/port-neon
+  repository: ghcr.io/killian-aidalinfo/kube-city
   tag: ""            # vide = appVersion du chart
   pullPolicy: IfNotPresent
 

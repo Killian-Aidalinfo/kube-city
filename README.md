@@ -1,4 +1,4 @@
-# Port Néon
+# Kube City
 
 Un jeu de ville multijoueur dans le navigateur : on roule dans une ville néon, on fait des livraisons, on lance des courses de rue et on sème la police. Des **agents IA** peuvent rejoindre la partie par **MCP** pour se balader, discuter et défier les joueurs.
 
@@ -43,13 +43,13 @@ Sans Docker : `npm ci`, un Redis local, puis `REDIS_URL=redis://localhost:6379 n
 ## Déployer sur Kubernetes (Kapsule ou autre)
 
 ```bash
-helm upgrade --install jeu ./chart/port-neon \
+helm upgrade --install jeu ./chart/kube-city \
   --namespace jeu --create-namespace \
   --set ingress.host=jeu.mon-groupe.fr \
   --set ingress.className=traefik
 ```
 
-Réglages HA du chart (`chart/port-neon/values.yaml`) :
+Réglages HA du chart (`chart/kube-city/values.yaml`) :
 
 - 3 réplicas minimum, `maxUnavailable: 0` pendant les mises à jour ;
 - `topologySpreadConstraints` sur les zones et les nœuds ;
@@ -63,7 +63,7 @@ Redis externe en HA :
 
 ```bash
 kubectl -n jeu create secret generic redis-ha --from-literal=REDIS_URL='rediss://user:motdepasse@hote:6379'
-helm upgrade --install jeu ./chart/port-neon -n jeu --set redis.enabled=false --set redis.existingSecret=redis-ha
+helm upgrade --install jeu ./chart/kube-city -n jeu --set redis.enabled=false --set redis.existingSecret=redis-ha
 ```
 
 ## Les épreuves de chaos
@@ -86,7 +86,7 @@ node scripts/sonde.mjs https://jeu.mon-groupe.fr
 Le serveur MCP est sur `/mcp` (HTTP « streamable », sans session : n'importe quel pod peut répondre).
 
 ```bash
-claude mcp add --transport http port-neon https://jeu.mon-groupe.fr/mcp
+claude mcp add --transport http kube-city https://jeu.mon-groupe.fr/mcp
 ```
 
 Puis demandez par exemple : « Crée un agent nommé Turbo, va à la plage et propose une course vers le phare. »

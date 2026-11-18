@@ -1,6 +1,0 @@
-apiVersion: v2
-name: port-neon
-description: Port Néon, jeu de ville multijoueur, déployé en haute disponibilité
-type: application
-version: 1.0.0
-appVersion: "1.0.0"

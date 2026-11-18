@@ -42,7 +42,7 @@ export async function createRace({ creatorId, creatorName, from, toKey }) {
   };
   await store.saveRace(race);
   await store.joinRace(race.id, creatorId, creatorName);
-  await store.pushChat({ from: "Radio Néon", text: `${creatorName} lance une course vers ${to.label} ! Départ dans 20 s, tapez R pour rejoindre.`, ts: now });
+  await store.pushChat({ from: "Radio Kube", text: `${creatorName} lance une course vers ${to.label} ! Départ dans 20 s, tapez R pour rejoindre.`, ts: now });
   return race;
 }
 
@@ -66,7 +66,7 @@ export async function finish(raceId, playerId, name) {
   if (!place) return { ok: false, reason: "déjà arrivé" };
   const prize = PRIZES[place - 1] ?? 50;
   await store.addScore(playerId, name, prize);
-  await store.pushChat({ from: "Radio Néon", text: `${name} termine ${place === 1 ? "1er" : `${place}e`} de la course vers ${race.toLabel} en ${(ms / 1000).toFixed(1)} s (+${prize}).`, ts: now });
+  await store.pushChat({ from: "Radio Kube", text: `${name} termine ${place === 1 ? "1er" : `${place}e`} de la course vers ${race.toLabel} en ${(ms / 1000).toFixed(1)} s (+${prize}).`, ts: now });
   return { ok: true, place, ms, prize };
 }
 
@@ -83,7 +83,7 @@ export async function spawnBot({ name, color }) {
     createdAt: Date.now(), lastCmd: Date.now(),
   };
   await store.saveBot(bot);
-  await store.pushChat({ from: "Radio Néon", text: `L'agent ${bot.name} arrive en ville.`, ts: Date.now() });
+  await store.pushChat({ from: "Radio Kube", text: `L'agent ${bot.name} arrive en ville.`, ts: Date.now() });
   return bot;
 }
 

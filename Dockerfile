@@ -1,4 +1,4 @@
-# Port Néon : image de production, petite et sans privilèges
+# Kube City : image de production, petite et sans privilèges
 FROM node:22-alpine AS deps
 WORKDIR /app
 COPY package.json package-lock.json ./

@@ -1,4 +1,4 @@
-// Port Néon : le client. Le jeu tourne localement ; le serveur ne sert qu'à partager la ville.
+// Kube City : le client. Le jeu tourne localement ; le serveur ne sert qu'à partager la ville.
 // Si le pod qui nous sert disparaît, on continue de jouer et on se reconnecte ailleurs.
 import { TILE, SIZE, WORLD, T, CITY, drivable, districtAt, PLACES, roadPath, isRoadLine, BLOCK, ROAD } from "/shared/world.js";
 
@@ -385,7 +385,7 @@ minimap.width = minimap.height = SIZE;
 // ---------- HUD ----------
 function esc(s) { return String(s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]); }
 function renderChat() {
-  $("chat").innerHTML = chat.slice(-8).map((m) => `<div class="line"><span class="${m.from === "Radio Néon" ? "radio" : "from"}">${esc(m.from)}</span> : ${esc(m.text)}</div>`).join("");
+  $("chat").innerHTML = chat.slice(-8).map((m) => `<div class="line"><span class="${m.from === "Radio Kube" ? "radio" : "from"}">${esc(m.from)}</span> : ${esc(m.text)}</div>`).join("");
 }
 function renderBoard() {
   $("boardlist").innerHTML = board.map((b) => `<li>${esc(b.name)} <b>${b.score}</b></li>`).join("");
