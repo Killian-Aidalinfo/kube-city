@@ -7,6 +7,8 @@ import { createPhone } from './phone.js';
 import { createScreens } from './screens.js';
 import { createShop } from './panels.js';
 import { formatMoney } from './mapmath.js';
+import { createOnboarding, autoQuality } from './onboarding.js';
+import { createCluster } from './cluster.js';
 
 /** @param {object} game contexte (spec 3.1) */
 export function install(game) {
@@ -21,6 +23,9 @@ export function install(game) {
   const phone = createPhone(game, ui);
   const shop = createShop(game, ui);
   const screens = createScreens(game, ui);
+  if (autoQuality(game)) setTimeout(() => bus.emit('notify', { text: 'Ordinateur sans carte graphique dédiée : qualité Basse activée (modifiable dans Pause > Réglages).', kind: 'info', duration: 6 }), 3000);
+  const cluster = createCluster(game, ui);
+  const tips = createOnboarding(game, ui);
   hud.el.classList.add('menu');
 
   const modalOpen = () => map.open || phone.open || shop.open;
@@ -75,7 +80,7 @@ export function install(game) {
     if (name === 'carte') ui.closeMap(); else if (name === 'telephone') ui.closePhone(); else if (name === 'pause') ui.resume(); else if (name === 'titre' || name === 'title') screens.hide('title');
   };
   ui.notify = (text, kind = 'info', duration = 3) => bus.emit('notify', { text, kind, duration });
-  ui.hud = hud; ui.map = map; ui.phone = phone; ui.screens = screens;
+  ui.cluster = cluster; ui.tips = tips; ui.hud = hud; ui.map = map; ui.phone = phone; ui.screens = screens;
   Object.defineProperty(ui, 'modalOpen', { get: () => modalOpen() || screens.wheelOpen || game.state === 'paused' });
   game.ui = ui;
 
@@ -112,6 +117,9 @@ export function install(game) {
   game.onUpdate((dt) => {
     hud.update(dt);
     const inp = game.input;
+    inp.triggersDrive = !!game.player?.vehicle;
+    tips.update(dt);
+    if ((game.state === 'playing' || game.state === 'paused') && !screens.titleOpen && inp.pressed('cluster')) cluster.toggle();
     if (game.state === 'playing' && !screens.titleOpen) {
       if (inp.pressed('pause')) {
         if (shop.open) shop.hide(); else if (phone.open) { if (!phone.back()) ui.closePhone(); } else if (map.open) ui.closeMap(); else ui.pause();

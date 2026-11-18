@@ -86,11 +86,12 @@ export function install(game) {
   }
   const applySettings = () => {
     const s = game.settings;
-    buses.music.gain.value = s.get('volumeMusic') ?? 0.6;
-    buses.sfx.gain.value = s.get('volumeSfx') ?? 0.8;
-    buses.ambient.gain.value = (s.get('volumeSfx') ?? 0.8) * 0.7;
+    const m = s.get('volumeMaster') ?? 1;
+    buses.music.gain.value = (s.get('volumeMusic') ?? 0.6) * m;
+    buses.sfx.gain.value = (s.get('volumeSfx') ?? 0.8) * m;
+    buses.ambient.gain.value = (s.get('volumeSfx') ?? 0.8) * 0.7 * m;
   };
-  game.settings.onChange((k) => { if (ctx && (k === 'volumeMusic' || k === 'volumeSfx' || k === '*')) applySettings(); });
+  game.settings.onChange((k) => { if (ctx && (k === 'volumeMaster' || k === 'volumeMusic' || k === 'volumeSfx' || k === '*')) applySettings(); });
   for (const ev of ['pointerdown', 'keydown', 'touchstart']) globalThis.addEventListener?.(ev, () => audio.unlock(), { once: false, passive: true });
 
   // ---------- utilitaires ----------

@@ -5,7 +5,7 @@
 /** Liste des actions logiques. */
 export const ACTIONS = [
   'forward', 'back', 'left', 'right', 'sprint', 'jump', 'interact', 'handbrake', 'attack', 'aim',
-  'weaponWheel', 'horn', 'radioNext', 'radioPrev', 'lights', 'camera', 'phone', 'map', 'switchChar', 'chat', 'pause',
+  'weaponWheel', 'horn', 'radioNext', 'radioPrev', 'lights', 'camera', 'phone', 'map', 'switchChar', 'chat', 'pause', 'cluster',
 ];
 
 // Clavier : code → actions
@@ -15,7 +15,7 @@ const KEY_CODES = {
   ShiftLeft: ['sprint'], ShiftRight: ['sprint'],
   Space: ['jump', 'handbrake'],
   KeyF: ['interact'], Tab: ['weaponWheel'], KeyH: ['horn'], KeyR: ['radioNext'],
-  KeyL: ['lights'], KeyV: ['camera'], KeyP: ['phone'], KeyM: ['map'],
+  KeyL: ['lights'], KeyV: ['camera'], KeyP: ['phone'], KeyM: ['map'], KeyK: ['cluster'],
   AltLeft: ['switchChar'], AltRight: ['switchChar'], KeyT: ['chat'], Escape: ['pause'],
 };
 // Clavier : touche tapée (lettres ZQSD pour les claviers QWERTY)
@@ -43,11 +43,13 @@ export function createInput(env = {}) {
   const down = new Map();       // action → nb de sources enfoncées
   const srcDown = new Set();    // 'k:KeyW', 'm:0', 'g:7'
   const pressedNow = new Set();
-  let mouseDX = 0, mouseDY = 0, padMove = [0, 0], padLook = [0, 0], dt = 1 / 60;
+  let mouseDX = 0, mouseDY = 0, padMove = [0, 0], padLook = [0, 0], padTrig = 0, dt = 1 / 60;
   const padHeld = new Set();
 
   const input = {
     pointerLocked: false,
+    /** Vrai en véhicule : les gâchettes de la manette (RT/LT) accélèrent et freinent. */
+    triggersDrive: false,
     /** Vrai tant que l'action est maintenue. */
     isDown: (a) => (down.get(a) || 0) > 0,
     /** Vrai une seule image après l'appui. */
@@ -60,7 +62,7 @@ export function createInput(env = {}) {
       switch (name) {
         case 'moveX': return clamp(kb('left', 'right') + padMove[0]);
         // avancer = +1 (écran vers le haut)
-        case 'moveY': return clamp(kb('back', 'forward') - padMove[1]);
+        case 'moveY': return clamp(kb('back', 'forward') - padMove[1] + (input.triggersDrive ? padTrig : 0));
         case 'lookX': return (mouseDX * MOUSE_RAD_PER_PX + padLook[0] * PAD_LOOK_RAD_PER_S * dt) * sens;
         case 'lookY': return (mouseDY * MOUSE_RAD_PER_PX + padLook[1] * PAD_LOOK_RAD_PER_S * dt) * sens * invY;
         default: return 0;
@@ -132,10 +134,11 @@ export function createInput(env = {}) {
   function pollGamepad() {
     const pads = nav?.getGamepads?.() || [];
     const pad = [...pads].find((p) => p && p.connected);
-    if (!pad) { padMove = [0, 0]; padLook = [0, 0]; for (const i of [...padHeld]) { padHeld.delete(i); release('g:' + i, PAD_BUTTONS[i]); } return; }
+    if (!pad) { padMove = [0, 0]; padLook = [0, 0]; padTrig = 0; for (const i of [...padHeld]) { padHeld.delete(i); release('g:' + i, PAD_BUTTONS[i]); } return; }
     const dz = (v) => (Math.abs(v) < DEADZONE ? 0 : v);
     padMove = [dz(pad.axes[0] || 0), dz(pad.axes[1] || 0)];
     padLook = [dz(pad.axes[2] || 0), dz(pad.axes[3] || 0)];
+    padTrig = (pad.buttons[7]?.value || 0) - (pad.buttons[6]?.value || 0);
     for (const i of Object.keys(PAD_BUTTONS)) {
       const b = pad.buttons[i];
       const on = !!b && (b.pressed || b.value > 0.5);

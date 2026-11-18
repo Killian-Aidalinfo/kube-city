@@ -43,3 +43,11 @@ test('formats en français', () => {
   assert.equal(frac(150, 100), 1); assert.equal(frac(-5, 100), 0);
   assert.ok(TIPS.length >= 8 && TIPS.every((t) => t.length > 20));
 });
+
+test('astuces : identifiants uniques, textes en français, déclencheurs cohérents', async () => {
+  const { TIP_LIST } = await import('../client/src/ui/onboarding.js');
+  const ids = TIP_LIST.map((t) => t.id);
+  assert.equal(new Set(ids).size, ids.length);
+  for (const t of TIP_LIST) { assert.ok(t.text.length > 10); assert.ok(t.after != null || t.when, t.id); }
+  assert.ok(TIP_LIST.find((t) => t.id === 'car').text.includes('F'));
+});

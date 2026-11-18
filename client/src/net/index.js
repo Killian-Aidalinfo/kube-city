@@ -22,6 +22,29 @@ export function install(game) {
   const status = { connected: false, pod: null, version: null, reconnects: 0, ping: 0, leader: null, sync: true, previousPod: null };
   const pending = new Map(); // rid -> résolution (profil)
   let rid = 0, everConnected = false, accum = 0, lastLook = '';
+  let needResave = false; // une sauvegarde de profil a échoué (coupure, Redis en pause) : on la rejoue dès que possible
+
+  // Indication discrète pendant une reconnexion (au-delà de 1,2 s de coupure : un simple changement de pod ne clignote pas)
+  let offlineEl = null, offlineTimer = 0;
+  function showOffline(on) {
+    clearTimeout(offlineTimer);
+    if (!on) { if (offlineEl) offlineEl.style.opacity = '0'; return; }
+    offlineTimer = setTimeout(() => {
+      if (!offlineEl) {
+        offlineEl = document.createElement('div');
+        offlineEl.setAttribute('role', 'status'); offlineEl.setAttribute('aria-live', 'polite');
+        offlineEl.textContent = 'Reconnexion au cluster…';
+        offlineEl.style.cssText = 'position:fixed;left:50%;top:10px;transform:translateX(-50%);z-index:60;padding:4px 12px;border-radius:12px;font:600 12px/1.4 system-ui,sans-serif;color:#fff;background:rgba(0,0,0,.55);pointer-events:none;transition:opacity .3s;opacity:0';
+        document.body.appendChild(offlineEl);
+      }
+      requestAnimationFrame(() => { offlineEl.style.opacity = '1'; });
+    }, 1200);
+  }
+  // Rejoue la sauvegarde du profil local (la partie a continué pendant la panne ; le serveur n'a peut-être pas la dernière version)
+  function resaveProfile() {
+    needResave = false;
+    setTimeout(() => { try { game.gameplay?.save?.(); } catch { /* pas prêt */ } }, 600);
+  }
 
   const emitStatus = () => game.bus.emit('net:status', { ...status });
   const now = () => performance.now() / 1000;
@@ -37,7 +60,9 @@ export function install(game) {
         Object.assign(status, { connected: true, pod: m.pod, version: m.version, sync: m.sync !== false });
         net.id = m.id;
         emitStatus();
+        showOffline(false);
         game.bus.emit('net:profile', { profile: m.profile ?? null, reconnect: re });
+        if (re) resaveProfile();
         for (const c of m.chat || []) game.bus.emit('net:chat', { ...c, history: true });
         if (m.races) net.races = m.races;
         if (m.board) net.board = m.board;
@@ -63,7 +88,7 @@ export function install(game) {
       case 'chat': game.bus.emit('net:chat', { ...m.msg }); break;
       case 'emote': remotes.emote(m.id, m.e); game.bus.emit('net:emote', { id: m.id, e: m.e }); break;
       case 'event': game.bus.emit('net:event', { from: m.from, kind: m.kind, data: m.data }); break;
-      case 'sync': status.sync = m.ok; emitStatus(); break; // Redis en pause : le jeu continue, la synchro reprend seule
+      case 'sync': status.sync = m.ok; emitStatus(); if (m.ok && needResave) resaveProfile(); break; // Redis en pause : le jeu continue, la synchro reprend seule
       case 'bye': break; // le serveur ferme ensuite la socket (1012) : la reconnexion s'en charge, sans rien dire au joueur
       case 'profile': case 'profile_saved': pending.get(m.rid)?.(m); pending.delete(m.rid); break;
       case 'race': case 'joined': case 'finish': case 'board': default:
@@ -78,6 +103,7 @@ export function install(game) {
       emitStatus();
     } else if (ev.type === 'close') {
       if (status.connected) { status.connected = false; emitStatus(); } // l'icône clignote ; le jeu, lui, continue
+      if (everConnected) showOffline(true);
       for (const [, resolve] of pending) resolve({ ok: false, profile: null });
       pending.clear();
     }
@@ -132,7 +158,7 @@ export function install(game) {
     /** Événement partagé (course multijoueur, mission coopérative) : relayé à tous, reçu via le bus `net:event`. */
     sendEvent(kind, data) { return conn.send({ t: 'event', kind, data }); },
     /** Sauvegarde le profil dans Redis (clé par id joueur). Résout { ok } ; { ok:false } si hors ligne (le jeu garde alors localStorage). */
-    async saveProfile(profile) { return (await request({ t: 'profile_save', profile })); },
+    async saveProfile(profile) { const r = await request({ t: 'profile_save', profile }); if (!r?.ok) needResave = true; return r; },
     /** Relit le profil depuis Redis : l'objet, ou null (absent / hors ligne). */
     async loadProfile() { const r = await request({ t: 'profile_load' }); return r.ok ? r.profile : null; },
   };

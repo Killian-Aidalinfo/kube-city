@@ -2,7 +2,7 @@
 import { formatMoney } from './mapmath.js';
 
 const PRESETS = {
-  low:    { shadows: false, shadowMapSize: 1024, viewDistance: 300, pedDensity: 0.4, maxPixelRatio: 1 },
+  low:    { shadows: false, shadowMapSize: 1024, viewDistance: 250, pedDensity: 0.3, maxPixelRatio: 0.75 },
   medium: { shadows: true, shadowMapSize: 1024, viewDistance: 500, pedDensity: 0.7, maxPixelRatio: 1.5 },
   high:   { shadows: true, shadowMapSize: 2048, viewDistance: 800, pedDensity: 1, maxPixelRatio: 2 },
 };
@@ -18,6 +18,7 @@ export function buildSettings(game) {
     { k: 'pedDensity', label: 'Densité des piétons', type: 'range', min: 0, max: 1, step: 0.1, fmt: (v) => `${Math.round(v * 100)} %` },
     { k: 'sensitivity', label: 'Sensibilité de la souris', type: 'range', min: 0.3, max: 2.5, step: 0.1, fmt: (v) => `×${(+v).toFixed(1)}` },
     { k: 'invertY', label: 'Inverser l\'axe vertical', type: 'check' },
+    { k: 'volumeMaster', label: 'Volume général', type: 'range', min: 0, max: 1, step: 0.05, fmt: (v) => `${Math.round(v * 100)} %` },
     { k: 'volumeMusic', label: 'Volume de la musique', type: 'range', min: 0, max: 1, step: 0.05, fmt: (v) => `${Math.round(v * 100)} %` },
     { k: 'volumeSfx', label: 'Volume des effets', type: 'range', min: 0, max: 1, step: 0.05, fmt: (v) => `${Math.round(v * 100)} %` },
     { k: 'subtitles', label: 'Sous-titres', type: 'check' },
@@ -60,7 +61,7 @@ export const KEYS = [
   ['F', 'Monter / descendre · parler'], ['E', 'Entrer dans une boutique ou le garage'], ['Clic gauche / clic droit', 'Attaquer · viser'], ['Tab (maintenu)', 'Roue d\'armes'],
   ['H', 'Klaxon'], ['R', 'Radio suivante (en véhicule)'], ['L', 'Phares'], ['V', 'Changer de caméra'],
   ['P', 'Téléphone'], ['M', 'Carte plein écran'], ['Alt (maintenu)', 'Roue des personnages'], ['G', 'Capacité spéciale du perso'],
-  ['T', 'Discussion'], ['F2', 'Replier le panneau HA'], ['Échap', 'Pause'], ['Manette', 'Stick : bouger · RT : attaquer · Y : véhicule · Start : pause'],
+  ['K', 'Infos cluster (pod, latence, leader, Redis)'], ['T', 'Discussion'], ['F2', 'Replier le panneau HA'], ['Échap', 'Pause'], ['Manette', 'Stick gauche : bouger · stick droit : caméra · A : sauter · Y : entrer/sortir · RT : attaquer ou accélérer · LT : viser ou reculer · RB : frein à main · Start : pause'],
 ];
 
 export function buildKeys() {

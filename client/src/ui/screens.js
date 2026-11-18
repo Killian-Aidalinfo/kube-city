@@ -7,6 +7,9 @@ const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&l
 export const CHAR_COLORS = { ines: '#ff6a55', malik: '#4aa3ff', jade: '#b06aff' };
 const mk = (cls, html = '') => { const d = document.createElement('div'); d.className = cls; d.innerHTML = html; return d; };
 
+const RECAP = [['Z Q S D', 'Bouger'], ['Souris', 'Regarder'], ['Maj', 'Courir'], ['F', 'Monter / parler'], ['M', 'Carte'], ['Tab', 'Armes'], ['K', 'Infos cluster'], ['Échap', 'Pause']];
+const recapHtml = () => `<div class="kc-recap">${RECAP.map(([k, d]) => `<span><b>${k}</b> ${d}</span>`).join('')}</div>`;
+
 /** Fenêtre modale simple avec un bouton Fermer. */
 export function modal(ui, title, node, cls = 'kc-set') {
   const el = mk('kc-screen dim kc-modal'); el.style.zIndex = '55';
@@ -70,7 +73,7 @@ export function createScreens(game, ui) {
     const el = S.title = mk('kc-screen kc-title');
     el.innerHTML = `<canvas></canvas><div class="in"><h1 class="kc-logo">KUBE <span>CITY</span></h1>
       <div class="kc-tag">Ville ouverte · Cluster inconnu · Haute disponibilité</div>
-      <div class="menu"><button class="kc-btn" data-a="play" style="font-size:22px;padding:14px">Jouer</button><button class="kc-btn" data-a="set">Réglages</button><button class="kc-btn" data-a="keys">Touches</button></div></div>
+      <div class="menu"><button class="kc-btn" data-a="play" style="font-size:22px;padding:14px">Jouer</button><button class="kc-btn" data-a="set">Réglages</button><button class="kc-btn" data-a="keys">Commandes</button></div>${recapHtml()}</div>
       <div class="kc-foot">Un monde ouvert créé pour une journée de cours sur Kubernetes · Entrée pour jouer</div>`;
     root.appendChild(el);
     animateTitle(el.querySelector('canvas'));
@@ -79,7 +82,7 @@ export function createScreens(game, ui) {
       game.audio?.unlock?.();
       if (a === 'play') showSelect();
       else if (a === 'set') modal(ui, 'Réglages', buildSettings(game));
-      else if (a === 'keys') modal(ui, 'Touches', buildKeys(), 'kc-keys');
+      else if (a === 'keys') modal(ui, 'Commandes', buildKeys(), 'kc-keys');
     });
     el.querySelector('[data-a=play]').focus();
   }
@@ -93,18 +96,19 @@ export function createScreens(game, ui) {
     const gp = game.gameplay, ids = gp?.characters || ['ines', 'malik', 'jade'];
     const el = S.select = mk('kc-screen kc-sel');
     const bar = (label, v) => `<div class="kc-stat"><span>${label}</span><div class="bar"><i style="width:${Math.round((v / 10) * 100)}%"></i></div><b>${(+v).toFixed(1).replace('.0', '')}</b></div>`;
-    el.innerHTML = `<h2>Choisissez votre personnage</h2><p>Chacun a sa spécialité, sa planque, son argent. Vous pourrez changer en jeu (Alt).</p><div class="kc-chars">${ids.map((id, i) => {
+    el.innerHTML = `<h2>Choisissez votre personnage</h2><label class="kc-pseudo">Votre pseudo <input id="kc-name" maxlength="20" autocomplete="off" spellcheck="false" placeholder="Joueur" value="${esc(game.net?.name || '')}"></label><p>Cliquez sur un personnage (ou touche 1, 2, 3). Vous pourrez changer en jeu avec Alt.</p><div class="kc-chars">${ids.map((id, i) => {
       const c = gp.charData[id], st = gp.profile.chars[id].stats;
       return `<button class="kc-char" data-id="${id}" style="--c:${CHAR_COLORS[id]}"><div class="pic"><img alt="Portrait de ${esc(c.short)}" style="opacity:0"></div><div class="info">
         <h3 class="nm">${esc(c.name)}</h3><div class="sp">${esc(c.specialty)}</div>
         <p class="ab"><b>${esc(c.ability.name)}</b> (G) : ${esc(c.ability.desc)}</p>
         ${bar('Endurance', st.endurance)}${bar('Conduite', st.conduite)}${bar('Combat', st.combat)}
         <div class="go">${i + 1} · Jouer ${esc(c.short)}</div></div></button>`;
-    }).join('')}</div>`;
+    }).join('')}</div>${recapHtml()}<div class="kc-recap"><span>PC lent ? Échap puis Réglages : qualité Basse</span><span>Manette acceptée</span></div>`;
     root.appendChild(el);
     const choose = (id) => { game.audio?.play?.('ui_ok'); startGame(id); };
     el.addEventListener('click', (e) => { const b = e.target.closest('.kc-char'); if (b) choose(b.dataset.id); });
     const onKey = (e) => {
+      if (e.target?.tagName === 'INPUT') return;
       if (!S.select) return globalThis.removeEventListener('keydown', onKey);
       const i = '123'.indexOf(e.key);
       if (i >= 0 && ids[i]) choose(ids[i]);
@@ -127,6 +131,8 @@ export function createScreens(game, ui) {
   // ---------- chargement ----------
   async function startGame(id) {
     if (S.load) return;
+    const nm = S.select?.querySelector('#kc-name')?.value.trim();
+    if (nm) { try { game.net?.setName?.(nm); } catch { /* hors ligne */ } }
     hide('select'); hide('title');
     const el = S.load = mk('kc-screen kc-load', '<h3>Chargement de Kube City</h3><div class="bar"><i></i></div><div class="tip"></div>');
     root.appendChild(el);
@@ -150,14 +156,15 @@ export function createScreens(game, ui) {
     if (S.pause) return;
     const el = S.pause = mk('kc-screen dim');
     el.innerHTML = `<div class="kc-card kc-pause"><h2 class="kc-glow" style="color:var(--cyan)">Pause</h2>
-      <button class="kc-btn" data-a="resume">Reprendre</button><button class="kc-btn" data-a="map">Carte</button><button class="kc-btn" data-a="set">Réglages</button><button class="kc-btn" data-a="keys">Touches</button><button class="kc-btn pink" data-a="quit">Quitter vers le titre</button></div>`;
+      <button class="kc-btn" data-a="resume">Reprendre</button><button class="kc-btn" data-a="map">Carte</button><button class="kc-btn" data-a="set">Réglages : volume, souris, qualité</button><button class="kc-btn" data-a="keys">Commandes</button><button class="kc-btn" data-a="cluster">Infos cluster (K)</button><button class="kc-btn pink" data-a="quit">Quitter vers le titre</button></div>`;
     root.appendChild(el);
     el.addEventListener('click', (e) => {
       const a = e.target.closest('button')?.dataset.a;
       if (a === 'resume') ui.resume();
       else if (a === 'map') { ui.resume(); ui.openMap(); }
       else if (a === 'set') modal(ui, 'Réglages', buildSettings(game));
-      else if (a === 'keys') modal(ui, 'Touches', buildKeys(), 'kc-keys');
+      else if (a === 'keys') modal(ui, 'Commandes', buildKeys(), 'kc-keys');
+      else if (a === 'cluster') { ui.resume(); ui.cluster?.show(); }
       else if (a === 'quit') { Promise.resolve(game.gameplay?.save?.()).finally(() => location.reload()); }
     });
     el.querySelector('button').focus();

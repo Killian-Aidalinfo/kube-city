@@ -10,6 +10,7 @@ export const DEFAULTS = Object.freeze({
   maxPixelRatio: 2,
   sensitivity: 1,           // multiplicateur souris/stick
   invertY: false,
+  volumeMaster: 1,
   volumeMusic: 0.6,
   volumeSfx: 0.8,
   subtitles: true,
