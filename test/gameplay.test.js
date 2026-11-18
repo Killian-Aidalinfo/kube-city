@@ -150,3 +150,13 @@ test('sauvegarde : fusion robuste, succès, repli local et serveur', async () =>
   assert.equal(await saveProfile(down, p, storage), false);
   assert.equal(defaultProfile().chars.ines.money, 500);
 });
+
+test('course de mission : la première place est exigée quand mustWin', () => {
+  const env = { pos: () => ({ x: 0, z: 0 }), inVehicle: () => true, notify() {}, place: (r) => r };
+  const step = { type: 'race', text: 'Gagnez', mustWin: true, checkpoints: [{ x: 500, z: 0 }], rivals: [{ name: 'A', speed: 1000 }] };
+  const r = createRunner({ id: 't', title: 't', steps: [step] }, env);
+  env.pos = () => ({ x: 500, z: 0 });
+  for (let i = 0; i < 5; i++) r.update(1);
+  assert.equal(r.status, 'failed');
+  assert.match(r.failReason, /première place/);
+});

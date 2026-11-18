@@ -388,7 +388,7 @@ export function install(game) {
     lp.type = 'lowpass'; lp.frequency.value = 1800;
     g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(0.07, t + 0.02); g.gain.setValueAtTime(0.07, t + 0.38); g.gain.linearRampToValueAtTime(0, t + 0.45);
     lp.connect(g); g.connect(panner(vehicle.object3d.position, buses.sfx));
-    const base = vehicle.type === 'police' ? 1.1 : 0.9 + (((vehicle.id ?? 1) * 37) % 20) / 100; // timbre propre à chaque voiture
+    const base = vehicle.type === 'police' ? 1.1 : 0.9 + (((Number(vehicle.id) || 1) * 37) % 20) / 100; // timbre propre à chaque voiture
     for (const hz of [415 * base, 523 * base]) { const o = ctx.createOscillator(); o.type = 'square'; o.frequency.value = hz; o.connect(lp); o.start(t); o.stop(t + 0.5); }
   });
   bus.on('player:damaged', () => audio.play('hit', { volume: 0.6 }));

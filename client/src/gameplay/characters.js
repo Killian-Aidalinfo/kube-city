@@ -52,13 +52,13 @@ export function gainStat(stats, key, amount) {
 /** Succès : id, titre, condition sur le profil global. */
 export const ACHIEVEMENTS = [
   { id: 'first_mission', title: 'Première mission', test: (p) => countDone(p) >= 1 },
-  { id: 'all_missions', title: 'Tout Kube City sous contrôle', test: (p) => countDone(p) >= 9 },
+  { id: 'all_missions', title: 'Tout Kube City sous contrôle', test: (p) => countDone(p) >= 10 },
   { id: 'kubes_10', title: 'Chasseur de kubes', test: (p) => p.kubes.length >= 10 },
   { id: 'kubes_50', title: 'Collection complète', test: (p) => p.kubes.length >= 50 },
   { id: 'jumps_10', title: 'Cascadeur', test: (p) => p.stats.jumps >= 10 },
   { id: 'wanted_5', title: 'Ennemi public', test: (p) => p.stats.maxWanted >= 5 },
   { id: 'distance_20', title: 'Globe-trotter (20 km)', test: (p) => p.stats.distance >= 20000 },
-  { id: 'rich', title: 'Premier millier', test: (p) => Object.values(p.chars).reduce((s, c) => s + c.money, 0) >= 5000 },
+  { id: 'rich', title: 'Petite fortune (5 000 €)', test: (p) => Object.values(p.chars).reduce((s, c) => s + c.money, 0) >= 5000 },
 ];
 const countDone = (p) => Object.values(p.missions).filter((m) => m.done).length;
 

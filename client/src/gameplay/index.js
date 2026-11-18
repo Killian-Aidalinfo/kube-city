@@ -70,7 +70,7 @@ export function install(game) {
     get profile() { return profile; },
     get stats() { return cur().stats; },
     missions: [],
-    get active() { return active ? { kind: active.kind, id: active.def.id, title: active.def.title, text: active.runner.text, target: active.runner.target, timeLeft: active.runner.timeLeft } : null; },
+    get active() { return active ? { kind: active.kind, id: active.def.id, title: active.def.title, text: active.runner.text, type: active.runner.step?.type, target: active.runner.target, timeLeft: active.runner.timeLeft } : null; },
     markers: [],
     ability: { id: '', name: '', gauge: 1, active: 0, cost: 0.5 },
     kubes: { total: 50, get found() { return profile.kubes.length; } },
@@ -209,7 +209,8 @@ export function install(game) {
     if (def.onPass) { const r = def.onPass(runner) || {}; reward += r.reward || 0; extra = r.text || ''; }
     if (kind === 'mission') profile.missions[def.id] = { done: true };
     if (reward) gp.addMoney(reward, def.title);
-    bus.emit('mission:passed', { id: def.id, title: def.title, text: extra || def.summary || '', reward });
+    bus.emit('mission:passed', { id: def.id, title: def.title, text: extra || def.outro || def.summary || '', reward });
+    if (kind === 'mission') bus.emit('notify', { text: `${def.reward} € versés à ${CHARACTERS[profile.current].short}.`, kind: 'success', duration: 3.5 });
     for (const a of checkAchievements(profile)) bus.emit('notify', { text: `Succès : ${a.title}`, kind: 'success', duration: 4 });
     end(); doSave();
   }
@@ -254,7 +255,7 @@ export function install(game) {
       return {
         id: 'taxi', title: 'Course de taxi', summary: 'Un client attend.', reward: 0,
         steps: [
-          { type: 'goto', text: 'Récupérez le client (en voiture).', to: a, vehicle: true, radius: 9 },
+          { type: 'goto', text: 'Récupérez le client (en voiture).', to: a, vehicle: true, radius: 9, say: [{ speaker: 'Central taxi', text: 'Un client vous attend au point indiqué. Il a dit « vite », puis « pas trop vite ».', dur: 4 }] },
           { type: 'goto', text: 'Déposez le client à destination.', to: b, vehicle: true, radius: 10, timeLimit: allowed, say: [{ speaker: 'Client', text: 'Bonjour ! Pas trop vite… enfin si, je suis en retard.', dur: 4 }] },
         ],
         onPass(r) {
@@ -271,8 +272,8 @@ export function install(game) {
       return {
         id: 'delivery', title: 'Livraison chronométrée', summary: 'Livrez le colis à temps.', reward: 0,
         steps: [
-          { type: 'goto', text: 'Récupérez le colis (en voiture).', to: a, vehicle: true, radius: 9 },
-          { type: 'goto', text: 'Livrez le colis à temps.', to: b, vehicle: true, radius: 10, timeLimit: limit },
+          { type: 'goto', text: 'Récupérez le colis (en voiture).', to: a, vehicle: true, radius: 9, say: [{ speaker: 'Lou', text: 'Un colis t\'attend. Ne regarde pas ce qu\'il y a dedans, il paraît que ça clignote.', dur: 4 }] },
+          { type: 'goto', text: 'Livrez le colis à temps.', to: b, vehicle: true, radius: 10, timeLimit: limit, say: [{ speaker: 'Lou', text: `Colis récupéré. Le chrono tourne : ${limit} secondes, pas une de plus.`, dur: 4 }] },
         ],
         onPass(r) { timeLeft = Math.max(0, limit - r.stepTime); const g = deliveryReward(len, timeLeft, limit); return { reward: g, text: `Livraison : ${g} €` }; },
       };

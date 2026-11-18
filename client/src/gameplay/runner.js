@@ -109,7 +109,11 @@ export const STEP_TYPES = {
       if (!env.inVehicle()) return undefined;
       const r = st.race.update(dt, env.pos());
       if (r === 'checkpoint') env.notify(`Point de passage ${st.race.index}/${st.cps.length}`, 'info', 1.5);
-      if (r === 'finish') { st.place = st.race.place; return 'done'; }
+      if (r === 'finish') {
+        st.place = st.race.place;
+        if (step.mustWin && st.place > 1) return `fail:Vous avez fini ${st.place}e : le Cluster exige la première place.`;
+        return 'done';
+      }
       return undefined;
     },
     target: (st) => st.cps?.[st.race.index] ?? null,
@@ -128,7 +132,9 @@ export function createRunner(def, env) {
     get text() {
       const s = runner.step; if (!s) return '';
       const p = STEP_TYPES[s.type]?.progress?.(s, runner.st, env);
-      return p ? `${s.text} (${p})` : s.text || '';
+      const base = p ? `${s.text} (${p})` : s.text || '';
+      // objectif en voiture : on explique pourquoi la destination ne valide pas à pied
+      return s.type === 'goto' && s.vehicle && !env.inVehicle() ? `Prenez un véhicule. ${base}` : base;
     },
     /** Position de l'objectif courant (pour le GPS et la minimap) ou null. */
     get target() { const s = runner.step; return s ? STEP_TYPES[s.type]?.target(runner.st) ?? null : null; },

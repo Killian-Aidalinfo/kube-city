@@ -32,6 +32,12 @@ const players = new Map(); // id -> { ...état, ts }
 const dirty = new Set();   // ids modifiés depuis le dernier envoi (snapshots incrémentaux)
 store.subscribe((ev) => {
   if (ev.k === "p") { players.set(ev.p.id, { ...ev.p, ts: Date.now() }); dirty.add(ev.p.id); }
+  else if (ev.k === "pb") {
+    // lot d'états publié par un autre pod (les nôtres sont déjà appliqués en local)
+    if (ev.pod === store.POD) return;
+    const ts = Date.now();
+    for (const p of ev.ps) { players.set(p.id, { ...p, ts }); dirty.add(p.id); }
+  }
   else if (ev.k === "gone") { players.delete(ev.id); dirty.delete(ev.id); broadcast({ t: "gone", id: ev.id }); }
   else if (ev.k === "chat") broadcast({ t: "chat", msg: ev.msg });
   else if (ev.k === "emote") broadcast({ t: "emote", id: ev.id, e: ev.e });
@@ -45,19 +51,84 @@ function broadcast(msg) {
   for (const ws of sockets) if (ws.readyState === 1) ws.send(s);
 }
 
+// Contre-pression : un client lent (Wi-Fi saturé, onglet en arrière-plan) ne doit pas faire gonfler la mémoire du pod.
+// Au-delà de SLOW_BYTES en attente, on saute ses snapshots (le suivant est complet : il se resynchronise) ;
+// au-delà de DEAD_BYTES, ou après 10 s de retard continu, on coupe : il se reconnectera proprement.
+const SLOW_BYTES = 256 * 1024, DEAD_BYTES = 4 * 1024 * 1024;
+const mSkipped = new client.Counter({ name: "pn_ws_snaps_skipped_total", help: "Snapshots sautés pour cause de client lent" });
+const mKicked = new client.Counter({ name: "pn_ws_slow_closed_total", help: "WebSocket coupées car client trop lent" });
+// true si on peut écrire à ce client ; sinon on note qu'il lui faudra un snapshot complet
+function writable(ws, now) {
+  if (ws.readyState !== 1) return false;
+  if (ws.bufferedAmount > SLOW_BYTES) {
+    ws.slowSince ??= now;
+    mSkipped.inc();
+    ws.needFull = true;
+    if (ws.bufferedAmount > DEAD_BYTES || now - ws.slowSince > 10_000) { mKicked.inc(); ws.terminate(); }
+    return false;
+  }
+  ws.slowSince = null;
+  return true;
+}
+function broadcastSnap(msg, full) {
+  const s = JSON.stringify(msg), now = Date.now();
+  for (const ws of sockets) {
+    if (!writable(ws, now)) continue;
+    ws.needFull = false;
+    ws.send(s);
+  }
+}
+// snapshot incrémental filtré par distance, à partir d'entrées déjà sérialisées
+function sendSnaps(items) {
+  const now = Date.now();
+  for (const ws of sockets) {
+    if (!writable(ws, now)) continue;
+    if (ws.needFull) { ws.needFull = false; ws.send(JSON.stringify(fullSnapshot())); continue; }
+    const px = ws.pos?.[0], pz = ws.pos?.[2];
+    const out = [];
+    for (const it of items) {
+      if (px === undefined || it.all || Math.hypot(it.x - px, it.z - pz) < NEAR_M) out.push(it.j);
+    }
+    if (out.length) ws.send(snapHead + out.join(",") + "]}");
+  }
+}
+
+// Les états des joueurs de CE pod partent vers Redis en un seul lot par tick (15/s au total, pas 15/s par joueur) :
+// Redis et les autres pods traitent N fois moins de messages.
+const outbox = new Map(); // id -> état à publier
+setInterval(() => {
+  if (!outbox.size) return;
+  const ps = [...outbox.values()]; outbox.clear();
+  if (!store.redisReady()) return; // bascule en cours : la vue locale continue, rien ne s'empile
+  store.publish({ k: "pb", pod: store.POD, ps }).catch(() => {});
+}, 1000 / 15);
+
 // Snapshots à 15 Hz : seulement les joueurs modifiés (incrémental) ; toutes les 2 s, la liste complète
 // avec les champs rares (nom, perso, tenue) — les clients retirent alors ceux qui ont disparu.
+// Intérêt par distance : un joueur à plus de NEAR_M mètres n'est mis à jour qu'à 15/FAR_EVERY Hz (>250 m : quelques pixels
+// à l'écran). Le snapshot complet reste complet. Chaque entrée est sérialisée UNE fois puis assemblée par client.
+const NEAR_M = Number(process.env.NEAR_M || 300), FAR_EVERY = 4;
 const fullSnapshot = () => ({ t: "snap", full: 1, players: [...players.values()].map((p) => proto.packPlayer(p, true)) });
+const snapHead = '{"t":"snap","players":[';
 let snapN = 0;
+const dirtyFar = new Set(); // modifiés depuis le dernier envoi « lointain »
 setInterval(() => {
   const now = Date.now();
-  for (const [id, p] of players) if (now - p.ts > 6000) { players.delete(id); dirty.delete(id); broadcast({ t: "gone", id }); }
+  for (const [id, p] of players) if (now - p.ts > 6000) { players.delete(id); dirty.delete(id); dirtyFar.delete(id); broadcast({ t: "gone", id }); }
   mPlayers.set(players.size);
-  if (++snapN % 30 === 0) { broadcast(fullSnapshot()); dirty.clear(); return; }
-  if (!dirty.size) return;
-  const list = [...dirty].map((id) => players.get(id)).filter(Boolean).map((p) => proto.packPlayer(p, false));
+  if (++snapN % 30 === 0) { broadcastSnap(fullSnapshot(), true); dirty.clear(); dirtyFar.clear(); return; }
+  if (!dirty.size && !dirtyFar.size) return;
+  const farTick = snapN % FAR_EVERY === 0;
+  for (const id of dirty) dirtyFar.add(id);
+  const ids = farTick ? [...dirtyFar] : [...dirty];
+  const items = [];
+  for (const id of ids) {
+    const p = players.get(id);
+    if (p) items.push({ x: p.p[0], z: p.p[2], j: JSON.stringify(proto.packPlayer(p, false)), all: farTick });
+  }
   dirty.clear();
-  if (list.length) broadcast({ t: "snap", players: list });
+  if (farTick) dirtyFar.clear();
+  if (items.length) sendSnaps(items);
 }, 1000 / 15);
 
 // ---------- État de la synchro Redis, affiché aux joueurs ----------
@@ -179,10 +250,13 @@ wss.on("connection", (ws) => {
       } else if (m.t === "state") {
         Object.assign(me, proto.parseState(m));
         if (!me.veh) me.vh = null;
-        // Redis absent (bascule en cours) : les joueurs du même pod se voient quand même
-        if (!store.redisReady()) { players.set(me.id, { ...me, ts: Date.now() }); dirty.add(me.id); return; }
-        await store.publish({ k: "p", p: me });
-        if (Date.now() - lastSave > 1000) { lastSave = Date.now(); await store.savePlayer({ id: me.id, p: me.p }); }
+        // vue locale tout de suite (les joueurs du même pod se voient même sans Redis), lot Redis au prochain tick
+        ws.pos = me.p;
+        const snap = { ...me };
+        players.set(me.id, { ...snap, ts: Date.now() }); dirty.add(me.id);
+        if (!store.redisReady()) return;
+        outbox.set(me.id, snap);
+        if (Date.now() - lastSave > 1000) { lastSave = Date.now(); store.savePlayer({ id: me.id, p: me.p }).catch(() => {}); }
       } else if (m.t === "vehicle") {
         // le véhicule part avec le prochain « state » (même cadence), sans second publish
         const v = proto.parseVehicle(m);
@@ -234,6 +308,7 @@ wss.on("connection", (ws) => {
 
   ws.on("close", () => {
     sockets.delete(ws);
+    if (me) outbox.delete(me.id);
     mClients.set(sockets.size);
     if (me) store.savePlayer({ id: me.id, p: me.p }).catch(() => {});
   });

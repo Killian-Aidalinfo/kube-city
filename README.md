@@ -138,6 +138,40 @@ kubectl -n jeu create secret generic redis-ha --from-literal=REDIS_URL='rediss:/
 helm upgrade --install jeu ./chart/kube-city -n jeu --set redis.enabled=false --set redis.existingSecret=redis-ha
 ```
 
+## Tenir la charge
+
+Simulateur de joueurs (WebSocket protocole v2, sans navigateur) : ils se déplacent, la moitié conduit, et 3 agents IA roulent via MCP.
+
+```bash
+docker compose up -d --build
+node scripts/charge.mjs --players 60 --agents 3 --duration 60 --docker
+# avec chaos (variante Sentinel) : tue le maître Redis à 20 s, un pod de jeu à 40 s
+export COMPOSE_FILE=docker-compose.yml:deploy/sentinel/docker-compose.sentinel.yml
+node scripts/charge.mjs --players 60 --duration 60 --docker --redis-service redis-a --chaos redis@20,pod@40
+```
+
+Mesuré en local (3 pods + nginx, Redis seul, 60 joueurs + 3 agents, charge et pods sur la même machine) :
+
+| | avant | après |
+|---|---|---|
+| Trafic sortant total, 30 joueurs | 2,6 Mo/s | non remesuré |
+| Trafic sortant total, 60 joueurs | 9,8 Mo/s (8,6 Ko/snap, 60 entrées) | 4,4 Mo/s (4,1 Ko/snap, 27 entrées) |
+| Messages Redis Pub/Sub (60 joueurs) | ~900/s (1 par état) | ~45/s (1 lot par pod et par tick) |
+| Latence état → snapshot p50 / p95 | 44 / 73 ms | 45 / 72 ms |
+| Écart entre snapshots p99 | 80 ms | 78 ms |
+| CPU par pod (60 joueurs) | 11-16 % | 14-17 % (bruit de mesure) |
+| Mémoire par pod | 68 Mo | 80 Mo |
+
+Avec le chaos (Sentinel, 60 joueurs) : tuer le maître Redis = **0 coupure**, latence inchangée ; tuer brutalement un pod (`docker compose kill`) = 21 joueurs (ceux du pod) coupés puis reconnectés en **317 ms (médiane), 840 ms (max)**. À 120 joueurs : ~16 Mo/s, 15 % de CPU par pod, 0 coupure.
+
+Ce qui a changé côté serveur :
+- **Lots Pub/Sub** : chaque pod regroupe l'état de ses joueurs en un seul message Redis par tick (au lieu d'un par joueur et par message reçu), applique tout de suite l'état en local et ignore l'écho de son propre lot. Sans Redis (bascule), plus de commandes en file d'attente : on garde la vue locale, rien ne s'empile ni ne se rejoue après la bascule.
+- **Intérêt par distance** : au-delà de 300 m (`NEAR_M`), un joueur n'est mis à jour qu'à 3,75 Hz ; le snapshot complet toutes les 2 s reste complet. Chaque entrée est sérialisée une seule fois. Protocole client inchangé.
+- **Contre-pression WebSocket** : un client lent (> 256 Ko en attente) saute des snapshots puis reçoit un snapshot complet ; au-delà de 4 Mo ou 10 s de retard, il est coupé et se reconnecte (`pn_ws_snaps_skipped_total`, `pn_ws_slow_closed_total`).
+- Mise à jour progressive : un pod ancien ignore les lots (`k: "pb"`) des nouveaux pods ; la ville est complète une fois la mise à jour finie.
+
+Chart : `requests` 200m CPU / 160Mi, limite mémoire 320Mi, pas de limite CPU. Le HPA (70 % de la requête, soit 140m) se déclenche vers 60 joueurs au total sur 3 pods (mesure locale, un Kapsule sera plus lent : à revérifier avec `--docker` ou `kubectl top`) ; avec 25 étudiants on reste environ à moitié de ce seuil.
+
 ## Redis sans point faible : Sentinel
 
 Un maître, deux réplicas, trois Sentinel. Si le maître meurt, les Sentinel promeuvent un réplica et le jeu s'y reconnecte seul.

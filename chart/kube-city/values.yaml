@@ -36,9 +36,11 @@ autoscaling:
   maxReplicas: 10
   cpu: 70
 
+# Mesuré (README, « Tenir la charge ») : ~110 Mo max et ~15 % d'un coeur par pod pour 60 joueurs.
+# Pas de limite CPU : un throttling ajouterait de la latence aux snapshots ; la limite mémoire reste le garde-fou.
 resources:
-  requests: { cpu: 100m, memory: 128Mi }
-  limits: { memory: 256Mi }
+  requests: { cpu: 200m, memory: 160Mi }
+  limits: { memory: 320Mi }
 
 # Redis : tout l'état du jeu. C'est le point faible à traiter !
 redis:
