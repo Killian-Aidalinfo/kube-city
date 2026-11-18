@@ -600,8 +600,9 @@ export function install(game) {
   bus.on('crime', ({ kind }) => { if (kind === 'assault') { koCounter++; gainStat(cur().stats, 'combat', 0.05); } });
   bus.on('ui:photo', () => { photos.count++; const p = game.player?.position; photos.last = p ? { x: p.x, z: p.z } : null; });
   bus.on('player:enterVehicle', ({ vehicle }) => { if (vehicle) vehicle.damageScale = CHARACTERS[profile.current].vehicleDamage ?? 1; });
+  let reloading = null; // relecture du profil en cours après une reconnexion
   bus.on('net:status', (s) => {
-    if (s?.connected && gp._wasDown) { gp._wasDown = false; loadProfile(game.net).then((p) => { if (p.updatedAt > profile.updatedAt) { profile = p; refreshMissions(); bus.emit('notify', { text: 'Profil resynchronisé.', kind: 'info', duration: 2.5 }); } }); }
+    if (s?.connected && gp._wasDown) { gp._wasDown = false; reloading = loadProfile(game.net).then((p) => { if (p.updatedAt > profile.updatedAt) { profile = p; refreshMissions(); bus.emit('notify', { text: 'Profil resynchronisé.', kind: 'info', duration: 2.5 }); } }).catch(() => {}).finally(() => { reloading = null; }); }
     if (s && !s.connected) gp._wasDown = true;
   });
 
@@ -611,6 +612,7 @@ export function install(game) {
   async function doSave() {
     saveTimer = 0;
     if (!loaded) return false; // ne jamais écraser une sauvegarde qu'on n'a pas encore lue
+    if (reloading) await reloading; // reconnexion : relire d'abord, sinon on écraserait un profil serveur plus récent
     const p = game.player?.position, c = cur();
     if (p && game.state !== 'menu') { c.pos = { x: p.x, z: p.z }; c.armor = game.player.armor || 0; }
     return saveProfile(game.net, profile);

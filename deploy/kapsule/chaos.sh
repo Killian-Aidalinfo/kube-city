@@ -16,8 +16,12 @@ pods() { k get pods -l "$GAME_SEL" -o wide; }
 redis_master() {
   local pw addr h
   pw=$(k get secret "$REDIS_SECRET" -o jsonpath='{.data.REDIS_PASSWORD}' | base64 -d)
-  addr=$(k exec "${REDIS_REL}-node-0" -c sentinel -- env REDISCLI_AUTH="$pw" \
-    redis-cli -p 26379 sentinel get-master-addr-by-name "$MASTER_NAME" | head -1 | tr -d '\r')
+  # on interroge le premier Sentinel qui répond (redis-node-0 peut être justement le pod qu'on vient de tuer)
+  for i in 0 1 2; do
+    addr=$(k exec "${REDIS_REL}-node-$i" -c sentinel -- env REDISCLI_AUTH="$pw" \
+      redis-cli -p 26379 sentinel get-master-addr-by-name "$MASTER_NAME" 2>/dev/null | head -1 | tr -d '\r') || addr=""
+    [ -n "$addr" ] && break
+  done
   [ -n "$addr" ] || { echo "Sentinel ne répond pas" >&2; return 1; }
   if [[ "$addr" =~ ^[0-9.]+$ ]]; then   # adresse IP : on retrouve le pod
     k get pods -l app.kubernetes.io/name=redis -o jsonpath='{range .items[*]}{.metadata.name} {.status.podIP}{"\n"}{end}' | awk -v ip="$addr" '$2==ip{print $1}'
