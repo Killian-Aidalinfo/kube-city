@@ -3,11 +3,12 @@
 
 export const PLAYER = {
   radius: 0.35, height: 1.8,          // capsule du contrôleur
-  walk: 1.9, run: 4.8, sprint: 8.0, swim: 2.6, // m/s
+  walk: 1.9, run: 4.8, sprint: 9.2, swim: 2.6, // m/s
   accelGround: 38, accelAir: 9, decel: 46,
   jump: 6.6, gravity: 22, terminalFall: 45,
   fallSafe: 6,                         // m : au-delà, dégâts de chute
-  staminaMax: 100, sprintDrain: 18, regen: 15, regenDelay: 0.9, swimDrain: 5,
+  staminaMax: 100, sprintDrain: 7.5, regen: 28, regenDelay: 0.6, swimDrain: 5, // sprint ≈ 13 s
+  doubleTap: 0.3,                      // s : double appui sur Avancer = sprint
 };
 
 export const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
@@ -67,8 +68,13 @@ export function locomotionKey(speed) {
 }
 /** Vitesse de lecture d'une animation de déplacement pour éviter le patinage. */
 export function locomotionTimeScale(key, speed) {
-  const ref = { walk: 1.75, run: 4.6, sprint: 7.6 }[key];
+  const ref = { walk: 1.75, run: 4.6, sprint: 8.8 }[key];
   return ref ? clamp(speed / ref, 0.6, 1.5) : 1;
+}
+
+/** Intensité visuelle du sprint (0..1) selon la vitesse horizontale : FOV, caméra basse, secousse. */
+export function sprintFactor(speed) {
+  return clamp((speed - PLAYER.run - 0.4) / (PLAYER.sprint - PLAYER.run - 0.4), 0, 1);
 }
 
 /** Position de la caméra en orbite : yaw = direction du regard (rad), pitch > 0 = regarde vers le bas. */

@@ -106,7 +106,7 @@ export async function install(game) {
   const cur = start.clone(), prev = start.clone();   // pieds, pas physique courant / précédent
   const vel = new THREE.Vector3();
   const st = { stamina: P.staminaMax, delay: 0, exhausted: false };
-  const mv = { ix: 0, iy: 0, sprint: false, aim: false, jump: 0 };
+  const mv = { ix: 0, iy: 0, fwdAt: -9, dtSprint: false, sprint: false, aim: false, jump: 0 };
   const motion = { grounded: true, coyote: 0, peak: start.y, air: false, landTimer: 0, jumpAnim: 0, inv: 0 };
   let heading = spawn.rotation ?? 0;
   let ragdoll = null;           // { body, t, mid }
@@ -355,12 +355,16 @@ export async function install(game) {
     const playing = game.state === 'playing' && !player.controlsLocked;
     mv.ix = playing ? game.input.axis('moveX') : 0;
     mv.iy = playing ? game.input.axis('moveY') : 0;
-    mv.sprint = game.input.isDown('sprint');
+    // double appui sur Avancer : sprint maintenu jusqu'au relâchement
+    if (game.input.pressed('forward')) { if (game.time.now - mv.fwdAt < P.doubleTap) mv.dtSprint = true; mv.fwdAt = game.time.now; }
+    if (!game.input.isDown('forward')) mv.dtSprint = false;
+    mv.sprint = game.input.isDown('sprint') || mv.dtSprint;
     mv.aim = playing && game.input.isDown('aim') && player.state === 'onFoot';
     if (playing && game.input.pressed('jump') && player.state !== 'inVehicle') mv.jump = 0.15;
     player.aiming = mv.aim;
     player.heading = heading;
     player.stamina = st.stamina;
+    player.staminaMax = P.staminaMax;
     if (player.state === 'ko' && player.health > 0) player.revive(player.health);
 
     mixer?.update(dt);

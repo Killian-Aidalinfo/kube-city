@@ -8,6 +8,7 @@ const save = (s) => { try { localStorage.setItem(KEY, JSON.stringify([...s])); }
 export const TIP_LIST = [
   { id: 'police', when: (c) => c.wanted, text: '<b>★</b> La police vous recherche : fuyez en voiture, sortez de son champ de vision ou cachez-vous pour perdre vos étoiles' },
   { id: 'move', after: 1, get text() { return `<b>${moveKeys()}</b> pour bouger · <b>Souris</b> pour regarder (cliquez dans le jeu) · <b>Maj</b> pour courir · <b>Espace</b> pour sauter`; } },
+  { id: 'sprint', when: (c) => c.walked >= 10, action: 'sprint', text: '<b>Maj</b> : courir · ou double appui sur Avancer' },
   { id: 'car', when: (c) => c.nearCar, action: 'interact', text: '<b>F</b> pour entrer dans la voiture' },
   { id: 'drive', when: (c) => c.inVehicle, get text() { return `<b>${moveKey('forward')}</b>/<b>${moveKey('back')}</b> accélérer et freiner · <b>${moveKey('left')}</b>/<b>${moveKey('right')}</b> tourner · <b>Espace</b> frein à main · <b>H</b> klaxon · <b>V</b> caméra · <b>F</b> pour sortir`; } },
   { id: 'map', after: 30, action: 'map', text: '<b>M</b> pour la carte : cliquez dessus pour poser un point GPS' },
@@ -26,7 +27,7 @@ export function createOnboarding(game, ui) {
   const st = document.createElement('style');
   st.textContent = `.kc-tip{position:absolute;left:50%;top:84px;transform:translateX(-50%);max-width:min(500px,92vw);background:var(--panel2);border:1px solid var(--yellow);border-radius:10px;padding:10px 18px;font-size:15px;text-align:center;z-index:30;box-shadow:0 0 16px rgba(255,210,63,.3);pointer-events:none}.kc-tip b{color:var(--yellow);border:1px solid var(--line);border-radius:4px;padding:0 6px;background:rgba(255,255,255,.07)}.kc-tip small{display:block;color:var(--dim);font-size:11px;margin-top:3px}`;
   document.head.appendChild(st);
-  let start = null, maxHp = 0, hurt = false, playTime = 0, current = null, until = 0, scan = 0, pad = false;
+  let walked = 0, start = null, maxHp = 0, hurt = false, playTime = 0, current = null, until = 0, scan = 0, pad = false;
   globalThis.addEventListener?.('gamepadconnected', () => { pad = true; });
 
   const markSeen = (id) => { if (!seen.has(id)) { seen.add(id); save(seen); } };
@@ -45,6 +46,9 @@ export function createOnboarding(game, ui) {
       if (current && el.style.display === 'none') el.style.display = '';
       playTime += dt;
       const inp = game.input;
+      // temps passé à marcher à pied sans sprinter (pour l'astuce « Maj : courir »)
+      const pf = game.player;
+      if (pf?.state === 'onFoot' && pf.speed2d > 0.5) { if (pf.speed2d > 6.4) markSeen('sprint'); else walked += dt; }
       for (const t of TIP_LIST) if (t.action && inp.pressed(t.action)) { markSeen(t.id); if (current?.id === t.id) hide(); }
       if (current && playTime > until) hide();
       scan -= dt;
@@ -59,7 +63,7 @@ export function createOnboarding(game, ui) {
       try { const m = game.gameplay?.profile?.missions; missionDone = Array.isArray(m) ? m.length > 0 : Object.keys(m || {}).length > 0; } catch { /* profil absent */ }
       const hp = pl?.health;
       if (typeof hp === 'number') { if (maxHp === 0) maxHp = hp; hurt = hp < maxHp * 0.7; }
-      const ctx = { far, missionDone, hurt, nearCar, inVehicle: !!pl?.vehicle, pad, wanted: (game.police?.level ?? 0) > 0 };
+      const ctx = { walked, far, missionDone, hurt, nearCar, inVehicle: !!pl?.vehicle, pad, wanted: (game.police?.level ?? 0) > 0 };
       const next = TIP_LIST.find((t) => !seen.has(t.id) && playTime >= (t.after ?? 0) && ((!t.when || t.when(ctx)) || (t.late && playTime >= t.late)));
       if (next) show(next);
     },

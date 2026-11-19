@@ -1,7 +1,7 @@
 // Logique pure du module PNJ (testable sans navigateur) : densités, suivi de véhicule, feux.
 
 export const QUALITY_PEDS = { low: 20, medium: 45, high: 80 };
-export const QUALITY_CARS = { low: 6, medium: 14, high: 24 };
+export const QUALITY_CARS = { low: 8, medium: 28, high: 46 };
 
 /** Facteur de densité piétonne selon le nom du quartier. */
 export function districtFactor(name = '') {

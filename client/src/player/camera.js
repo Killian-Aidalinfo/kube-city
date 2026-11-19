@@ -1,6 +1,6 @@
 // Caméras du joueur : 3e personne orbitale (à pied) et poursuite (véhicule, 3 modes avec V).
 import * as THREE from 'three';
-import { clamp, damp, dampAngle, angleDiff, orbitDirection, cameraHitDistance } from './logic.js';
+import { clamp, damp, dampAngle, angleDiff, orbitDirection, cameraHitDistance, sprintFactor } from './logic.js';
 
 const _v = new THREE.Vector3(), _v2 = new THREE.Vector3(), _q = new THREE.Quaternion();
 // modes véhicule : 0 proche, 1 éloignée, 2 capot
@@ -100,9 +100,11 @@ export function createCameraRig(game, player) {
       }
       const swim = player.state === 'swimming';
       const dir = orbitDirection(rig.yaw, rig.pitch);
-      const wantDist = rig.aiming ? 2.2 : 4.2 + clamp(player.speed2d * 0.05, 0, 0.5);
+      const sk = rig.aiming ? 0 : sprintFactor(player.speed2d); // sprint : caméra plus proche et plus basse
+      rig._sk = damp(rig._sk ?? 0, sk, 5, dt);
+      const wantDist = rig.aiming ? 2.2 : 4.2 + clamp(player.speed2d * 0.05, 0, 0.5) - rig._sk * 0.5;
       const shoulder = rig.aiming ? 0.8 : 0;
-      const pt = _v2.set(player.position.x, player.position.y + (swim ? 1.2 : 1.55), player.position.z);
+      const pt = _v2.set(player.position.x, player.position.y + (swim ? 1.2 : 1.55) - (rig._sk ?? 0) * 0.15, player.position.z);
       rig._pivot.x = damp(rig._pivot.x, pt.x, 22, dt); rig._pivot.z = damp(rig._pivot.z, pt.z, 22, dt);
       rig._pivot.y = damp(rig._pivot.y, pt.y, 12, dt);
       // épaule droite : décalage latéral du pivot
@@ -117,7 +119,9 @@ export function createCameraRig(game, player) {
       const gh = game.world?.groundHeight?.(camPos.x, camPos.z);
       if (typeof gh === 'number' && camPos.y < gh + 0.3) camPos.y = gh + 0.3;
       lookDir = dir;
-      fovT = rig.aiming ? 50 : 60;
+      fovT = rig.aiming ? 50 : 60 + rig._sk * 9;
+      // secousse de foulée en sprint
+      if (rig._sk > 0.02) { rig._bob = (rig._bob ?? 0) + dt * 14; camPos.y += Math.sin(rig._bob) * 0.03 * rig._sk; camPos.x += Math.cos(rig._bob * 0.5) * 0.02 * rig._sk; }
     }
 
     if (rig._blend > 0) camera.position.x = damp(camera.position.x, camPos.x, 9, dt), camera.position.y = damp(camera.position.y, camPos.y, 9, dt), camera.position.z = damp(camera.position.z, camPos.z, 9, dt);

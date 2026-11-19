@@ -3,7 +3,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
   PLAYER, angleDiff, damp, dampAngle, approach, updateStamina, fallDamage, targetSpeed,
-  locomotionKey, locomotionTimeScale, orbitDirection, cameraHitDistance,
+  locomotionKey, locomotionTimeScale, orbitDirection, cameraHitDistance, sprintFactor,
 } from '../client/src/player/logic.js';
 
 test('angleDiff : plus court chemin, borné à ±π', () => {
@@ -27,13 +27,13 @@ test('endurance : le sprint la vide, elle remonte après un délai, épuisement 
   const s = { stamina: 100, delay: 0, exhausted: false };
   let n = 0;
   while (!s.exhausted && n++ < 1000) updateStamina(s, 1 / 60, { sprinting: true });
-  assert.ok(n > 300 && n < 400, 'durée de sprint ' + n / 60); // ~5,5 s
+  assert.ok(n > 720 && n < 900, 'durée de sprint ' + n / 60); // ~13 s
   assert.equal(s.stamina, 0); assert.ok(s.exhausted);
   // au repos : d'abord le délai, puis la récupération ; le sprint reste coupé sous 20
   for (let i = 0; i < 30; i++) updateStamina(s, 1 / 60, {});
   assert.equal(s.stamina, 0);
-  for (let i = 0; i < 60; i++) updateStamina(s, 1 / 60, {});
-  assert.ok(s.stamina > 5 && s.exhausted);
+  for (let i = 0; i < 20; i++) updateStamina(s, 1 / 60, {});
+  assert.ok(s.stamina > 3 && s.exhausted);
   for (let i = 0; i < 600; i++) updateStamina(s, 1 / 60, {});
   assert.ok(!s.exhausted && s.stamina <= PLAYER.staminaMax);
   updateStamina(s, 1, { swimming: true });
@@ -61,6 +61,10 @@ test('animation de déplacement selon la vitesse', () => {
   assert.equal(locomotionKey(1.5), 'walk');
   assert.equal(locomotionKey(4.8), 'run');
   assert.equal(locomotionKey(8), 'sprint');
+  assert.equal(locomotionKey(PLAYER.sprint), 'sprint');
+  assert.equal(sprintFactor(PLAYER.run), 0);
+  assert.equal(sprintFactor(PLAYER.sprint), 1);
+  assert.ok(PLAYER.sprint >= 9 && PLAYER.sprint <= 9.5);
   assert.ok(locomotionTimeScale('run', 4.6) === 1);
   assert.ok(locomotionTimeScale('run', 100) <= 1.5);
 });

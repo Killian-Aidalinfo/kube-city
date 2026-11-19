@@ -25,8 +25,13 @@ export function createHud(game, ui) {
     <div class="kc-hint" style="display:none">Cliquez dans le jeu pour piloter la caméra à la souris (Échap : pause)</div>
     <div class="kc-prompt" style="display:none"></div>
     <div class="kc-sub"></div>
+    <div class="kc-sta" style="display:none"><i></i></div>
     <div class="kc-speed" style="display:none"><span class="n">0</span><span class="u">km/h</span><div class="r"></div></div>`;
   ui.root.appendChild(root);
+  // jauge d'endurance : discrète, visible seulement quand elle n'est pas pleine
+  const staStyle = document.createElement('style');
+  staStyle.textContent = '.kc-sta{position:absolute;left:50%;bottom:66px;transform:translateX(-50%);width:180px;height:6px;border-radius:3px;background:rgba(0,0,0,.45);border:1px solid rgba(255,255,255,.25);overflow:hidden;pointer-events:none}.kc-sta i{display:block;height:100%;width:100%;background:#7fe0ff;transition:background .15s}.kc-sta.low i{background:#ff7a59}';
+  document.head.appendChild(staStyle);
   const $ = (s) => root.querySelector(s);
   const el = {
     ha: $('.kc-ha'), pod: $('.pod'), ver: $('.ver'), ping: $('.ping'), rec: $('.rec'), ld: $('.ld'), tog: $('.tog'),
@@ -34,7 +39,7 @@ export function createHud(game, ui) {
     abil: $('.kc-abil'), abilN: $('.kc-abil .n'), abilBar: $('.kc-abil .bar i'),
     obj: $('.kc-obj'), objH: $('.kc-obj h4'), objP: $('.kc-obj p'), objT: $('.kc-obj .t'),
     mini: $('.kc-mini canvas'), district: $('.kc-district'), hint: $('.kc-hint'), prompt: $('.kc-prompt'), sub: $('.kc-sub'),
-    speed: $('.kc-speed'), speedN: $('.kc-speed .n'), radio: $('.kc-speed .r'),
+    sta: $('.kc-sta'), staI: $('.kc-sta i'), speed: $('.kc-speed'), speedN: $('.kc-speed .n'), radio: $('.kc-speed .r'),
   };
 
   // ----- minimap -----
@@ -114,6 +119,11 @@ export function createHud(game, ui) {
         el.abilBar.style.width = `${Math.round(ab.gauge * 100)}%`;
         el.abil.classList.toggle('ready', ab.gauge >= ab.cost);
       } else el.abil.style.display = 'none';
+      // endurance
+      const stam = pl?.stamina, sMax = pl?.staminaMax || 100;
+      const showSta = game.state === 'playing' && pl?.state !== 'inVehicle' && Number.isFinite(stam) && stam < sMax - 0.5;
+      el.sta.style.display = showSta ? '' : 'none';
+      if (showSta) { el.staI.style.width = `${Math.round(Math.max(0, stam) / sMax * 100)}%`; el.sta.classList.toggle('low', stam < 25); }
       // vitesse et radio
       const veh = pl?.vehicle;
       el.speed.style.display = veh ? '' : 'none';

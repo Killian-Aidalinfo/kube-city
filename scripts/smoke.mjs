@@ -131,7 +131,9 @@ try {
     const found = await page.evaluate(() => {
       const g = window.__game;
       if (g.player.state === 'inVehicle') g.vehicles.exit(g.player);
-      const cars = g.vehicles.list.filter((v) => v.driver?.npc && !v.destroyed && v.owner !== 'police');
+      // voiture debout (pas une épave, pas tombée sous le monde), la plus lente : une voiture lancée s'éloigne pendant l'essai
+      const cars = g.vehicles.list.filter((v) => v.driver?.npc && !v.wrecked && !v.destroyed && v.owner !== 'police' && v.object3d.position.y > -5);
+      cars.sort((a, b) => (a.speed ?? 0) - (b.speed ?? 0));
       const v = cars[0]; if (!v) return false;
       const o = v.object3d.position, yaw = v.object3d.rotation.y;
       g.player.state === 'onFoot' || (g.player.state = 'onFoot');
@@ -139,7 +141,7 @@ try {
       window.__target = v; return true;
     });
     if (!found) break;
-    await sleep(300);
+    await sleep(80);
     await page.keyboard.press('KeyF');
     jacked = await page.waitForFunction(() => window.__target.driver === window.__game.player, null, { timeout: 5000 }).then(() => true, () => false);
   }

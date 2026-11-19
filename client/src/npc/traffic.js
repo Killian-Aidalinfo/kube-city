@@ -6,6 +6,7 @@ import { carTarget, followSpeed, stopSpeed, lightState, lightPos, yawOf } from '
 const TYPES = ['sedan', 'sedan', 'hatchback-sports', 'suv', 'taxi', 'van', 'delivery', 'sedan-sports', 'suv-luxury', 'truck', 'moto', 'moto', 'bus'];
 const KMH = 1 / 3.6;
 const fwd = { x: 0, z: 1 };
+const SPAWN_MIN = 45, SPAWN_NEAR = 110, SPAWN_VIEW = 130, SPAWN_MAX = 190; // m : zone d'apparition autour du joueur
 
 export function createTraffic(game, rng) {
   const cars = [];        // { veh, lane, stuck, honkAt, panic, avoidT, ... }
@@ -15,12 +16,18 @@ export function createTraffic(game, rng) {
 
   function spawnPoint() {
     const pp = pos();
-    for (let k = 0; k < 16; k++) {
+    const cy = game.player?.camera?.yaw ?? 0, cfx = Math.sin(cy), cfz = Math.cos(cy);
+    for (let k = 0; k < 40; k++) {
       const arc = graph.arcs[(rng() * graph.arcs.length) | 0];
       const t = rng() * arc.len, A = graph.nodes[arc.a];
       const x = A.x + arc.dx * t - arc.dz * 2, z = A.z + arc.dz * t + arc.dx * 2;
       const d = Math.hypot(x - pp.x, z - pp.z);
-      if (d > 70 && d < 200) return { x, z, arc, yaw: yawOf(arc.dx, arc.dz) };
+      if (d < SPAWN_MIN || d > SPAWN_MAX) continue;
+      // jamais dans le champ de vision proche (cône ~±70° devant la caméra) ni sur une autre voiture
+      if (d < SPAWN_VIEW && ((x - pp.x) * cfx + (z - pp.z) * cfz) / d > 0.34) continue;
+      if (d > SPAWN_NEAR && rng() < 0.7) continue; // plus de chances près du joueur : densité visible
+      if ((game.vehicles?.list ?? []).some((o) => o.object3d && Math.hypot(o.object3d.position.x - x, o.object3d.position.z - z) < 9)) continue;
+      return { x, z, arc, yaw: yawOf(arc.dx, arc.dz) };
     }
     return null;
   }
@@ -147,9 +154,9 @@ export function createTraffic(game, rng) {
   }
 
   /** Recycle les voitures lointaines vers un nouveau point de route. */
-  function recycle(car) {
+  function recycle(car, force = false) {
     const p = car.veh.object3d.position, pp = pos();
-    if (Math.hypot(p.x - pp.x, p.z - pp.z) < 260) return;
+    if (!force && Math.hypot(p.x - pp.x, p.z - pp.z) < 215) return;
     const s = spawnPoint(); if (!s) return;
     relocate(car.veh, s, s.yaw);
     car.lane = new LanePath(graph, s.arc, rng, 2);
@@ -163,12 +170,16 @@ export function createTraffic(game, rng) {
     const t = game.time.elapsed;
     const target = carTarget({ quality: game.settings.get('quality'), density: game.settings.get('pedDensity') || 0.6, hour: game.time.dayTime });
     game.npc.maxCars = target;
-    if (cars.filter((c) => c.ambient).length < target && frame % 20 === 0) addCar();
+    // remplissage rapide tant qu'on est loin de la cible, puis cadence calme
+    const ambient = cars.filter((c) => c.ambient).length;
+    if (ambient < target && frame % (ambient < target * 0.6 ? 6 : 20) === 0) addCar();
     for (let i = cars.length - 1; i >= 0; i--) {
       const c = cars[i];
       // plus à nous : le joueur au volant, véhicule détruit ou devenu autre chose
       if (c.veh.owner === 'player' || game.player?.vehicle === c.veh) { cars.splice(i, 1); continue; }
       if (c.veh.destroyed || (c.veh.health ?? 1) <= 0) { c.veh.setControls({ throttle: 0, brake: 1, steer: 0, handbrake: true }); cars.splice(i, 1); continue; }
+      // tombée sous le monde (sol pas encore chargé là où elle roulait) : on la remet sur une route
+      if (c.ambient && c.veh.object3d.position.y < -20) { recycle(c, true); continue; }
       drive(c, dt, t);
       if (frame % 60 === i % 60 && c.ambient) recycle(c);
     }
