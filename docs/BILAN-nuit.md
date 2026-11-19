@@ -45,7 +45,7 @@ Deux revues : la seconde a corrigé une relance Redis pendant l'arrêt propre, u
 
 ## Points ouverts techniques
 - `scripts/playtest/mcp.mjs` stabilisé (16/16) : le test visait une chasse presque finie ; vrai bug corrigé au passage (un `despawn_agent` pendant le tick du leader ressuscitait l'agent). Non reproduit : « course jamais clôturée » (vu une fois, Redis partagé avec un autre serveur).
-- `npm run smoke` : étape carjacking fiabilisée (10/10) ; trouvé au passage des voitures de circulation qui tombaient sous le monde (garde-fou : remises sur une route, cause racine non cherchée). Étape 1 « le perso ne marche pas » vue 2 fois sur 20, non reproduite depuis.
+- `npm run smoke` : étape carjacking fiabilisée (10/10) ; trouvé au passage des voitures de circulation qui tombaient sous le monde : cause trouvée (apparition à y=0,8 en dur sous les routes de colline) et corrigée, plus murs au bord du terrain ; 99 chutes en 2 min → 0 en 5 min (`scripts/playtest/chutes.mjs`). Étape 1 « le perso ne marche pas » vue 2 fois sur 20, non reproduite depuis.
 
 ## Frictions restantes (playtest « débutant », 19/11, `scripts/playtest/debutant.mjs`)
 Premier pas jouable : ~4,4 s depuis le chargement de la page (titre 0,5 s, portraits 1,6 s, chargement 1,6 s). Corrigés : prompt « F : Monter » affiché à 4 m alors que F marche à 3 m ; GPS de mission effacé à chaque image par le module social ; aucun premier objectif (maintenant : encadré + GPS vers le marqueur jaune) ; pseudo non pris en compte avant rechargement ; astuces posées sur le perso (déplacées en haut) et affichées pendant K.O./Arrêté ; pas d'astuce sur les étoiles.
