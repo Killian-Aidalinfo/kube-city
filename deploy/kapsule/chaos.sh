@@ -10,6 +10,8 @@ GAME_SEL="app.kubernetes.io/instance=$REL,app.kubernetes.io/component=game"
 k() { kubectl -n "$NS" "$@"; }
 say() { printf '\n\033[1;36m== %s\033[0m\n' "$*"; }
 look() { printf '\033[33mÀ observer : %s\033[0m\n' "$*"; }
+# Deployment (défaut) ou DaemonSet (--set kind=DaemonSet) : on détecte ce que le chart a créé
+workload() { if k get ds/"$REL" >/dev/null 2>&1; then echo ds/"$REL"; else echo deploy/"$REL"; fi; }
 pods() { k get pods -l "$GAME_SEL" -o wide; }
 
 # Pod Redis qui est maître d'après Sentinel (le nom de pod, ex. redis-node-1)
@@ -40,14 +42,16 @@ s1() { say "1. Tuer un pod de jeu"
 
 s2() { say "2. Vider un nœud (kubectl drain)"
   local n; n=$(busiest_node); echo "Cible : $n"
-  look "le PDB laisse partir les pods UN par un (jamais moins de 2 pods de jeu prêts) ; 0 échec HTTP ; si le nœud porte un Redis, Sentinel bascule"
+  look "Deployment : le PDB laisse partir les pods UN par un (jamais moins de 2 pods de jeu prêts) ; 0 échec HTTP ; si le nœud porte un Redis, Sentinel bascule"
+  look "DaemonSet : le pod de jeu RESTE sur le nœud vidé (--ignore-daemonsets) et continue de servir ; seuls les Redis partent"
   look "avec l'anti-affinité Redis « hard », le Redis évincé reste Pending tant que le nœud est coupé : normal, 2 Redis sur 3 suffisent"
   kubectl drain "$n" --ignore-daemonsets --delete-emptydir-data --timeout=180s || true
   pods; echo; echo "Pour remettre le nœud : kubectl uncordon $n"; }
 
 s3() { say "3. Mise à jour progressive (rollout restart)"
-  look "maxUnavailable 0 : toujours 3 pods prêts ; joueurs déplacés en douceur (DRAIN_DELAY_MS), 0 échec HTTP ; quelques reconnexions WS sont normales"
-  k rollout restart deploy/"$REL"; k rollout status deploy/"$REL" --timeout=300s; pods; }
+  look "maxUnavailable 0 (Deployment comme DaemonSet) : toujours 3 pods prêts ; joueurs déplacés en douceur (DRAIN_DELAY_MS), 0 échec HTTP ; quelques reconnexions WS sont normales"
+  local w; w=$(workload); echo "Cible : $w"
+  k rollout restart "$w"; k rollout status "$w" --timeout=300s; pods; }
 
 s4() { say "4. Tuer le maître Redis (Sentinel)"
   local m; m=$(redis_master); echo "Maître actuel : $m"

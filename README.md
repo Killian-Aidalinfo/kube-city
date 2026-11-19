@@ -126,6 +126,7 @@ Réglages HA du chart (`chart/kube-city/values.yaml`) :
 - 3 réplicas minimum, `maxUnavailable: 0` pendant les mises à jour ;
 - `topologySpreadConstraints` sur les zones et les nœuds ;
 - `PodDisruptionBudget` (`minAvailable: 2`) ;
+- `kind: DaemonSet` en option (`--set kind=DaemonSet`) : un pod par nœud, sans HPA ni topologySpread ; le drain ne chasse pas le pod (voir `deploy/kapsule/README.md`) ;
 - sondes `readiness` (`/readyz`), `liveness` (`/healthz`) et `startup` ;
 - `terminationGracePeriodSeconds` plus long que `DRAIN_DELAY_MS` ;
 - HPA de 3 à 6 pods sur le CPU, montée immédiate, descente lente (un pod toutes les 2 min après 10 min de calme : chaque pod retiré coupe les WebSocket de ses joueurs) ;

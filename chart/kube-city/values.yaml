@@ -5,9 +5,12 @@ image:
   tag: ""            # vide = appVersion du chart
   pullPolicy: IfNotPresent
 
-# Deployment (défaut) : replicaCount pods, répartis par topologySpread, HPA possible.
-# DaemonSet : exactement un pod par nœud (3 nœuds = 3 pods), sans topologySpread ni HPA.
-#   Attention : `kubectl drain --ignore-daemonsets` ne chasse pas les pods d'un DaemonSet (le pod reste jusqu'à l'arrêt du nœud).
+# Type de workload : Deployment (défaut) ou DaemonSet (toute autre valeur fait échouer le rendu).
+# Deployment : replicaCount pods, répartis par topologySpread, HPA possible.
+# DaemonSet : exactement un pod par nœud (3 nœuds = 3 pods), sans topologySpread ni HPA ;
+#   `strategy.*` est ignoré (mise à jour fixée à maxUnavailable 0 / maxSurge 1) et replicaCount aussi.
+#   Attention : `kubectl drain --ignore-daemonsets` ne chasse pas les pods d'un DaemonSet (le pod reste jusqu'à l'arrêt du nœud),
+#   un nœud perdu = un pod de moins, et le PDB n'a pas d'effet sur le drain. Nœuds avec taint : ajouter `tolerations`.
 kind: Deployment
 
 # Au moins 3 pods : on peut en perdre un (panne) pendant qu'un autre est remplacé (mise à jour)

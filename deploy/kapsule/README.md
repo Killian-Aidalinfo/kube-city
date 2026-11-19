@@ -94,6 +94,28 @@ Gardez `redis.enabled: false`, sinon le chart crée en plus un Redis simple inut
 Si vous changez le namespace, changez-le aussi dans `hosts`.
 L'image vient de `ghcr.io/killian-aidalinfo/kube-city` (`image.tag` pour une autre version).
 
+### Deployment ou DaemonSet ? (`kind`)
+
+Le chart sait créer le jeu de deux façons ; `values-kube-city.yaml` utilise le `Deployment` (défaut).
+
+| | `kind: Deployment` (défaut) | `kind: DaemonSet` (`--set kind=DaemonSet`) |
+|---|---|---|
+| Nombre de pods | `replicaCount` (3), puis HPA de 3 à 6 | 1 par nœud, donc autant que de nœuds (3) |
+| Répartition | `topologySpreadConstraints` (`matchLabelKeys: [pod-template-hash]` : seul le ReplicaSet courant compte pendant un rollout) | garantie par construction, aucun déséquilibre possible |
+| Mise à jour | `maxUnavailable: 0`, `maxSurge: 1` (`strategy.*`) | `updateStrategy` RollingUpdate, `maxUnavailable: 0`, `maxSurge: 1` (fixes, `strategy.*` ignoré) |
+| HPA | oui | non (pas créé) |
+| `kubectl drain --ignore-daemonsets` | le PDB fait partir les pods un par un | **le pod reste** sur le nœud vidé et continue de servir (seuls les Redis partent) |
+| Nœud perdu | le pod est recréé sur un autre nœud | un pod de moins (2 sur 3) jusqu'au retour du nœud, rien n'est recréé |
+
+Avantages du DaemonSet : 1 pod par nœud garanti, pas de déséquilibre, rien à régler (pas de topologySpread).
+Limites : pas de HPA (le nombre de pods = le nombre de nœuds, donc pas de montée en charge par pods : il faut ajouter des nœuds) ;
+un pod de moins quand un nœud manque ; le drain ne chasse pas le pod, il faut arrêter ou supprimer le nœud pour le couper ;
+le nœud de contrôle ou un nœud avec taint n'a pas de pod sans `tolerations`. Le PDB reste créé (il protège contre une éviction
+directe via l'API), mais il n'a aucun effet sur `kubectl drain` en mode DaemonSet.
+Mesuré sur kind (3 workers) : `rollout restart` et `helm upgrade` en DaemonSet avec la sonde : 0 échec HTTP, 0 s de coupure WebSocket
+(1 reconnexion, celle du pod remplacé) ; kill d'un pod : 0 échec, pod recréé sur le même nœud.
+`chaos.sh` détecte tout seul le type de workload.
+
 ## 6. Mises à jour progressives : compatibilité des messages
 
 Pendant une mise à jour, des pods anciens et nouveaux se parlent via Redis Pub/Sub.
@@ -110,10 +132,10 @@ Terminal B : `NS=kube-city REL=jeu ./deploy/kapsule/chaos.sh <n>` (`./chaos.sh l
 | n | Épreuve | À observer |
 |---|---|---|
 | 1 | Tuer un pod de jeu | Les joueurs du pod se reconnectent en < 2 s, 0 échec HTTP, le pod revient seul |
-| 2 | Vider un nœud (`drain`) | Le PDB fait partir les pods un par un, jamais moins de 2 prêts ; si le nœud portait un Redis, il reste `Pending` (normal) |
+| 2 | Vider un nœud (`drain`) | Deployment : le PDB fait partir les pods un par un, jamais moins de 2 prêts. DaemonSet : le pod de jeu reste sur le nœud (normal). Dans les deux cas, si le nœud portait un Redis, il reste `Pending` (normal) |
 | 3 | `rollout restart` | Toujours 3 pods prêts, 0 échec HTTP, quelques reconnexions WS |
 | 4 | Tuer le maître Redis | Sentinel élit un nouveau maître en 2 à 5 s, le jeu se reconnecte seul |
-| 5 | Perdre un nœud d'un coup | Coupure WS < 10 s, HTTP quasi parfait, replanification sur les 2 autres nœuds |
+| 5 | Perdre un nœud d'un coup | Coupure WS < 10 s, HTTP quasi parfait. Deployment : replanification sur les 2 autres nœuds. DaemonSet : 2 pods restent, rien n'est recréé (attendu) |
 
 Après les épreuves 2 et 5 : `kubectl uncordon <nœud>`. Le script a un vrai arrêt de pool en option : `scw k8s pool update <pool-id> size=2`.
 Résultat de la sonde en local : un `kubectl port-forward` meurt avec le pod visé et fausse la mesure : mesurez toujours via l'Ingress.
@@ -127,12 +149,15 @@ Mesures : la sonde pendant les épreuves 1 à 5 (une minute chacune, pas de réu
 | Disponibilité HTTP de la sonde sur toutes les épreuves | 4 | ≥ 99,9 % : 4 ; ≥ 99 % : 3 ; ≥ 97 % : 2 ; ≥ 90 % : 1 ; sinon 0 |
 | Coupure maximale du jeu (WebSocket), plus longue des épreuves | 3 | ≤ 3 s : 3 ; ≤ 10 s : 2 ; ≤ 30 s : 1 ; sinon 0 |
 | Redis Sentinel opérationnel | 4 | 3 pods 2/2 sur 3 nœuds (1) ; bascule observée épreuve 4 (2) ; reconnexion du jeu sans redémarrage (1) |
-| PodDisruptionBudget jeu | 2 | `kubectl get pdb` : `minAvailable: 2` et drain réussi sans passer sous 2 pods prêts (2) ; PDB présent seulement (1) |
-| Répartition des pods (anti-affinité / topologySpread) | 2 | 3 pods de jeu sur 3 nœuds différents (1) + 3 Redis sur 3 nœuds différents (1) |
+| Drain et PodDisruptionBudget | 2 | Deployment : `minAvailable: 2` et drain réussi sans passer sous 2 pods prêts (2) ; PDB présent seulement (1). DaemonSet : drain de l'épreuve 2 sans aucune requête perdue, 3 pods toujours prêts, et explication correcte (le drain ignore les pods de DaemonSet, le PDB ne joue que sur une éviction directe) (2) ; drain réussi sans explication (1) |
+| Répartition des pods | 2 | 3 pods de jeu sur 3 nœuds différents (1) : `topologySpread` (Deployment) ou DaemonSet, à vérifier avec `kubectl get pods -o wide` après une mise à jour ; 3 Redis sur 3 nœuds différents (1) |
 | Probes | 2 | readiness + liveness + startup présentes et cohérentes (`kubectl describe`) (1) ; 0 requête perdue pendant un rollout (1) |
-| Mise à jour sans coupure | 1 | `maxUnavailable: 0`, 3 pods prêts en permanence pendant l'épreuve 3 |
+| Mise à jour sans coupure | 1 | `maxUnavailable: 0` (`strategy` ou `updateStrategy` du DaemonSet), 3 pods prêts en permanence pendant l'épreuve 3 |
 | Persistance Redis | 1 | PVC RWO `scw-bssd` par pod, explication RWO vs RWX correcte à l'oral |
 | Sécurité de base | 1 | Mot de passe Redis dans un Secret, rien en clair dans les values rendus au groupe |
+
+Les deux modes se notent sur le même barème : un groupe en DaemonSet n'est pas pénalisé de l'absence de HPA ni de `topologySpread` (aucun critère ne les exige),
+mais doit savoir dire pourquoi (limites du tableau « Deployment ou DaemonSet » ci-dessus).
 
 Total 20. Bonus oral possible : explication de l'ordre des événements d'une bascule Sentinel.
 

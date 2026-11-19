@@ -1,3 +1,4 @@
+{{- if not (has .Values.kind (list "Deployment" "DaemonSet")) }}{{ fail (printf "kind doit valoir Deployment ou DaemonSet (reçu : %q)" (toString .Values.kind)) }}{{ end }}
 {{- $ds := eq .Values.kind "DaemonSet" }}
 apiVersion: apps/v1
 kind: {{ $ds | ternary "DaemonSet" "Deployment" }}

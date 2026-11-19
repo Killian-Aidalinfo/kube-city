@@ -1,5 +1,6 @@
 # Valeurs Kube City pour un Kapsule UNE zone, 3 nœuds, Redis Sentinel (release « redis », namespace « kube-city »).
 # À adapter : ingress.host (et className si vous utilisez Traefik).
+# kind: DaemonSet       # option : un pod par nœud, sans HPA ni topologySpread (README, « Deployment ou DaemonSet »)
 replicaCount: 3
 
 strategy: { maxUnavailable: 0, maxSurge: 1 }
