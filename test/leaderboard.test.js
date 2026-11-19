@@ -15,7 +15,7 @@ const clean = () => redis.multi().zrem("pn:scores", ...ids).zrem("pn:seen", ...i
 try { await redis.ping(); await clean(); } catch { up = false; }
 after(async () => { if (up) await clean(); await store.closeStore(); });
 
-const board = async () => (await store.leaderboard(2000)).map((r) => r.id).filter((id) => ids.includes(id));
+const board = async () => (await store.leaderboard(2000, { fresh: true })).map((r) => r.id).filter((id) => ids.includes(id));
 
 test("leaderboard : actif oui, ancien (>24 h) non, sans date (anciennes données) non", { skip: !up && "Redis absent" }, async () => {
   await redis.multi().zadd("pn:scores", 1e9, "t-lb-actif").hset("pn:names", "t-lb-actif", "A")
@@ -45,4 +45,25 @@ test("LEADERBOARD_ACTIVE_HOURS règle la fenêtre", { skip: !up && "Redis absent
   process.env.LEADERBOARD_ACTIVE_HOURS = "48";
   try { assert.deepEqual(await board(), ["t-lb-ancien"]); } finally { delete process.env.LEADERBOARD_ACTIVE_HOURS; }
   assert.deepEqual(await board(), []);
+});
+
+test("plafond : on purge les plus anciens (et sans date), pas les plus faibles scores", { skip: !up && "Redis absent" }, async () => {
+  await clean();
+  const card = await redis.zcard("pn:scores");
+  if (card > 1500) return; // Redis local déjà bien rempli : le test deviendrait trop lourd
+  const filler = Array.from({ length: 2300 - card }, (_, i) => `t-lbf-${i}`);
+  const m = redis.multi();
+  filler.forEach((id) => { m.zadd("pn:scores", 1, id).zadd("pn:seen", Date.now() - 60_000, id); });
+  m.zadd("pn:scores", 1e9, "t-lb-ancien").zadd("pn:seen", Date.now() - 10 * 24 * H, "t-lb-ancien"); // gros score mais inactif
+  m.zadd("pn:scores", 1e9, "t-lb-sansdate");                                                       // gros score, sans date
+  await m.exec();
+  try {
+    await store.addScore("t-lb-actif", "A", 1); // nouveau, petit score : doit survivre
+    assert.equal(await redis.zscore("pn:scores", "t-lb-actif"), "1");
+    assert.equal(await redis.zscore("pn:scores", "t-lb-ancien"), null);
+    assert.equal(await redis.zscore("pn:scores", "t-lb-sansdate"), null);
+    assert.ok((await redis.zcard("pn:scores")) <= 2000 + 1);
+  } finally {
+    await redis.multi().zrem("pn:scores", ...filler).zrem("pn:seen", ...filler).exec();
+  }
 });

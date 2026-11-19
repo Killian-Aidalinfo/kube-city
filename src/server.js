@@ -337,6 +337,7 @@ wss.on("connection", (ws) => {
       } else if (m.t === "busted") {
         await store.addScore(me.id, me.name, -50);
       } else if (m.t === "board") {
+        if (tooSoon(ws, "board", 1000)) return;
         send(ws, { t: "board", board: await store.leaderboard(10) });
       }
     } catch (e) {

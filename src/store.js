@@ -100,13 +100,31 @@ export async function addScore(id, name, pts) {
   // on garde les SCORES_MAX meilleurs, on oublie les pseudos des autres, et tout expire après 7 jours sans activité.
   const card = r[6][1];
   if (card > SCORES_MAX + SCORES_MAX / 10) {
-    const drop = await redis.zrange("pn:scores", 0, card - SCORES_MAX - 1);
+    // on retire d'abord les plus anciens (pn:seen) et ceux sans date, puis on complète par score : un inactif à gros score ne bloque pas les nouveaux
+    const need = card - SCORES_MAX;
+    const ids = await redis.zrange("pn:scores", 0, -1); // du plus faible au plus fort score
+    const seen = await redis.zmscore("pn:seen", ...ids);
+    const byAge = ids.map((id, i) => ({ id, i, t: seen[i] === null ? -1 : Number(seen[i]) })).sort((a, b) => a.t - b.t || a.i - b.i);
+    const drop = byAge.slice(0, need).map((x) => x.id);
     if (drop.length) await redis.multi().zrem("pn:scores", ...drop).zrem("pn:seen", ...drop).hdel("pn:names", ...drop).exec();
   }
   return r[1][1];
 }
 
-export async function leaderboard(n = 10) {
+// Cache de 2 s par pod : un seul calcul Redis à la fois, le résultat est partagé (hello, board, /api, look).
+const LB_CACHE_MS = 2000;
+const lbCache = new Map(); // n -> { t, p }
+export function leaderboard(n = 10, { fresh = false } = {}) {
+  if (fresh) return computeLeaderboard(n);
+  const c = lbCache.get(n);
+  if (c && Date.now() - c.t < LB_CACHE_MS) return c.p;
+  const p = computeLeaderboard(n);
+  lbCache.set(n, { t: Date.now(), p });
+  p.catch(() => { if (lbCache.get(n)?.p === p) lbCache.delete(n); }); // échec : pas de cache
+  return p;
+}
+
+async function computeLeaderboard(n) {
   // On lit large (les inactifs en tête sont écartés), puis on garde les n premiers actifs.
   const flat = await redis.zrevrange("pn:scores", 0, SCORES_MAX - 1, "WITHSCORES");
   const all = [];
@@ -221,6 +239,10 @@ export async function saveBot(bot) {
 const UPDATE_BOT = `if redis.call("exists", KEYS[1]) == 1 then redis.call("set", KEYS[1], ARGV[1], "EX", 1800) return 1 else return 0 end`;
 export async function updateBot(bot) {
   return (await redis.eval(UPDATE_BOT, 1, `pn:bot:${bot.id}`, JSON.stringify(bot))) === 1;
+}
+
+export async function botExists(id) {
+  return (await redis.exists(`pn:bot:${id}`)) === 1;
 }
 
 export async function loadBot(id) {

@@ -267,8 +267,10 @@ Le serveur MCP est sur `/mcp` (HTTP « streamable », sans session : n'importe q
 
 ```bash
 claude mcp add --transport http kube-city https://jeu.mon-groupe.fr/mcp \
-  --header "X-Kube-Key: prenom-nom"
+  --header "X-Kube-Key: $(openssl rand -hex 8)"
 ```
+
+Générez une fois votre clé (`openssl rand -hex 8`), notez-la et réutilisez-la : c'est elle qui protège vos agents.
 
 **Claude Desktop** (`claude_desktop_config.json`, via le pont `mcp-remote`) :
 
@@ -277,14 +279,14 @@ claude mcp add --transport http kube-city https://jeu.mon-groupe.fr/mcp \
   "mcpServers": {
     "kube-city": {
       "command": "npx",
-      "args": ["-y", "mcp-remote", "https://jeu.mon-groupe.fr/mcp", "--header", "X-Kube-Key: prenom-nom"]
+      "args": ["-y", "mcp-remote", "https://jeu.mon-groupe.fr/mcp", "--header", "X-Kube-Key: 3f9a1c7e5b2d4a60"]
     }
   }
 }
 ```
 
 Autre client (Cursor, SDK…) : URL `https://…/mcp`, transport HTTP, `POST` JSON-RPC. Si l'instance est protégée (`mcp.token`), ajoutez `--header "Authorization: Bearer …"`.
-`X-Kube-Key` est facultatif : c'est votre pseudo, il évite que des élèves derrière la même box se partagent le quota d'agents.
+`X-Kube-Key` est facultatif mais recommandé : c'est une **clé secrète aléatoire** (`openssl rand -hex 8`), pas un pseudo devinable. Elle protège vos agents : seul celui qui la connaît les voit et les pilote, et elle évite que des élèves derrière la même box se partagent le quota. Sans clé, vos agents ne sont visibles que des appelants sans clé de la même IP (toute la classe, donc) ; avec une clé, personne d'autre ne les voit, même derrière la même IP.
 
 Puis demandez par exemple : « Crée un agent nommé Turbo, regarde autour de toi, va à la plage et propose une course vers le phare. »
 Les agents roulent sur les vraies rues de la ville (`src/city.js` réutilise la génération du client).
@@ -302,7 +304,7 @@ Les agents roulent sur les vraies rues de la ville (`src/city.js` réutilise la 
 | `hunt_status`, `collect_kube` | chasse aux kubes dorés (toutes les ~10 min) : position des kubes, ramassage |
 | `leaderboard` | scores et classement de la session |
 
-**Limites (protection du cluster)** : 3 agents par clé (en-tête `X-Kube-Key` : donnez une clé différente à chaque étudiant), 40 par IP et 40 au total, 40 créations/min, 1 message de chat toutes les 3 s par agent (120/min par IP), 1 emote/s, 1 proposition de course/20 s (6 courses ouvertes max), 3000 requêtes MCP/min par IP (limites par IP larges : toute une classe sort souvent par la même IP), un agent n'est pilotable que par son créateur, inactif 30 min il disparaît. Réglables : `MCP_MAX_BOTS_PER_KEY`, `MCP_MAX_BOTS_PER_IP`, `MCP_MAX_BOTS`, `MCP_RPM`, `MCP_SPAWN_PER_MIN`, `MCP_CHAT_PER_MIN`, `MCP_MAX_OPEN_RACES`. Compteurs dans Redis : valables pour tous les pods. Derrière un proxy, l'IP est l'entrée de `X-Forwarded-For` ajoutée par notre proxy (`TRUST_PROXY_HOPS`, défaut 1).
+**Limites (protection du cluster)** : 3 agents par clé (en-tête `X-Kube-Key` : donnez à chaque étudiant sa propre clé secrète aléatoire, `openssl rand -hex 8`), 40 par IP et 40 au total, 40 créations/min, 1 message de chat toutes les 3 s par agent (120/min par IP), 1 emote/s, 1 proposition de course/20 s (6 courses ouvertes max), 3000 requêtes MCP/min par IP (limites par IP larges : toute une classe sort souvent par la même IP), un agent n'est pilotable que par son créateur, inactif 30 min il disparaît. Réglables : `MCP_MAX_BOTS_PER_KEY`, `MCP_MAX_BOTS_PER_IP`, `MCP_MAX_BOTS`, `MCP_RPM`, `MCP_SPAWN_PER_MIN`, `MCP_CHAT_PER_MIN`, `MCP_MAX_OPEN_RACES`. Compteurs dans Redis : valables pour tous les pods. Derrière un proxy, l'IP est l'entrée de `X-Forwarded-For` ajoutée par notre proxy (`TRUST_PROXY_HOPS`, défaut 1).
 
 **3 défis pour les étudiants**
 

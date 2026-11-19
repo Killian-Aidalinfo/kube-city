@@ -200,14 +200,14 @@ export async function claimHuntKube(playerId, name, pos, huntId, i) {
 }
 
 // ---------- Agents IA ----------
-export async function spawnBot({ name, color, owner = null, ip = null }) {
+export async function spawnBot({ name, color, owner = null, keyed = false, ip = null }) {
   const start = randomRoadPoint();
   const bot = {
     id: newId("agent"),
     name: String(name || "Agent").slice(0, 24),
     color: /^#[0-9a-f]{6}$/i.test(color || "") ? color : "#39ff88",
     vtype: BOT_VEHICLES[Math.floor(Math.random() * BOT_VEHICLES.length)],
-    bot: true, owner, ip,
+    bot: true, owner, keyed: !!keyed, ip,
     x: start.x, z: start.z, yaw: 0, v: 0,
     path: [], goal: null, raceId: null,
     createdAt: Date.now(), lastCmd: Date.now(),
@@ -330,11 +330,12 @@ async function stepBot(bot, dt, now) {
     bot.v = 0;
     if (bot.raceId && bot.raceStage === "approche") bot.raceStage = "attente";
     else if (bot.raceId && bot.raceStage === "course") {
-      await finish(bot.raceId, bot.id, bot.name);
+      // retiré (despawn) pendant le tick : pas de score ni de classement pour un agent disparu
+      if (await store.botExists(bot.id)) await finish(bot.raceId, bot.id, bot.name);
       bot.raceId = null; bot.raceStage = null; bot.goal = null;
     } else if (bot.claim) {
       const c = bot.claim; bot.claim = null; bot.goal = null;
-      const r = await claimHuntKube(bot.id, bot.name, [bot.x, 0, bot.z], c.huntId, c.i);
+      const r = (await store.botExists(bot.id)) ? await claimHuntKube(bot.id, bot.name, [bot.x, 0, bot.z], c.huntId, c.i) : { ok: false };
       if (r.ok) await store.pushChat({ from: `${bot.name} (IA)`, bot: true, text: "Kube doré ramassé !", ts: Date.now() });
     } else bot.goal = null;
   }

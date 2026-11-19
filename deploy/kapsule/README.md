@@ -116,6 +116,12 @@ Mesuré sur kind (3 workers) : `rollout restart` et `helm upgrade` en DaemonSet 
 (1 reconnexion, celle du pod remplacé) ; kill d'un pod : 0 échec, pod recréé sur le même nœud.
 `chaos.sh` détecte tout seul le type de workload.
 
+**Attention : changer de `kind` sur une release existante coupe tout le service.** `helm upgrade --set kind=DaemonSet` (ou l'inverse)
+supprime le Deployment d'un coup, donc ses 3 pods, avant que ceux du DaemonSet soient prêts (et inversement) : le jeu est indisponible
+pendant le démarrage. Pour éviter la coupure, installez une **nouvelle release** (autre nom) avec le nouveau `kind`, attendez qu'elle soit
+prête, puis basculez l'Ingress (ou le DNS) vers elle et désinstallez l'ancienne. Ou faites le changement hors épreuve, jamais pendant
+une mesure ou un cours.
+
 ## 6. Mises à jour progressives : compatibilité des messages
 
 Pendant une mise à jour, des pods anciens et nouveaux se parlent via Redis Pub/Sub.
@@ -135,7 +141,7 @@ Terminal B : `NS=kube-city REL=jeu ./deploy/kapsule/chaos.sh <n>` (`./chaos.sh l
 | 2 | Vider un nœud (`drain`) | Deployment : le PDB fait partir les pods un par un, jamais moins de 2 prêts. DaemonSet : le pod de jeu reste sur le nœud (normal). Dans les deux cas, si le nœud portait un Redis, il reste `Pending` (normal) |
 | 3 | `rollout restart` | Toujours 3 pods prêts, 0 échec HTTP, quelques reconnexions WS |
 | 4 | Tuer le maître Redis | Sentinel élit un nouveau maître en 2 à 5 s, le jeu se reconnecte seul |
-| 5 | Perdre un nœud d'un coup | Coupure WS < 10 s, HTTP quasi parfait. Deployment : replanification sur les 2 autres nœuds. DaemonSet : 2 pods restent, rien n'est recréé (attendu) |
+| 5 | Perdre un nœud d'un coup | Coupure WS < 10 s, HTTP quasi parfait. Deployment : replanification sur les 2 autres nœuds. DaemonSet : 2 pods restent, rien n'est recréé (attendu) ; `chaos.sh` pose une taint `chaos=node-lost:NoExecute` (cordon + suppression ne simulerait rien, le pod serait recréé sur place) |
 
 Après les épreuves 2 et 5 : `kubectl uncordon <nœud>`. Le script a un vrai arrêt de pool en option : `scw k8s pool update <pool-id> size=2`.
 Résultat de la sonde en local : un `kubectl port-forward` meurt avec le pod visé et fausse la mesure : mesurez toujours via l'Ingress.

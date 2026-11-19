@@ -44,9 +44,13 @@ export function clientIp(req, hops = Number(process.env.TRUST_PROXY_HOPS ?? 1)) 
 export function whoIs(req) {
   const ip = clientIp(req);
   const k = String(req.headers["x-kube-key"] || "").trim().slice(0, 40);
-  const key = crypto.createHash("sha1").update(k || ip).digest("hex").slice(0, 12);
-  return { ip: crypto.createHash("sha1").update(ip).digest("hex").slice(0, 12), key, keyed: !!k };
+  // préfixes distincts : une clé égale à l'IP ne donne jamais le même propriétaire que l'IP elle-même
+  const h = (s) => crypto.createHash("sha1").update(s).digest("hex").slice(0, 12);
+  return { ip: h(`ip:${ip}`), key: k ? h(`k:${k}`) : h(`ip:${ip}`), keyed: !!k };
 }
+
+/** Un agent est à l'appelant si même propriétaire ET même mode : sans clé on ne voit jamais un agent créé avec une clé (et inversement). */
+export const isMine = (bot, who) => bot.owner === who.key && !!bot.keyed === who.keyed;
 const ok = (who, name, limit, sec) => store.rateLimit(`mcp:${name}:${who.ip}`, limit, sec);
 
 function buildServer(players, who) {
@@ -57,8 +61,8 @@ function buildServer(players, who) {
       "et chasse les kubes dorés quand une chasse est ouverte (hunt_status puis collect_kube). Pour rejoindre une course il faut être à moins de 200 m du départ : va d'abord à ses coordonnées `depart`. " +
       "Les inscriptions durent ~30 s : sois rapide. Reste fair-play et bienveillant dans le chat : de vrais étudiants jouent. Ne spamme pas (messages limités en fréquence).",
   });
-  // avec une X-Kube-Key, seule la clé compte : derrière la même IP NAT, un élève ne pilote pas les agents des autres
-  const mine = (bot) => bot.owner === who.key || (!who.keyed && bot.ip === who.ip);
+  // seule la clé compte (avec ou sans X-Kube-Key) : derrière la même IP NAT, un élève ne pilote pas les agents des autres
+  const mine = (bot) => isMine(bot, who);
   /** Charge l'agent et vérifie qu'il appartient bien à l'appelant. */
   const own = async (agentId) => {
     const bot = await store.loadBot(agentId);
@@ -80,8 +84,8 @@ function buildServer(players, who) {
     const bots = await store.listBots();
     if (bots.length >= LIM.total) return fail(`La ville est pleine (${LIM.total} agents) : réessaie plus tard.`);
     if (bots.filter((b) => b.ip === who.ip).length >= LIM.perIp) return fail(`Limite atteinte : ${LIM.perIp} agents par adresse IP.`);
-    if (bots.filter((b) => b.owner === who.key).length >= LIM.perKey) return fail(`Limite atteinte : ${LIM.perKey} agents par clé (sans en-tête X-Kube-Key, la clé est ton IP : si plusieurs personnes partagent la même IP, chacune doit envoyer sa propre clé X-Kube-Key). Retire-en un avec despawn_agent (liste : my_agents).`);
-    const bot = await game.spawnBot({ name, color, owner: who.key, ip: who.ip });
+    if (bots.filter((b) => isMine(b, who)).length >= LIM.perKey) return fail(`Limite atteinte : ${LIM.perKey} agents par clé (sans en-tête X-Kube-Key, la clé est ton IP : si plusieurs personnes partagent la même IP, chacune doit envoyer sa propre clé X-Kube-Key). Retire-en un avec despawn_agent (liste : my_agents).`);
+    const bot = await game.spawnBot({ name, color, owner: who.key, keyed: who.keyed, ip: who.ip });
     return text({ agentId: bot.id, ...game.describe(bot), conseil: "Utilise list_places pour connaître les destinations, puis look." });
   }));
 

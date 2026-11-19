@@ -1,7 +1,7 @@
 // Quotas MCP : une classe derrière une même IP NAT, chacun avec sa clé X-Kube-Key, ne partage pas le quota perKey.
 import { test, after } from "node:test";
 import assert from "node:assert/strict";
-import { whoIs } from "../src/mcp.js";
+import { whoIs, isMine } from "../src/mcp.js";
 import * as store from "../src/store.js";
 
 after(() => store.closeStore());
@@ -23,4 +23,34 @@ test("whoIs : keyed vaut vrai seulement avec une X-Kube-Key", () => {
   const req = (key) => ({ headers: key ? { "x-kube-key": key, "x-forwarded-for": "203.0.113.7" } : { "x-forwarded-for": "203.0.113.7" }, socket: { remoteAddress: "10.0.0.1" } });
   assert.equal(whoIs(req("alice")).keyed, true);
   assert.equal(whoIs(req("")).keyed, false);
+});
+
+// ---- Propriété des agents (isMine) ----
+const who = (h) => whoIs(req({ "x-forwarded-for": "203.0.113.9", ...h }));
+const agentOf = (w) => ({ owner: w.key, keyed: w.keyed, ip: w.ip });
+
+test("isMine : sans clé on voit ses agents sans clé", () => {
+  assert.equal(isMine(agentOf(who({})), who({})), true);
+});
+
+test("isMine : sans clé on ne voit pas les agents créés avec une clé (même IP NAT)", () => {
+  assert.equal(isMine(agentOf(who({ "x-kube-key": "secret-a" })), who({})), false);
+});
+
+test("isMine : une clé égale à l'IP (ou à son hachage) ne vole pas les agents sans clé", () => {
+  const sans = agentOf(who({}));
+  assert.equal(isMine(sans, who({ "x-kube-key": "203.0.113.9" })), false);
+  assert.equal(isMine(sans, who({ "x-kube-key": sans.owner })), false);
+});
+
+test("isMine : deux clés différentes derrière la même IP sont isolées", () => {
+  const a = who({ "x-kube-key": "cle-a" }), b = who({ "x-kube-key": "cle-b" });
+  assert.equal(isMine(agentOf(a), a), true);
+  assert.equal(isMine(agentOf(a), b), false);
+  assert.equal(isMine(agentOf(b), a), false);
+});
+
+test("isMine : un agent ancien (sans champ keyed) reste à son créateur sans clé", () => {
+  const w = who({});
+  assert.equal(isMine({ owner: w.key, ip: w.ip }, w), true);
 });

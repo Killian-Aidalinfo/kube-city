@@ -60,9 +60,20 @@ s4() { say "4. Tuer le maître Redis (Sentinel)"
   echo "Nouveau maître : $(redis_master)"; k get pods -l app.kubernetes.io/name=redis -o wide; }
 
 s5() { say "5. Perdre un nœud : scale à 0 de son pool (ou arrêt brutal)"
-  local n; n=$(busiest_node); echo "Nœud visé : $n (cordon + suppression brutale des pods dessus)"
-  look "pods de jeu et Redis du nœud perdus d'un coup ; les 2 autres nœuds servent ; sonde : coupure < 10 s sur les WS concernées, HTTP quasi parfait"
-  look "ensuite les pods évincés se replanifient (Redis en Pending si anti-affinité hard)"
+  local n w; n=$(busiest_node); w=$(workload)
+  if [[ "$w" == ds/* ]]; then
+    # DaemonSet : cordon + suppression ne simule rien (le pod est recréé sur place) ; une taint NoExecute évince vraiment les pods
+    echo "Nœud visé : $n (taint chaos=node-lost:NoExecute : évince les pods de jeu et Redis du nœud)"
+    look "DaemonSet : le pod de jeu du nœud est évincé et NON recréé ailleurs (1 pod par nœud) : 2 pods sur 3 servent ; sonde : coupure < 10 s sur les WS concernées, HTTP quasi parfait"
+    look "les Redis évincés se replanifient (Pending si anti-affinité hard) ; retirer la taint rend le nœud, le pod de jeu revient seul"
+    kubectl taint node "$n" chaos=node-lost:NoExecute --overwrite
+    sleep 5; pods
+    echo; echo "Remettre le nœud : kubectl taint node $n chaos=node-lost:NoExecute-"
+    return 0
+  fi
+  echo "Nœud visé : $n (cordon + suppression brutale des pods dessus)"
+  look "Deployment : pods de jeu et Redis du nœud perdus d'un coup ; les 2 autres nœuds servent ; sonde : coupure < 10 s sur les WS concernées, HTTP quasi parfait"
+  look "ensuite les pods évincés se replanifient sur les autres nœuds (Redis en Pending si anti-affinité hard)"
   kubectl cordon "$n"
   k get pods --field-selector "spec.nodeName=$n" -o name \
     -l 'app.kubernetes.io/name in (kube-city,redis)' | xargs -r kubectl -n "$NS" delete --grace-period=0 --force

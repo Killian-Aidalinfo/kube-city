@@ -36,7 +36,7 @@ Commits `412bc9c` → `a9941cb` sur `main`. Tests : 105/105, build OK, smoke OK 
 Deux revues : la seconde a corrigé une relance Redis pendant l'arrêt propre, un double prix de chasse, une course close encore gagnable et l'absence d'anti-spam.
 
 ## À vérifier avant le cours
-0. **Agents IA** : donnez à chaque étudiant une clé `X-Kube-Key` différente (3 agents par clé). Les limites par IP sont larges exprès : toute la classe sort par la même IP. Avec une clé, un étudiant ne voit et ne pilote que ses agents (avant : tous ceux de la même IP). Plafond total `MCP_MAX_BOTS` = 40 par cluster : à relever si une classe entière vise le même cluster avec 2-3 agents chacun.
+0. **Agents IA** : donnez à chaque étudiant sa propre clé `X-Kube-Key` secrète et aléatoire (`openssl rand -hex 8`, pas `prenom-nom`, devinable) : elle protège ses agents (3 par clé). Sans clé, les agents sont partagés par toute la classe derrière la même IP, et invisibles pour ceux qui ont une clé. Les limites par IP sont larges exprès : toute la classe sort par la même IP. Avec une clé, un étudiant ne voit et ne pilote que ses agents ; un appelant sans clé ne voit jamais un agent créé avec clé (avant : tous ceux de la même IP). Plafond total `MCP_MAX_BOTS` = 40 par cluster : à relever si une classe entière vise le même cluster avec 2-3 agents chacun.
 1. Déployer CETTE version avant l'arrivée des étudiants : un ancien pod ne comprend pas les lots Pub/Sub des nouveaux (les rollouts suivants, même version, ne sont pas concernés).
 2. `docker pull bitnami/redis:latest` et `bitnami/redis-sentinel:latest` : Bitnami ne publie plus que `latest` en gratuit.
 3. Sur une vraie Kapsule : Ingress + Let's Encrypt, perte brutale d'un nœud (scénario 5) et `kubectl top` pour le HPA — non testés cette nuit.

@@ -11,6 +11,10 @@ image:
 #   `strategy.*` est ignoré (mise à jour fixée à maxUnavailable 0 / maxSurge 1) et replicaCount aussi.
 #   Attention : `kubectl drain --ignore-daemonsets` ne chasse pas les pods d'un DaemonSet (le pod reste jusqu'à l'arrêt du nœud),
 #   un nœud perdu = un pod de moins, et le PDB n'a pas d'effet sur le drain. Nœuds avec taint : ajouter `tolerations`.
+#   ATTENTION, COUPURE : changer `kind` sur une release EXISTANTE supprime d'un coup le Deployment (ses 3 pods) avant que
+#   les pods du DaemonSet soient prêts : le service est coupé le temps du démarrage. Pas de bascule en pleine épreuve.
+#   Sans coupure : installer une NOUVELLE release (autre nom) avec le nouveau `kind`, attendre qu'elle soit prête,
+#   puis basculer l'Ingress (ou le DNS) vers elle et désinstaller l'ancienne ; ou changer de `kind` hors épreuve.
 kind: Deployment
 
 # Au moins 3 pods : on peut en perdre un (panne) pendant qu'un autre est remplacé (mise à jour)
