@@ -93,8 +93,9 @@ class Bot {
   }
 }
 
-async function mcp(name, args) {
-  const r = await fetch(`${BASE}/mcp`, { method: "POST", headers: { "content-type": "application/json", accept: "application/json, text/event-stream" }, body: JSON.stringify({ jsonrpc: "2.0", id: Date.now(), method: "tools/call", params: { name, arguments: args } }) });
+// key : un X-Kube-Key par « étudiant » (sans clé, tous les agents partagent le quota perKey de l'IP : 3 par défaut)
+async function mcp(name, args, key) {
+  const r = await fetch(`${BASE}/mcp`, { method: "POST", headers: { "content-type": "application/json", accept: "application/json, text/event-stream", ...(key ? { "x-kube-key": key } : {}) }, body: JSON.stringify({ jsonrpc: "2.0", id: Date.now(), method: "tools/call", params: { name, arguments: args } }) });
   const txt = await r.text(); const line = txt.split("\n").find((l) => l.startsWith("data:")) || txt;
   try { return JSON.parse(line.replace(/^data:\s*/, "")).result; } catch { return null; }
 }
@@ -112,14 +113,16 @@ function sampleDocker() {
 }
 
 const bots = Array.from({ length: N }, (_, i) => new Bot(i));
+const RUN = Math.random().toString(16).slice(2, 8);
 const agentIds = [];
 for (let i = 0; i < AGENTS; i++) {
-  const r = await mcp("spawn_agent", { name: `Agent-charge-${i}` });
+  const key = `charge-${RUN}-${i}`;
+  const r = await mcp("spawn_agent", { name: `Agent-charge-${i}` }, key);
   const id = (() => { try { return JSON.parse(r.content[0].text).agentId; } catch { return null; } })();
-  if (id) agentIds.push(id); else console.error("agent non créé (MCP indisponible ?)");
+  if (id) agentIds.push({ id, key }); else console.error(`agent ${i} non créé : ${r?.content?.[0]?.text ?? "pas de réponse MCP"}`);
 }
 const places = ["aeroport", "port", "mairie", "stade", "phare"];
-const agentTimer = setInterval(() => agentIds.forEach((id) => mcp("drive_to", { agentId: id, place: places[Math.floor(Math.random() * places.length)] }).catch(() => {})), 20000);
+const agentTimer = setInterval(() => agentIds.forEach(({ id, key }) => mcp("drive_to", { agentId: id, place: places[Math.floor(Math.random() * places.length)] }, key).catch(() => {})), 20000);
 
 const compose = (...a) => spawn("docker", ["compose", ...a], { stdio: "ignore" });
 const BACK = +arg("redis-back", 0);
@@ -151,7 +154,7 @@ async function finish() {
   await new Promise((r) => setTimeout(r, 6000)); // laisse les reconnexions finir
   const up = bots.filter((b) => b.opened).length;
   for (const b of bots) { b.stopped = true; b.ws?.close(); }
-  for (const id of agentIds) await mcp("despawn_agent", { agentId: id }).catch(() => {});
+  for (const { id, key } of agentIds) await mcp("despawn_agent", { agentId: id }, key).catch(() => {});
   const secs = Math.max(1, Math.round((Date.now() - t0) / 1000)), perPod = {};
   for (const d of docker) (perPod[d.name] ||= []).push(d);
   const dockerSum = Object.fromEntries(Object.entries(perPod).map(([k, v]) => [k, { cpuMoy: Math.round(v.reduce((a, x) => a + x.cpu, 0) / v.length), cpuMax: Math.round(Math.max(...v.map((x) => x.cpu))), memMaxMo: Math.round(Math.max(...v.map((x) => x.mem))) }]));
