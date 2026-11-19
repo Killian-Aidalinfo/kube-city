@@ -2,6 +2,7 @@
 import * as THREE from 'three';
 import { CHARACTERS, CHARACTER_IDS, gainStat, checkAchievements } from './characters.js';
 import { MISSIONS, availableMissions } from './missions.js';
+import { SIDE_MISSIONS, buildSideMission } from './sidemissions.js';
 import { createRunner } from './runner.js';
 import { createAirTracker, dist2d, kubePositions, raceReward, taxiFare, taxiTip, deliveryTime, deliveryReward } from './activities.js';
 import { defaultProfile, loadProfile, saveProfile, saveLocal } from './save.js';
@@ -157,6 +158,7 @@ export function install(game) {
       { id: 'taxi', title: 'Course de taxi', summary: 'Prenez un client et déposez-le vite et sans casse.' },
       { id: 'delivery', title: 'Livraison chronométrée', summary: 'Livrez un colis avant la fin du temps.' },
       { id: 'race', title: 'Course de rue', summary: 'Affrontez des rivaux sur un circuit de points de passage.' },
+      ...SIDE_MISSIONS,
     ];
   }
   const env = {
@@ -178,6 +180,10 @@ export function install(game) {
     photoCount: () => photos.count,
     photoNear: (p, r) => !photos.last || dist2d(photos.last, p) <= r,
     route: (a, b) => { try { return game.world?.route?.(a, b); } catch { return null; } },
+    moveVehicle(h, p, heading) {
+      const v = h?.vehicle; if (!v || v.driver) return;
+      try { game.vehicles.teleport(v, { x: p.x, y: groundY(p.x, p.z), z: p.z }, heading); } catch { /* véhicule retiré */ }
+    },
     vehicleDamage: () => 100 - (game.player?.vehicle?.health ?? 100),
     onStep(runner) {
       if (!active || active.runner !== runner) return;
@@ -248,6 +254,7 @@ export function install(game) {
   }
   function buildActivity(kind) {
     const me = env.pos();
+    if (SIDE_MISSIONS.some((m) => m.id === kind)) return buildSideMission(kind, { me, place, pick: randomPlace, dist: dist2d, time: deliveryTime });
     if (kind === 'taxi') {
       const a = randomPlace(me, 60, 200), b = randomPlace(a, 200, 500);
       const len = dist2d(a, b), allowed = deliveryTime(len) + 20, fare = taxiFare(len);

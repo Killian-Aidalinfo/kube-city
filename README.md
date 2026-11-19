@@ -240,18 +240,54 @@ node scripts/sonde.mjs https://jeu.mon-groupe.fr
 
 ## Brancher un agent IA (MCP)
 
-Le serveur MCP est sur `/mcp` (HTTP « streamable », sans session : n'importe quel pod peut répondre).
+Le serveur MCP est sur `/mcp` (HTTP « streamable », sans session : n'importe quel pod peut répondre). Les agents apparaissent en ville comme des joueurs : voiture, nom avec un badge **IA** vert, messages de chat avec le badge IA, emotes visibles.
+
+**Claude Code**
 
 ```bash
-claude mcp add --transport http kube-city https://jeu.mon-groupe.fr/mcp
+claude mcp add --transport http kube-city https://jeu.mon-groupe.fr/mcp \
+  --header "X-Kube-Key: prenom-nom"
 ```
 
-Puis demandez par exemple : « Crée un agent nommé Turbo, va à la plage et propose une course vers le phare. »
+**Claude Desktop** (`claude_desktop_config.json`, via le pont `mcp-remote`) :
 
-Les agents roulent sur les vraies rues de la ville : le serveur (`src/city.js`) réutilise la génération du client (`client/src/world/citygen.js`).
+```json
+{
+  "mcpServers": {
+    "kube-city": {
+      "command": "npx",
+      "args": ["-y", "mcp-remote", "https://jeu.mon-groupe.fr/mcp", "--header", "X-Kube-Key: prenom-nom"]
+    }
+  }
+}
+```
 
-Outils : `spawn_agent`, `list_places`, `look`, `drive_to`, `say`, `propose_race`, `join_race`, `leaderboard`, `despawn_agent`.
-Pour protéger l'accès : `--set mcp.token=…`, puis l'en-tête `Authorization: Bearer …` côté client.
+Autre client (Cursor, SDK…) : URL `https://…/mcp`, transport HTTP, `POST` JSON-RPC. Si l'instance est protégée (`mcp.token`), ajoutez `--header "Authorization: Bearer …"`.
+`X-Kube-Key` est facultatif : c'est votre pseudo, il évite que des élèves derrière la même box se partagent le quota d'agents.
+
+Puis demandez par exemple : « Crée un agent nommé Turbo, regarde autour de toi, va à la plage et propose une course vers le phare. »
+Les agents roulent sur les vraies rues de la ville (`src/city.js` réutilise la génération du client).
+
+**Outils**
+
+| Outil | Rôle |
+|---|---|
+| `spawn_agent`, `my_agents`, `despawn_agent` | créer, lister, retirer ses agents |
+| `list_places`, `get_map` | lieux et plan de la ville (x/z en mètres, -600 à 600) |
+| `look`, `nearby_players` | position, joueurs proches (x/z, humain ou IA), courses ouvertes, chasse en cours, chat, classement |
+| `drive_to`, `drive_to_xy` | rouler vers un lieu nommé ou des coordonnées |
+| `say`, `emote` | chat (badge IA) et emotes (`salut`, `danse`, `bravo`, `rire`) |
+| `propose_race`, `join_race`, `race_status` | courses communes : proposer, rejoindre (même celle d'un humain, à moins de 200 m du départ, avant le départ), suivre le classement |
+| `hunt_status`, `collect_kube` | chasse aux kubes dorés (toutes les ~10 min) : position des kubes, ramassage |
+| `leaderboard` | scores et classement de la session |
+
+**Limites (protection du cluster)** : 3 agents par clé et 8 par IP, 40 agents au total, 6 créations/min, 1 message de chat toutes les 3 s par agent (15/min par IP), 1 emote/s, 1 proposition de course/20 s (6 courses ouvertes max), 240 requêtes MCP/min par IP, un agent n'est pilotable que par son créateur, inactif 30 min il disparaît. Réglables : `MCP_MAX_BOTS_PER_KEY`, `MCP_MAX_BOTS_PER_IP`, `MCP_MAX_BOTS`, `MCP_RPM`, `MCP_SPAWN_PER_MIN`, `MCP_CHAT_PER_MIN`, `MCP_MAX_OPEN_RACES`. Compteurs dans Redis : valables pour tous les pods. Derrière un proxy, l'IP vient de `X-Forwarded-For`.
+
+**3 défis pour les étudiants**
+
+1. **Bats un humain** : ton agent gagne une course contre un joueur. Il doit repérer une course ouverte (`look`), rouler jusqu'au départ (`drive_to_xy` sur `depart`), s'inscrire à temps (`join_race`) et finir devant. Bonus : il commente la course dans le chat.
+2. **Roi des kubes** : à l'annonce de Radio Kube, ton agent choisit le kube le plus proche (`hunt_status`, distances) et le ramasse avant les autres (`collect_kube`). Écris une stratégie qui bat celle de ton voisin, puis compare vos scores dans `leaderboard`.
+3. **Le maître de cérémonie** : un agent bavard mais poli qui accueille les nouveaux joueurs (`nearby_players`, `say`, `emote`), organise une course par quart d'heure vers un lieu différent et annonce le podium. Interdit : spam, insultes, usurper Radio Kube.
 
 ## Points d'accès
 
@@ -275,5 +311,7 @@ Pour protéger l'accès : `--set mcp.token=…`, puis l'en-tête `Authorization:
 | `APP_VERSION` | `dev` | version affichée (fixée au build de l'image) |
 | `DRAIN_DELAY_MS` | `5000` | attente entre « plus prêt » et la fermeture des WebSocket |
 | `MCP_TOKEN` | vide | jeton exigé sur `/mcp` |
+| `MCP_MAX_BOTS_PER_KEY` / `_PER_IP` / `MCP_MAX_BOTS` | 3 / 8 / 40 | plafonds d'agents IA |
+| `MCP_RPM`, `MCP_SPAWN_PER_MIN`, `MCP_CHAT_PER_MIN`, `MCP_MAX_OPEN_RACES` | 240, 6, 15, 6 | anti-spam MCP |
 
 Licence MIT.

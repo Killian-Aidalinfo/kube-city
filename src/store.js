@@ -224,6 +224,14 @@ export async function takeBotOrder(id) {
   return raw ? JSON.parse(raw) : null;
 }
 
+// Anti-spam commun à tous les pods (fenêtre fixe dans Redis) : vrai si l'action est autorisée
+export async function rateLimit(key, limit, windowSec) {
+  const k = `pn:rl:${key}`;
+  const n = await redis.incr(k);
+  if (n === 1) await redis.expire(k, windowSec);
+  return n <= limit;
+}
+
 export async function deleteBot(id) {
   await redis.del(`pn:bot:${id}`);
   await redis.srem("pn:bots", id);

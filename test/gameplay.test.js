@@ -160,3 +160,31 @@ test('course de mission : la première place est exigée quand mustWin', () => {
   assert.equal(r.status, 'failed');
   assert.match(r.failReason, /première place/);
 });
+
+test('missions secondaires : construites, types connus, textes présents, terminables', async () => {
+  const { SIDE_MISSIONS, buildSideMission } = await import('../client/src/gameplay/sidemissions.js');
+  assert.equal(SIDE_MISSIONS.length, 3);
+  let n = 0;
+  const ctx = { me: { x: 0, z: 0 }, place: () => ({ x: 0, z: 0 }), pick: (a, lo) => ({ x: a.x + lo + (n++) * 10, z: a.z + 5 }), dist: (a, b) => Math.hypot(a.x - b.x, a.z - b.z), time: (m) => 25 + m / 12 };
+  for (const { id } of SIDE_MISSIONS) {
+    const def = buildSideMission(id, ctx);
+    for (const s of def.steps) { assert.ok(STEP_TYPES[s.type], `${id} : ${s.type}`); assert.ok(s.text, `${id} : texte manquant`); }
+    assert.ok(def.onPass().reward > 0);
+    // joueur automate : se téléporte sur la cible (en voiture) jusqu'à la fin
+    let pos = { x: 0, z: 0 };
+    const env = { pos: () => pos, inVehicle: () => true, wanted: () => 0, setWanted() {}, place: () => ({ x: 0, z: 0 }), say() {}, notify() {}, spawnVehicle: () => ({ pos: () => pos }), route: () => null };
+    const r = createRunner(def, env);
+    for (let i = 0; i < 4000 && r.status === 'running'; i++) { if (r.target) pos = { ...r.target }; r.update(0.25); }
+    assert.equal(r.status, 'passed', id);
+  }
+});
+
+test('reroute : l\'adresse change quand on s\'approche, le singe fuit', () => {
+  const env = { pos: () => ({ x: 0, z: 0 }), inVehicle: () => true, say() {}, notify() {}, spawnVehicle: () => ({}) };
+  const r = createRunner({ id: 'x', steps: [{ type: 'reroute', text: 't', stops: [{ x: 10, z: 0 }, { x: 500, z: 0 }], switchDist: 60 }] }, env);
+  assert.equal(r.target.x, 10);
+  r.update(0.1);
+  assert.equal(r.target.x, 500);
+  const c = createRunner({ id: 'y', steps: [{ type: 'chase', text: 't', from: { x: 0, z: 0 }, to: { x: 100, z: 0 }, speed: 10, radius: 5 }] }, { ...env, pos: () => ({ x: 500, z: 500 }) });
+  c.update(2); assert.ok(c.target.x > 15 && c.status === 'running');
+});

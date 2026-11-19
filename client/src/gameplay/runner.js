@@ -99,6 +99,44 @@ export const STEP_TYPES = {
     },
     target: (st) => st.pos,
   },
+  // Poursuite : la cible (un singe au volant) fuit le long d'un trajet aller-retour ; il faut la rattraper en véhicule.
+  chase: {
+    start(step, st, env) {
+      const a = resolveRef(env, step.from), b = resolveRef(env, step.to);
+      const r = env.route?.(a, b);
+      st.path = Array.isArray(r) && r.length > 1 ? r : [a, b];
+      st.len = pathLength(st.path); st.d = 0; st.dir = 1; st.pos = { ...a };
+      if (step.spawn) st.vehicle = env.spawnVehicle({ ...step.spawn, at: a });
+    },
+    update(step, st, env, dt) {
+      st.d += st.dir * (step.speed ?? 9) * dt;
+      if (st.d >= st.len) { st.d = st.len; st.dir = -1; } else if (st.d <= 0) { st.d = 0; st.dir = 1; }
+      const prev = st.pos;
+      st.pos = pointAlong(st.path, st.d);
+      env.moveVehicle?.(st.vehicle, st.pos, Math.atan2(st.pos.x - prev.x, st.pos.z - prev.z));
+      return env.inVehicle() && dist2d(env.pos(), st.pos) <= (step.radius ?? 9) ? 'done' : undefined;
+    },
+    target: (st) => st.pos,
+  },
+  // Adresses mouvantes : le point d'arrivée change dès qu'on s'en approche (le DNS, c'est toujours le DNS).
+  reroute: {
+    start(step, st, env) { st.stops = step.stops.map((s) => resolveRef(env, s)); st.i = 0; },
+    update(step, st, env) {
+      if (!env.inVehicle()) return undefined;
+      const d = dist2d(env.pos(), st.stops[st.i]);
+      const last = st.i >= st.stops.length - 1;
+      if (last) return d <= (step.radius ?? 10) ? 'done' : undefined;
+      if (d <= (step.switchDist ?? 60)) {
+        const l = step.lines?.[st.i];
+        if (l) env.say(l.speaker, l.text, l.dur ?? 4);
+        env.notify('Nouvelle adresse reçue !', 'warning', 2.5);
+        st.i++;
+      }
+      return undefined;
+    },
+    target: (st) => st.stops?.[st.i] ?? null,
+    progress: (step, st) => `adresse ${st.i + 1}/${st.stops.length}`,
+  },
   race: {
     start(step, st, env) {
       const cps = step.checkpoints.map((c) => resolveRef(env, c));

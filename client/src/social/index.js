@@ -22,7 +22,11 @@ const CSS = `.kc-soc-count{position:absolute;left:50%;top:16%;transform:translat
 .kc-soc-panel{position:absolute;z-index:37;background:var(--panel2,#141a33);border:1px solid var(--cyan,#38e8ff);border-radius:12px;padding:12px 16px;font-size:14px;color:#fff;box-shadow:0 0 20px rgba(56,232,255,.25)}
 .kc-soc-res{right:18px;top:35%;width:min(320px,90vw)}.kc-soc-board{left:50%;top:14%;transform:translateX(-50%);width:min(520px,94vw)}
 .kc-soc-panel h3{margin:0 0 8px;font-size:16px;color:var(--cyan,#38e8ff)}.kc-soc-panel table{width:100%;border-collapse:collapse}.kc-soc-panel td,.kc-soc-panel th{padding:3px 6px;text-align:left;border-bottom:1px solid rgba(255,255,255,.08)}
-.kc-soc-panel td.n,.kc-soc-panel th.n{text-align:right}.kc-soc-panel tr.me{color:var(--yellow,#ffd23f);font-weight:700}.kc-soc-panel small{color:var(--dim,#9aa7d8)}`;
+.kc-soc-panel td.n,.kc-soc-panel th.n{text-align:right}.kc-soc-panel tr.me{color:var(--yellow,#ffd23f);font-weight:700}.kc-soc-chat{position:absolute;left:14px;bottom:150px;z-index:33;width:min(340px,70vw);display:flex;flex-direction:column;gap:3px;pointer-events:none;font:600 13px/1.35 system-ui,sans-serif}
+.kc-soc-chat div{background:rgba(8,12,28,.62);color:#fff;border-radius:8px;padding:3px 9px;text-shadow:0 1px 3px #000;transition:opacity .6s}
+.kc-soc-chat b{color:var(--cyan,#38e8ff)}.kc-soc-chat .ia b{color:#7dffb0}.kc-soc-chat .radio b{color:var(--yellow,#ffd23f)}
+.kc-soc-chat .badge{display:inline-block;font:800 10px/1 system-ui,sans-serif;color:#052;background:#7dffb0;border-radius:4px;padding:2px 4px;margin-right:4px;vertical-align:1px}
+.kc-soc-panel small{color:var(--dim,#9aa7d8)}`;
 
 /** @param {object} game contexte (spec 3.1) */
 export function install(game) {
@@ -206,6 +210,19 @@ export function install(game) {
       case 'sboard': board = m.rows || []; if (boardOpen) renderBoard(); break;
     }
   });
+  // fil de discussion : messages des joueurs et des agents IA (badge IA), les plus récents en bas, disparition au bout de 12 s
+  const elChat = mk('kc-soc-chat'); elChat.style.display = '';
+  function chatLine(c) {
+    const ia = c.bot === true || /\(IA\)$/.test(c.from || '');
+    const d = document.createElement('div');
+    d.className = ia ? 'ia' : c.from === 'Radio Kube' ? 'radio' : '';
+    const name = esc(String(c.from || '?').replace(/ \(IA\)$/, ''));
+    d.innerHTML = `${ia ? '<span class="badge">IA</span>' : ''}<b>${name}</b> ${esc(c.text)}`;
+    elChat.appendChild(d);
+    while (elChat.children.length > 6) elChat.firstChild.remove();
+    setTimeout(() => { d.style.opacity = '0'; setTimeout(() => d.remove(), 700); }, 12000);
+  }
+  bus.on('net:chat', (c) => { if (!c.history && game.state === 'playing') chatLine(c); });
   bus.on('net:chat', (c) => {
     if (c.history || c.from !== 'Radio Kube' || /(entre|arrive) en ville/.test(c.text)) return;
     notify(`Radio Kube : ${c.text}`, 'info', 7);

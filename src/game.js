@@ -1,6 +1,6 @@
 // Règles du jeu côté serveur : courses de rue et agents IA (coordonnées x/z en mètres).
 import crypto from "node:crypto";
-import { PLACES, roadPath, districtAt, resolvePlace, randomRoadPoint, groundHeight } from "./city.js";
+import { PLACES, HALF, roadPath, districtAt, resolvePlace, randomRoadPoint, groundHeight } from "./city.js";
 import * as store from "./store.js";
 
 export const BOT_SPEED = 14;         // m/s (~50 km/h) : les agents roulent sagement
@@ -200,14 +200,14 @@ export async function claimHuntKube(playerId, name, pos, huntId, i) {
 }
 
 // ---------- Agents IA ----------
-export async function spawnBot({ name, color }) {
+export async function spawnBot({ name, color, owner = null, ip = null }) {
   const start = randomRoadPoint();
   const bot = {
     id: newId("agent"),
     name: String(name || "Agent").slice(0, 24),
     color: /^#[0-9a-f]{6}$/i.test(color || "") ? color : "#39ff88",
     vtype: BOT_VEHICLES[Math.floor(Math.random() * BOT_VEHICLES.length)],
-    bot: true,
+    bot: true, owner, ip,
     x: start.x, z: start.z, yaw: 0, v: 0,
     path: [], goal: null, raceId: null,
     createdAt: Date.now(), lastCmd: Date.now(),
@@ -222,9 +222,35 @@ export async function botDriveTo(id, toKey) {
   if (!bot) throw new Error("agent inconnu");
   const to = resolvePlace(toKey);
   if (!to) throw new Error(`lieu inconnu : ${toKey}`);
-  const order = { path: roadPath(bot, to), goal: to.label, raceId: null, raceStage: null };
+  const order = { path: roadPath(bot, to), goal: to.label, raceId: null, raceStage: null, claim: null };
   await store.setBotOrder(id, order);
   return { ...bot, ...order };
+}
+
+/** Rouler vers des coordonnées x/z (bornées à la ville, ramenées sur la route la plus proche). */
+export async function botDriveToXY(id, x, z) {
+  const bot = await store.loadBot(id);
+  if (!bot) throw new Error("agent inconnu");
+  const lim = HALF - 5;
+  const to = { x: Math.max(-lim, Math.min(lim, +x)), z: Math.max(-lim, Math.min(lim, +z)) };
+  if (!Number.isFinite(to.x) || !Number.isFinite(to.z)) throw new Error("coordonnées invalides");
+  const order = { path: roadPath(bot, to), goal: `x=${Math.round(to.x)}, z=${Math.round(to.z)}`, raceId: null, raceStage: null, claim: null };
+  await store.setBotOrder(id, order);
+  return { ...bot, ...order };
+}
+
+// Aller ramasser un kube doré de la chasse en cours : l'agent roule jusqu'au kube puis le réclame à l'arrivée.
+export async function botGoForKube(id, i) {
+  const bot = await store.loadBot(id);
+  if (!bot) throw new Error("agent inconnu");
+  const hunt = await store.huntView();
+  if (!hunt || Date.now() > hunt.endAt) throw new Error("pas de chasse en cours");
+  const k = hunt.kubes.find((x) => x.i === Number(i));
+  if (!k) throw new Error("kube inconnu");
+  if (hunt.claims[k.i]) throw new Error("ce kube est déjà pris");
+  const order = { path: roadPath(bot, k), goal: `kube doré n°${k.i}`, raceId: null, raceStage: null, claim: { huntId: hunt.id, i: k.i } };
+  await store.setBotOrder(id, order);
+  return { bot: { ...bot, ...order }, kube: k };
 }
 
 export async function botJoinRace(id, raceId) {
@@ -232,10 +258,12 @@ export async function botJoinRace(id, raceId) {
   if (!bot) throw new Error("agent inconnu");
   const race = await store.loadRace(raceId);
   if (!race) throw new Error("course inconnue");
-  if (raceStatus(race) === "terminée") throw new Error("course terminée");
+  if (raceStatus(race) !== "inscriptions") throw new Error("les inscriptions sont closes");
+  // même règle que pour les humains : il faut être près de la ligne de départ (voir drive_to_xy vers `depart`)
+  if (Math.hypot(bot.x - race.from.x, bot.z - race.from.z) > JOIN_RADIUS) throw new Error(`trop loin du départ (à plus de ${JOIN_RADIUS} m) : va d'abord à x=${race.from.x}, z=${race.from.z}`);
   await store.joinRace(raceId, bot.id, bot.name);
   // l'agent va d'abord sur la ligne de départ, puis attend le signal
-  const order = { path: roadPath(bot, race.from), goal: `départ de la course vers ${race.toLabel}`, raceId, raceStage: "approche" };
+  const order = { path: roadPath(bot, race.from), goal: `départ de la course vers ${race.toLabel}`, raceId, raceStage: "approche", claim: null };
   await store.setBotOrder(id, order);
   return { bot: { ...bot, ...order }, race };
 }
@@ -245,7 +273,7 @@ export function describe(bot) {
     id: bot.id, name: bot.name,
     x: Math.round(bot.x), z: Math.round(bot.z),
     quartier: districtAt(bot.x, bot.z).name,
-    destination: bot.goal, enCourse: bot.raceId,
+    destination: bot.goal, enCourse: bot.raceId, etape: bot.raceStage || null,
     enRoute: bot.path.length > 0,
   };
 }
@@ -304,6 +332,10 @@ async function stepBot(bot, dt, now) {
     else if (bot.raceId && bot.raceStage === "course") {
       await finish(bot.raceId, bot.id, bot.name);
       bot.raceId = null; bot.raceStage = null; bot.goal = null;
+    } else if (bot.claim) {
+      const c = bot.claim; bot.claim = null; bot.goal = null;
+      const r = await claimHuntKube(bot.id, bot.name, [bot.x, 0, bot.z], c.huntId, c.i);
+      if (r.ok) await store.pushChat({ from: `${bot.name} (IA)`, bot: true, text: "Kube doré ramassé !", ts: Date.now() });
     } else bot.goal = null;
   }
   return moved;

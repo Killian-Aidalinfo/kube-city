@@ -13,11 +13,13 @@ const SAMPLES = {
   ui_click: ['ui/click_001', 'ui/click_002'], ui_ok: ['ui/confirmation_001'], ui_err: ['ui/error_001'],
   ui_open: ['ui/open_001'], ui_close: ['ui/close_001'], ui_select: ['ui/select_001'], ui_back: ['ui/back_001'],
 };
+// le moteur ne doit pas écraser le reste : à plein gaz il se situe autour de -24 dBFS RMS (mesuré par scripts/playtest/audio.mjs)
+const ENGINE_TRIM = 0.15;
 const MAX_ENGINES = 3, MAX_SIRENS = 2, HEAR = 45;
 
 /** @param {object} game contexte (spec 3.1) */
 export function install(game) {
-  let ctx = null, master, duck, buses = {}, noiseBuf = null, listenerPos = { x: 0, y: 0, z: 0 };
+  let ctx = null, meter, master, duck, buses = {}, noiseBuf = null, listenerPos = { x: 0, y: 0, z: 0 };
   const bufferCache = new Map();
   const rng = mulberry32(2024);
 
@@ -58,6 +60,14 @@ export function install(game) {
     prevStation() { audio.setRadio(audio.station < 0 ? STATIONS.length - 1 : audio.station - 1); },
     /** Volume 0..1 par bus : 'music' | 'sfx' | 'ambient'. */
     setVolume(bus, v) { if (buses[bus]) buses[bus].gain.value = Math.max(0, Math.min(1, v)); },
+    /** Niveau de sortie courant : { peak, rms } (0..1) ; peak ≥ 1 = saturation. */
+    level() {
+      if (!meter) return { peak: 0, rms: 0 };
+      const d = new Float32Array(meter.fftSize); meter.getFloatTimeDomainData(d);
+      let pk = 0, sq = 0;
+      for (const x of d) { const a = Math.abs(x); if (a > pk) pk = a; sq += x * x; }
+      return { peak: pk, rms: Math.sqrt(sq / d.length) };
+    },
     /** Démarre le contexte (appelé au premier geste). */
     unlock() { if (!ctx) init(); else if (ctx.state === 'suspended') ctx.resume(); },
   };
@@ -71,8 +81,12 @@ export function install(game) {
     master = ctx.createGain();
     duck = ctx.createGain();
     const comp = ctx.createDynamicsCompressor();
-    comp.threshold.value = -14; comp.ratio.value = 4;
-    duck.connect(master); master.connect(comp); comp.connect(ctx.destination);
+    // limiteur de sécurité : seuil bas, rapport élevé, attaque rapide (aucune crête > 0 dBFS)
+    comp.threshold.value = -20; comp.knee.value = 8; comp.ratio.value = 12; comp.attack.value = 0.002; comp.release.value = 0.2;
+    master.gain.value = 0.85;
+    // sonde de niveau (après compresseur) : sert aux mesures de mixage (audio.level())
+    meter = ctx.createAnalyser(); meter.fftSize = 2048;
+    duck.connect(master); master.connect(comp); comp.connect(ctx.destination); comp.connect(meter);
     for (const b of ['music', 'sfx', 'ambient']) { buses[b] = ctx.createGain(); buses[b].connect(duck); }
     applySettings();
     // bruit blanc partagé (2 s en boucle)
@@ -137,25 +151,41 @@ export function install(game) {
   function crash(intensity, pos) {
     const dest = pos ? panner(pos, buses.sfx) : buses.sfx;
     const t = ctx.currentTime, v = Math.min(1, 0.25 + intensity);
-    noiseHit(dest, { t, dur: 0.25 + intensity * 0.35, vol: 0.7 * v, type: 'lowpass', freq: 900 + intensity * 1400 });
-    tone(dest, { freq: 130, freqEnd: 40, t, dur: 0.3, type: 'sine', vol: 0.9 * v });
+    noiseHit(dest, { t, dur: 0.25 + intensity * 0.35, vol: 0.45 * v, type: 'lowpass', freq: 900 + intensity * 1400 });
+    tone(dest, { freq: 130, freqEnd: 40, t, dur: 0.3, type: 'sine', vol: 0.55 * v });
     if (intensity > 0.35) audio.play('clank', { volume: 0.6 * v, position: pos });
   }
   function jingle(kind) {
     const t = ctx.currentTime + 0.02;
-    const seq = kind === 'success' ? [0, 4, 7, 12] : kind === 'fail' ? [7, 3, 0, -5] : [0, 7];
+    if (kind === 'success') {
+      // fanfare courte : arpège majeur puis accord tenu (triangle + octave sinus), dans l'esprit d'une validation de pipeline
+      [0, 4, 7, 12].forEach((n, i) => tone(buses.sfx, { freq: midiToHz(72 + n), t: t + i * 0.1, dur: 0.2, type: 'triangle', vol: 0.2, release: 0.1 }));
+      [0, 4, 7, 16].forEach((n) => {
+        tone(buses.sfx, { freq: midiToHz(72 + n), t: t + 0.46, dur: 0.7, type: 'triangle', vol: 0.12, attack: 0.01, release: 0.5 });
+        tone(buses.sfx, { freq: midiToHz(84 + n), t: t + 0.46, dur: 0.5, type: 'sine', vol: 0.04, release: 0.4 });
+      });
+      noiseHit(buses.sfx, { t: t + 0.46, dur: 0.25, vol: 0.05, freq: 8000 });
+      return;
+    }
+    const seq = kind === 'fail' ? [7, 3, 0, -5] : [0, 7];
     seq.forEach((n, i) => tone(buses.sfx, { freq: midiToHz(72 + n), t: t + i * 0.11, dur: 0.22, type: 'triangle', vol: 0.22, release: 0.12 }));
   }
 
   // ---------- ambiance : circulation lointaine, pluie, mouettes ----------
   const ambience = {
-    traffic: null, rain: null, nextGull: 0,
+    traffic: null, rain: null, night: null, nightLfo: null, nextGull: 0,
     start() {
       const mk = (type, freq, vol) => {
         const s = noiseSource(); const f = ctx.createBiquadFilter(); f.type = type; f.frequency.value = freq;
         const g = ctx.createGain(); g.gain.value = vol; s.connect(f); f.connect(g); g.connect(buses.ambient); s.start(); return g;
       };
       this.traffic = mk('lowpass', 320, 0.05);
+      // grillons de nuit : bruit étroit vers 4,6 kHz haché par un LFO
+      const cs = noiseSource(); const cf = ctx.createBiquadFilter(); cf.type = 'bandpass'; cf.frequency.value = 4600; cf.Q.value = 14;
+      const cg = ctx.createGain(); cg.gain.value = 0; const mod = ctx.createGain(); mod.gain.value = 1;
+      this.nightLfo = ctx.createOscillator(); this.nightLfo.type = 'square'; this.nightLfo.frequency.value = 6;
+      const lg = ctx.createGain(); lg.gain.value = 0.5; this.nightLfo.connect(lg); lg.connect(mod.gain);
+      cs.connect(cf); cf.connect(mod); mod.connect(cg); cg.connect(buses.ambient); cs.start(); this.nightLfo.start(); this.night = cg;
       this.rain = mk('highpass', 1800, 0);
     },
     update(dt, t) {
@@ -163,10 +193,12 @@ export function install(game) {
       const pos = game.player?.position;
       let beach = false;
       try { beach = /plage/i.test(game.world?.district?.(pos.x, pos.z)?.name || ''); } catch { /* monde absent */ }
-      const w = game.world?.weather;
-      const raining = w === 'rain' || w === 'pluie' || w?.type === 'rain' || w?.raining === true;
+      const rainAmt = Math.max(0, Math.min(1, game.world?.weather?.rain ?? 0)); // 0..1 réel (world/weather.js)
       this.traffic.gain.setTargetAtTime(night ? 0.03 : 0.06, t, 1);
-      this.rain.gain.setTargetAtTime(raining ? 0.09 : 0, t, 1.5);
+      this.rain.gain.setTargetAtTime(rainAmt * 0.09, t, 1.5);
+      // nuit : grillons (grésillement aigu modulé) ; jour : rien
+      this.night.gain.setTargetAtTime(night && !beach ? 0.012 : 0, t, 2);
+      this.nightLfo.frequency.setTargetAtTime(6 + Math.sin(t / 7) * 1.5, t, 1);
       if (beach && t > this.nextGull) {
         this.nextGull = t + 4 + rng() * 6;
         const p = { x: pos.x + (rng() - 0.5) * 60, y: 15, z: pos.z + (rng() - 0.5) * 60 };
@@ -240,7 +272,7 @@ export function install(game) {
       e.sub.frequency.setTargetAtTime(p.freq * 0.5, t, 0.05);
       e.subG.gain.setTargetAtTime(p.sub * 0.8, t, 0.1);
       e.filt.frequency.setTargetAtTime(p.cutoff, t, 0.06);
-      e.out.gain.setTargetAtTime(on ? p.gain * (own ? 1 : 0.8) : 0, t, 0.1);
+      e.out.gain.setTargetAtTime(on ? p.gain * ENGINE_TRIM * (own ? 1 : 0.8) : 0, t, 0.1);
       if (e.pan && v.object3d) setPos(e.pan, v.object3d.position);
     }
     prune(engines, keepE);

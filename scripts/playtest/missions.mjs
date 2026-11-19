@@ -70,7 +70,7 @@ try {
           g.vehicles.enter(p, v.vehicle, 0);
           return 'enter';
         }
-        case 'goto': case 'follow': case 'race': case 'ko': case 'photo': {
+        case 'goto': case 'follow': case 'race': case 'chase': case 'reroute': case 'ko': case 'photo': {
           if (a.type === 'ko') { for (let i = 0; i < 3; i++) g.bus.emit('npc:ko', {}); return 'ko'; }
           if (!t) return 'wait';
           if (a.type === 'photo') { put({ x: t.x + 5, z: t.z }); g.bus.emit('ui:photo', {}); return 'photo'; }
@@ -128,7 +128,7 @@ try {
 
   // activités : taxi, livraison, course (en voiture)
   await switchTo('ines');
-  for (const k of ['taxi', 'delivery', 'race']) {
+  for (const k of ['taxi', 'delivery', 'race', 'rolling', 'chaos', 'dns']) {
     current = `préparation ${k}`;
     await page.evaluate(() => {
       const g = window.__game, p = g.player;
