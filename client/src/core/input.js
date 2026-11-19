@@ -4,7 +4,7 @@
 
 /** Liste des actions logiques. */
 export const ACTIONS = [
-  'forward', 'back', 'left', 'right', 'sprint', 'jump', 'interact', 'handbrake', 'attack', 'aim',
+  'forward', 'back', 'left', 'right', 'sprint', 'jump', 'interact', 'handbrake', 'flip', 'attack', 'aim',
   'weaponWheel', 'horn', 'radioNext', 'radioPrev', 'lights', 'camera', 'phone', 'map', 'switchChar', 'chat', 'pause', 'cluster', 'board',
 ];
 
@@ -14,7 +14,7 @@ const KEY_CODES = {
   KeyA: ['left'], ArrowLeft: ['left'], KeyD: ['right'], ArrowRight: ['right'],
   ShiftLeft: ['sprint'], ShiftRight: ['sprint'],
   Space: ['jump', 'handbrake'],
-  KeyF: ['interact'], Tab: ['weaponWheel'], KeyH: ['horn'], KeyR: ['radioNext'],
+  KeyF: ['interact'], Tab: ['weaponWheel'], KeyH: ['horn'], KeyG: ['flip'], KeyR: ['radioNext'],
   KeyN: ['lights'], KeyL: ['board'], KeyV: ['camera'], KeyP: ['phone'], KeyM: ['map'], KeyK: ['cluster'],
   AltLeft: ['switchChar'], AltRight: ['switchChar'], KeyT: ['chat'], Escape: ['pause'],
 };
@@ -23,7 +23,7 @@ const KEY_CHARS = { z: ['forward'], q: ['left'] };
 const MOUSE_BUTTONS = { 0: ['attack'], 2: ['aim'] };
 // Manette standard : indice de bouton → actions
 const PAD_BUTTONS = {
-  0: ['jump', 'sprint'], 2: ['jump'], 3: ['interact'], 4: ['weaponWheel'], 5: ['handbrake'], 6: ['aim'], 7: ['attack'],
+  0: ['jump', 'sprint'], 1: ['flip'], 2: ['jump'], 3: ['interact'], 4: ['weaponWheel'], 5: ['handbrake'], 6: ['aim'], 7: ['attack'],
   8: ['camera'], 9: ['pause'], 10: ['horn', 'sprint'], 11: ['map'],
   12: ['phone'], 13: ['lights'], 14: ['radioPrev'], 15: ['radioNext'],
 };

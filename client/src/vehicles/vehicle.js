@@ -198,6 +198,7 @@ export class Vehicle {
       let c = this.controls;
       if (!this.engineOn) c = { throttle: 0, brake: this.driver ? 0.15 : 0.35, steer: 0, handbrake: !this.driver && !this.wrecked };
       else if (this.wrecked) c = { throttle: 0, brake: 0.3, steer: 0, handbrake: false };
+      pv.assist = this.driver === this.game.player; // aides de conduite réservées au joueur (IA inchangée)
       driveStep(pv, c, fdt, wet);
       this.speed = pv.out.kmh; this.rpm = this.engineOn ? pv.out.rpm : 0; this.skid = pv.out.skid;
       this.throttle = c.throttle; this.braking = pv.out.braking; this.onGround = pv.out.grounded;

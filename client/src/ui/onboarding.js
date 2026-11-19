@@ -10,7 +10,7 @@ export const TIP_LIST = [
   { id: 'move', after: 1, get text() { return `<b>${moveKeys()}</b> pour bouger · <b>Souris</b> pour regarder (cliquez dans le jeu) · <b>Maj</b> pour courir · <b>Espace</b> pour sauter`; } },
   { id: 'sprint', when: (c) => c.walked >= 10, action: 'sprint', text: '<b>Maj</b> : courir · ou double appui sur Avancer' },
   { id: 'car', when: (c) => c.nearCar, action: 'interact', text: '<b>F</b> pour entrer dans la voiture' },
-  { id: 'drive', when: (c) => c.inVehicle, get text() { return `<b>${moveKey('forward')}</b>/<b>${moveKey('back')}</b> accélérer et freiner · <b>${moveKey('left')}</b>/<b>${moveKey('right')}</b> tourner · <b>Espace</b> frein à main · <b>H</b> klaxon · <b>V</b> caméra · <b>F</b> pour sortir`; } },
+  { id: 'drive', when: (c) => c.inVehicle, get text() { return `<b>${moveKey('forward')}</b>/<b>${moveKey('back')}</b> accélérer et freiner · <b>${moveKey('left')}</b>/<b>${moveKey('right')}</b> tourner · <b>Espace</b> frein à main · <b>G</b> remettre sur roues · <b>H</b> klaxon · <b>V</b> caméra · <b>F</b> pour sortir`; } },
   { id: 'map', after: 30, action: 'map', text: '<b>M</b> pour la carte : cliquez dessus pour poser un point GPS' },
   { id: 'weapons', after: 55, late: 400, when: (c) => c.wanted || c.hurt, action: 'weaponWheel', text: '<b>Tab</b> (maintenu) pour la roue d\'armes · <b>clic gauche</b> pour attaquer' },
   { id: 'phone', after: 80, late: 420, when: (c) => c.far, action: 'phone', text: '<b>P</b> pour le téléphone : taxi, activités, photos' },

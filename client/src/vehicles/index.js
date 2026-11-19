@@ -2,7 +2,7 @@
 import * as THREE from 'three';
 import { Vehicle } from './vehicle.js';
 import { buildGeometry } from './drive.js';
-import { TYPES, ALIASES, specFor, collisionDamage, damageLevel } from './tuning.js';
+import { TYPES, ALIASES, specFor, collisionDamage, damageLevel, steerInput, flipDelay } from './tuning.js';
 import { topple } from './drive.js';
 
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
@@ -374,10 +374,14 @@ export function install(game) {
     const my = input.axis('moveY'), mx = input.axis('moveX');
     const vF = v.pv?.out.forwardSpeed ?? 0;
     const c = v.controls;
-    c.steer = mx; c.handbrake = input.isDown('handbrake');
+    const sp = v.pv?.out.speed ?? 0;
+    v._steerF = steerInput(v._steerF ?? 0, mx, sp, dt, v.spec); // direction progressive, dépendante de la vitesse
+    c.steer = v._steerF; c.handbrake = input.isDown('handbrake');
     if (my < 0 && vF > 1.5) { c.brake = -my; c.throttle = 0; }
     else { c.brake = 0; c.throttle = my; }
     if (v.wrecked || !v.engineOn) { c.throttle = 0; }
+    // G : remise sur roues quand la voiture est sur le toit ou sur le flanc
+    if (input.pressed('flip') && v.pv && v.pv.out.up < 0.5 && v.pv.out.speed < 8 && !v.wrecked) { v.flip(); game.bus.emit('notify', { text: 'Voiture remise sur ses roues', kind: 'info', duration: 2 }); }
     if (input.pressed('horn')) game.bus.emit('vehicle:horn', { vehicle: v });
     v.horn = input.isDown('horn');
     if (input.pressed('lights')) {
@@ -425,7 +429,7 @@ export function install(game) {
       }
       if (far < 320) { const cp = game.three.camera.position, o = v.object3d.position; v.setLod(Math.hypot(o.x - cp.x, o.z - cp.z)); }
       // retournement : remise sur roues après 3 s (5 s avec le joueur au volant)
-      if (v.pv && v.pv.flipT > (v.driver === player ? 5 : 3) && !v.wrecked) { v.flip(); }
+      if (v.pv && v.pv.flipT > flipDelay(v.driver === player) && !v.wrecked) { v.flip(); }
       // fumée / feu
       const lvl = damageLevel(v.health);
       if ((lvl === 'smoke' || lvl === 'fire' || lvl === 'wreck') && far < 120) {

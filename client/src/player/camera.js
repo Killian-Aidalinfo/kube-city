@@ -10,6 +10,17 @@ const VEH_MODES = [
   { hood: true },
 ];
 
+/** Lignes de vitesse : un seul div CSS (conic répété masqué au centre), seule l'opacité change. */
+function speedLines() {
+  if (typeof document === 'undefined' || !document.body) return null;
+  const el = document.createElement('div');
+  el.style.cssText = 'position:fixed;inset:0;z-index:5;pointer-events:none;opacity:0;will-change:opacity;'
+    + 'background:repeating-conic-gradient(from 3deg at 50% 52%,rgba(255,255,255,0) 0deg 5deg,rgba(255,255,255,.5) 5.5deg 6deg,rgba(255,255,255,0) 6.5deg 11deg);'
+    + '-webkit-mask-image:radial-gradient(ellipse at 50% 52%,transparent 52%,#000 100%);mask-image:radial-gradient(ellipse at 50% 52%,transparent 52%,#000 100%)';
+  document.body.appendChild(el);
+  return el;
+}
+
 /**
  * @param {object} game contexte
  * @param {object} player API joueur (position, state, vehicle, heading, aiming…)
@@ -20,7 +31,7 @@ export function createCameraRig(game, player) {
   const rig = {
     yaw: 0, pitch: 0.3, mode: 0, aiming: false,
     _idle: 0, _chaseYaw: 0, _userYaw: 0, _userPitch: 0, _dist: 4.2, _fov: 60, _blend: 0,
-    _pivot: new THREE.Vector3(), _wasVeh: false, _init: false,
+    _pivot: new THREE.Vector3(), _wasVeh: false, _init: false, _lead: 0, _lines: null, _linesA: 0, _shake: 0,
   };
 
   /** Lance un rayon contre le décor (hors joueur/véhicule) ; renvoie la distance de touche ou null. */
@@ -54,7 +65,7 @@ export function createCameraRig(game, player) {
     if (!rig._init) { rig._pivot.set(player.position.x, player.position.y + 1.55, player.position.z); rig._init = true; }
     if (rig._blend > 0) rig._blend = Math.max(0, rig._blend - dt);
 
-    let camPos, lookDir, fovT = 60, hide = false;
+    let camPos, lookDir, fovT = 60, hide = false, sfe = 0;
     if (veh && vObj) {
       // ---- poursuite de véhicule ----
       const m = VEH_MODES[rig.mode];
@@ -68,12 +79,18 @@ export function createCameraRig(game, player) {
       // la caméra se place derrière la trajectoire (un peu de dérapage visible), derrière le nez en marche arrière
       let target = heading;
       if (sp > 5 && fwdSpeed > 0) target = heading + clamp(angleDiff(heading, Math.atan2(lv.x, lv.z)), -0.7, 0.7) * 0.6;
-      rig._chaseYaw = dampAngle(rig._chaseYaw, target, m.hood ? 9 : 3.6, dt);
+      // regarde un peu dans le virage (braquage × vitesse), lissé ; droite = cap décroissant
+      const leadT = m.hood ? 0 : -(veh.pv?.steer ?? 0) * clamp(sp / 18, 0, 1) * 0.5;
+      rig._lead = damp(rig._lead, leadT, 2.6, dt);
+      target += rig._lead;
+      // suivi plus souple à basse vitesse, plus ferme quand ça va vite (pas d'à-coups, pas de retard)
+      rig._chaseYaw = dampAngle(rig._chaseYaw, target, m.hood ? 9 : 2.8 + clamp(kmh / 120, 0, 1) * 1.6, dt);
       rig.yaw = rig._chaseYaw + rig._userYaw;
       const pitchBase = m.hood ? 0.04 : m.pitch;
       rig.pitch = clamp(pitchBase + rig._userPitch, -0.4, 1.2);
       const dir = orbitDirection(rig.yaw, rig.pitch);
-      fovT = 62 + clamp(kmh / 220, 0, 1) * 20;
+      const sf = clamp(kmh / 200, 0, 1); sfe = sf * sf * (3 - 2 * sf);   // 0..1 progressif
+      fovT = 62 + sfe * 26;
       if (m.hood) {
         hide = true;
         camPos = _v2.set(0, 0.8, 0.5 + (veh.geom?.halfL ?? 1.8) * 0.1).applyQuaternion(vObj.quaternion).add(vObj.position);
@@ -82,7 +99,7 @@ export function createCameraRig(game, player) {
         const pivotT = _v2.copy(vObj.position); pivotT.y += m.height;
         rig._pivot.x = damp(rig._pivot.x, pivotT.x, 30, dt); rig._pivot.z = damp(rig._pivot.z, pivotT.z, 30, dt);
         rig._pivot.y = damp(rig._pivot.y, pivotT.y, 14, dt);
-        const want = m.dist + clamp(kmh * 0.02, 0, 3);
+        const want = m.dist + sfe * 3.5;   // la caméra recule avec la vitesse
         const hit = castDist(rig._pivot, { x: -dir.x, y: -dir.y, z: -dir.z }, want, veh.chassis);
         const d = cameraHitDistance(hit, want, 0.3, 1.5);
         rig._dist = d < rig._dist ? d : damp(rig._dist, d, 5, dt);
@@ -122,6 +139,21 @@ export function createCameraRig(game, player) {
       fovT = rig.aiming ? 50 : 60 + rig._sk * 9;
       // secousse de foulée en sprint
       if (rig._sk > 0.02) { rig._bob = (rig._bob ?? 0) + dt * 14; camPos.y += Math.sin(rig._bob) * 0.03 * rig._sk; camPos.x += Math.cos(rig._bob * 0.5) * 0.02 * rig._sk; }
+    }
+
+    // tremblement léger à haute vitesse + lignes de vitesse discrètes (véhicule seulement)
+    const kmhNow = veh && vObj ? (veh.speed ?? 0) : 0;
+    const hi = clamp((kmhNow - 110) / 110, 0, 1);
+    rig._shake = damp(rig._shake, hi, 3, dt);
+    if (rig._shake > 0.01) {
+      const t = (game.time?.elapsed ?? 0), a = rig._shake * (veh?.pv?.out.grounded === false ? 0.01 : 0.03);
+      camPos.x += (Math.sin(t * 43) + Math.sin(t * 71)) * 0.5 * a; camPos.y += (Math.sin(t * 57) + Math.sin(t * 29)) * 0.5 * a;
+    }
+    const lineT = clamp((kmhNow - 120) / 100, 0, 1) * (VEH_MODES[rig.mode].hood ? 0.12 : 0.2);
+    rig._linesA = damp(rig._linesA, lineT, 4, dt);
+    if (rig._linesA > 0.004 || rig._lines) {
+      rig._lines ??= speedLines();
+      if (rig._lines) rig._lines.style.opacity = rig._linesA < 0.004 ? '0' : rig._linesA.toFixed(3);
     }
 
     if (rig._blend > 0) camera.position.x = damp(camera.position.x, camPos.x, 9, dt), camera.position.y = damp(camera.position.y, camPos.y, 9, dt), camera.position.z = damp(camera.position.z, camPos.z, 9, dt);

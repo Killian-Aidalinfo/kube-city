@@ -68,6 +68,7 @@ On commence avec Inès ; on change de perso à tout moment (Alt maintenu → rou
 | Souris (cliquez dans le jeu) | regarder |
 | Maj | sprint |
 | Espace | saut · frein à main en véhicule |
+| G | remettre la voiture sur ses roues (sur le toit) |
 | F | monter / descendre d'un véhicule (voler s'il y a un conducteur) · parler |
 | E | entrer dans une boutique ou le garage |
 | Clic gauche / clic droit | attaquer · viser |

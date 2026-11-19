@@ -57,6 +57,24 @@ export function steerLimit(base, speedMs) {
   return base * (1 - 0.72 * k * k);
 }
 
+/**
+ * Direction du joueur (clavier ou manette) : rampe progressive, plus lente et moins ample à haute vitesse.
+ * @param {number} prev braquage filtré précédent (-1..1)
+ * @param {number} raw entrée brute (-1..1, +1 = droite)
+ * @returns {number} nouveau braquage filtré
+ */
+export function steerInput(prev, raw, speedMs, dt, spec) {
+  const k = Math.min(1, Math.max(0, (speedMs - 5) / 25));
+  const amp = 1 - (spec?.twoWheel ? 0.35 : (spec?.mass ?? 0) > 6000 ? 0.25 : 0.45) * k;                 // amplitude max à cette vitesse
+  const target = raw * amp;
+  const opposite = prev * target < 0 || Math.abs(target) < Math.abs(prev);
+  const rate = opposite ? 10 + 6 * (1 - k) : 10 - 5.5 * k;           // rappel plus vif que l'appui
+  return prev + (target - prev) * Math.min(1, rate * dt);
+}
+
+/** Délai (s) à l'arrêt sur le toit avant la remise sur roues automatique. */
+export const flipDelay = (isPlayer) => (isPlayer ? 2.2 : 3);
+
 /** Force motrice totale (N) : pleine au démarrage, s'éteint vers la vitesse max. */
 export function engineForce(spec, throttle, forwardSpeedMs) {
   const topMs = spec.top / 3.6;

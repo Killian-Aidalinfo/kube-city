@@ -4,6 +4,8 @@ import { steerLimit, engineForce, rpmFor } from './tuning.js';
 
 // force de freinage (≈ 1 g de décélération à fond)
 const BRAKE_K = 0.06;
+// accélération latérale visée (m/s²) pour la conduite du joueur
+const LAT_G = 18;
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 /** Rotation d'un vecteur par un quaternion Rapier {x,y,z,w}. */
 function rot(q, x, y, z) {
@@ -116,7 +118,7 @@ export function driveStep(pv, controls, dt, wet = 0) {
     if (hb && !w.front) b = spec.mass * 3;
     ctrl.setWheelBrake(i, b);
     ctrl.setWheelSteering(i, w.front ? -pv.steer : 0);
-    const slip = 3.2 * grip * (hb && !w.front ? 0.32 : 1);
+    const slip = 3.2 * grip * (hb && !w.front ? (spec.twoWheel ? 0.5 : 0.32) : 1);
     ctrl.setWheelFrictionSlip(i, slip);
   }
   ctrl.updateVehicle(dt);
@@ -129,8 +131,13 @@ export function driveStep(pv, controls, dt, wet = 0) {
     body.applyImpulse({ x: r.x * imp, y: r.y * imp, z: r.z * imp }, true);
     // frein à main : l'arrière décroche, l'avant mord, la voiture pivote dans le sens du volant
     if (hb && speed > 5) {
-      const t = steerIn * clamp(speed / 14, 0, 1) * spec.mass * 1.1 * dt;
+      const t = steerIn * clamp(speed / 14, 0, 1) * spec.mass * (spec.twoWheel ? 0.4 : 0.7) * dt;
       body.applyTorqueImpulse({ x: 0, y: -t * (vF >= 0 ? 1 : -1), z: 0 }, true);
+    }
+    // joueur : taux de lacet plafonné par l'accélération latérale tenable (≈ 1,8 g) → moins de survirage à haute vitesse
+    if (pv.assist && !hb) {
+      const w = body.angvel(), wmax = (LAT_G * grip) / Math.max(Math.abs(vF), 4);
+      if (Math.abs(w.y) > wmax) body.setAngvel({ x: w.x, y: Math.sign(w.y) * (wmax + (Math.abs(w.y) - wmax) * 0.25), z: w.z }, true);
     }
     // appui aérodynamique (tient la route à haute vitesse)
     body.applyImpulse({ x: 0, y: -speed * speed * spec.mass * 0.0016 * dt, z: 0 }, true);
@@ -154,6 +161,15 @@ export function driveStep(pv, controls, dt, wet = 0) {
   } else {
   // anti-roulis : freine la rotation autour de l'axe longitudinal
   body.applyTorqueImpulse({ x: -f.x * roll * spec.mass * 0.18 * dt, y: -f.y * roll * spec.mass * 0.18 * dt, z: -f.z * roll * spec.mass * 0.18 * dt }, true);
+  // anti-retournement : au-delà de ~20° de roulis, un rappel proportionnel redresse (tonneaux plus rares)
+  if (grounded) {
+    const phi = Math.atan2(up.x * r.x + up.y * r.y + up.z * r.z, up.y);
+    const over = Math.abs(phi) - 0.35;
+    if (over > 0 && up.y > 0.2) {
+      const t = -Math.sign(phi) * Math.min(over, 0.9) * spec.mass * 1.6 * dt;
+      body.applyTorqueImpulse({ x: f.x * t, y: f.y * t, z: f.z * t }, true);
+    }
+  }
   }
 
   // --- sorties ---
@@ -170,7 +186,7 @@ export function driveStep(pv, controls, dt, wet = 0) {
   out.skid = grounded ? Math.max(slide, hb && speed > 6 ? 0.8 : 0, brake > 0.6 && speed > 12 ? 0.5 : 0) : 0;
   out.rpm = rpmFor(speed, spec.top, thr);
   // retourné et à l'arrêt : compteur de remise sur roues
-  pv.flipT = (up.y < 0.35 && speed < 2.5) ? pv.flipT + dt : 0;
+  pv.flipT = (up.y < 0.35 && speed < 5) ? pv.flipT + dt : 0;
   return out;
 }
 
