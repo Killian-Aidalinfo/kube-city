@@ -42,7 +42,8 @@ Deux revues : la seconde a corrigé une relance Redis pendant l'arrêt propre, u
 5. Pendant une coupure Redis, deux joueurs sur des pods différents se voient figés jusqu'au retour de Redis (normal : le Pub/Sub passe par Redis).
 
 ## Points ouverts techniques
-- `scripts/playtest/mcp.mjs` est instable (≈ 1 échec sur 3, déjà avant les correctifs de la nuit) : l'agent rate parfois un kube doré ou la clôture d'une course. Tournée en cours.
+- `scripts/playtest/mcp.mjs` stabilisé (16/16) : le test visait une chasse presque finie ; vrai bug corrigé au passage (un `despawn_agent` pendant le tick du leader ressuscitait l'agent). Non reproduit : « course jamais clôturée » (vu une fois, Redis partagé avec un autre serveur).
+- `npm run smoke` : l'étape carjacking a échoué 1 fois sur 3 chez un agent (PNJ non éjecté), non investigué.
 
 ## Frictions restantes (playtest « débutant », 19/11, `scripts/playtest/debutant.mjs`)
 Premier pas jouable : ~4,4 s depuis le chargement de la page (titre 0,5 s, portraits 1,6 s, chargement 1,6 s). Corrigés : prompt « F : Monter » affiché à 4 m alors que F marche à 3 m ; GPS de mission effacé à chaque image par le module social ; aucun premier objectif (maintenant : encadré + GPS vers le marqueur jaune) ; pseudo non pris en compte avant rechargement ; astuces posées sur le perso (déplacées en haut) et affichées pendant K.O./Arrêté ; pas d'astuce sur les étoiles.
