@@ -1,6 +1,6 @@
 # Bilan de la nuit du 18 au 19 novembre 2026
 
-Commits `412bc9c` → `7527d38` sur `main`. Tests : 93/93, build OK, smoke OK (60 i/s, jour ~210 draw calls, nuit ~160 depuis la moto, le bus et les pigeons).
+Commits `412bc9c` → `9adcb8c` sur `main`. Tests : 96/96, build OK, smoke OK (60 i/s, jour ~210 draw calls, nuit ~160 depuis la moto, le bus et les pigeons).
 
 ## Jeu
 - **Missions** : script `scripts/playtest/missions.mjs` (les 9 missions + casse + activités + boutique, ~4 min) ; course contre le Cluster à gagner pour de vrai ; textes et récompenses cohérents ; dialogues réécrits autour du « Cluster ».
@@ -8,6 +8,9 @@ Commits `412bc9c` → `7527d38` sur `main`. Tests : 93/93, build OK, smoke OK (6
 - **Conduite** : freinage progressif (~25 m de 100 à 0), direction qui s'adoucit avec la vitesse, plus de tonneau en virage. Test : `scripts/playtest/conduite.mjs`.
 - **Prise en main** : pseudo, rappel des touches, astuces la première fois, menu pause (volume, sensibilité, qualité basse/moyenne/haute), gâchettes de manette en voiture.
 - **Véhicules et vie** : moto (penche, peut tomber) et bus, dans la circulation et garés ; piétons qui s'écartent, s'abritent de la pluie, applaudissent les cascades ; pigeons (réactions non vérifiées à l'œil).
+- **Jouer à plusieurs** : courses entre joueurs (téléphone P › Courses : compte à rebours et classement communs), « chasse aux kubes dorés » toutes les ~10 min lancée par le leader (reprise par le suivant s'il meurt), classement de la session (touche L), emotes (touches 5 à 8). Test : `scripts/playtest/social.mjs`. Les phares passent sur N.
+- **Police** : barrages à 3 étoiles, voitures qui bloquent à 4, hélicoptère avec projecteur la nuit à 5, étoiles perdues en se cachant hors du cône de vision (non testé en jeu).
+- **Qualité Basse** : ~27-30 i/s en rendu logiciel (contre 10), MSAA coupé, terrain découpé en tuiles.
 - **Infos cluster (touche K)** : pod qui me sert, pod précédent, latence, joueurs, leader IA, état Redis — à ouvrir pendant les pannes.
 
 ## HA et charge
