@@ -208,6 +208,13 @@ export async function saveBot(bot) {
   await redis.sadd("pn:bots", bot.id);
 }
 
+// Mise à jour par le leader : n'écrit que si l'agent existe encore. Sans ça, un despawn qui tombe pendant un tick
+// (agent déjà lu, pas encore resauvegardé) était annulé : le leader recréait l'agent. Renvoie false s'il a disparu.
+const UPDATE_BOT = `if redis.call("exists", KEYS[1]) == 1 then redis.call("set", KEYS[1], ARGV[1], "EX", 1800) return 1 else return 0 end`;
+export async function updateBot(bot) {
+  return (await redis.eval(UPDATE_BOT, 1, `pn:bot:${bot.id}`, JSON.stringify(bot))) === 1;
+}
+
 export async function loadBot(id) {
   const raw = await redis.get(`pn:bot:${id}`);
   return raw ? JSON.parse(raw) : null;

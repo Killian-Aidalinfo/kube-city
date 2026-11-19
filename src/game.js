@@ -370,7 +370,7 @@ export async function tickBots(dt) {
     const moved = await stepBot(bot, dt, now);
     const publish = moved || now - (bot.pub || 0) > 500;
     if (publish) bot.pub = now;
-    await store.saveBot(bot);
+    if (!(await store.updateBot(bot))) continue; // retiré (despawn) pendant le tick : on ne le ressuscite pas
     // un agent à l'arrêt se signale quand même deux fois par seconde (sinon les pods l'oublient)
     if (publish) await store.publish({ k: "p", p: botAsPlayer(bot) });
   }

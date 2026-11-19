@@ -126,14 +126,18 @@ try {
 
   step('chasse');
   // chasse aux kubes dorés : l'agent ramasse le plus proche
-  const hs = await waitFor(async () => { const d = (await call(c, 'hunt_status', { agentId: id })).data; return d?.kubes ? d : null; }, 60000, 1000);
+  // la chasse en cours peut être presque finie (le test a déjà passé une bonne minute en course) : un agent qui
+  // n'a plus le temps de rouler jusqu'au kube est normalement battu par la fin de chasse. On attend une chasse
+  // qui laisse le temps de faire le trajet (distance à vol d'oiseau x 1,6 pour les routes, à 14 m/s, + marge).
+  const huntOk = (d) => d?.kubes && d.finDansSec >= (Math.min(...d.kubes.filter((x) => !x.pris).map((x) => x.distance)) * 1.6) / 14 + 15;
+  const hs = await waitFor(async () => { const d = (await call(c, 'hunt_status', { agentId: id })).data; return huntOk(d) ? d : null; }, 140000, 500);
   check(hs, 'aucune chasse démarrée');
   if (hs) {
     const k = [...hs.kubes].filter((x) => !x.pris).sort((p, q) => p.distance - q.distance)[0];
     const cc = await call(c, 'collect_kube', { agentId: id, kube: k.kube });
     check(!cc.err, `collect_kube a échoué : ${JSON.stringify(cc.data)}`);
-    const got = await waitFor(async () => (await call(c, 'hunt_status', { agentId: id })).data?.prisPar?.some?.((x) => x.nom === 'Turbo') || (await call(c, 'hunt_status')).data === 'x', Math.max(30000, (k.distance / 14) * 1000 + 25000), 1000);
-    check(got, `Turbo n'a pas ramassé le kube n°${k.kube} (distance ${k.distance} m)`);
+    const got = await waitFor(async () => { const d = (await call(c, 'hunt_status', { agentId: id })).data; return d?.huntId === hs.huntId && d.prisPar?.some?.((x) => x.kube === k.kube && x.nom === 'Turbo'); }, Math.min(hs.finDansSec * 1000, (k.distance * 1.6 / 14) * 1000 + 15000), 500);
+    check(got, `Turbo n'a pas ramassé le kube n°${k.kube} (distance ${k.distance} m, chasse restant ${hs.finDansSec} s)`);
     R.hunt = { kube: k.kube, distance: k.distance, ramasse: !!got };
   }
 
