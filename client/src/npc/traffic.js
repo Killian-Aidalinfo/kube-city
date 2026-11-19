@@ -43,7 +43,8 @@ export function createTraffic(game, rng) {
     const s = spawnPoint(); if (!s || !game.vehicles?.spawn) return;
     const type = TYPES[(rng() * TYPES.length) | 0];
     let veh;
-    try { veh = game.vehicles.spawn(type, { x: s.x, y: 0.8, z: s.z }, s.yaw, { owner: 'npc' }); } catch { return; }
+    // y = sol réel : les routes des collines montent à 40 m, un spawn à 0,8 m naissait sous le heightfield
+    try { veh = game.vehicles.spawn(type, { x: s.x, y: (game.world?.groundHeight?.(s.x, s.z) ?? 0) + 0.8, z: s.z }, s.yaw, { owner: 'npc' }); } catch { return; }
     if (!veh) return;
     veh.owner = 'npc';
     veh.npcDriver = { npc: true, flee: () => { const c = cars.find((q) => q.veh === veh); if (c) c.panic = 8; } };

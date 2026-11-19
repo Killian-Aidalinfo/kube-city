@@ -391,16 +391,27 @@ export function install(game) {
   }, -50);
 
   // ---------- image ----------
+  let guardN = 0;
   game.onUpdate((dt) => {
     const alpha = clamp(step.alpha ?? 1, 0, 1);
     if (seq) { if (seq.kind === 'enter') stepEnter(dt); else stepExit(dt); }
     const pp = player?.position;
     const now = game.time?.elapsed ?? 0;
     let fxBudget = 0;
+    guardN++;
     for (let i = vehicles.list.length - 1; i >= 0; i--) {
       const v = vehicles.list[i];
       const far = pp ? Math.hypot(v.object3d.position.x - pp.x, v.object3d.position.z - pp.z) : 0;
       v.object3d.visible = far < 320;
+      // garde-fou : véhicule passé sous le sol (téléportation dans un immeuble…) → remis sur la route la plus proche
+      // (corps Rapier lu en direct : object3d n'est mis à jour que pour les véhicules proches ; 1 image sur 3 suffit)
+      if (!v.remote && (guardN + i) % 3 === 0) {
+        const t = v.chassis.translation(), g = game.world?.groundHeight?.(t.x, t.z);
+        if (typeof g === 'number' && t.y < g - 1.5) {
+          const r = game.world.nearestRoadPoint?.(t) ?? t;
+          vehicles.teleport(v, { x: r.x, z: r.z }, v.heading);
+        }
+      }
       if (far < 320 || v.driver) v.update(dt, alpha);
       if (far < 320) { const cp = game.three.camera.position, o = v.object3d.position; v.setLod(Math.hypot(o.x - cp.x, o.z - cp.z)); }
       // retournement : remise sur roues après 3 s (5 s avec le joueur au volant)

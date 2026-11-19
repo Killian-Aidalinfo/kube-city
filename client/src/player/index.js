@@ -352,6 +352,11 @@ export async function install(game) {
 
   // ---------- image : entrées, visuel, animations, invites ----------
   game.onUpdate((dt) => {
+    // garde-fou : sous le sol (téléportation dans un immeuble…) → retour sur la route la plus proche
+    if (player.state !== 'inVehicle' && game.world?.groundHeight && cur.y < game.world.groundHeight(cur.x, cur.z) - 1.5) {
+      const r = game.world.nearestRoadPoint?.(cur) ?? cur;
+      player.teleport({ x: r.x, z: r.z });
+    }
     const playing = game.state === 'playing' && !player.controlsLocked;
     mv.ix = playing ? game.input.axis('moveX') : 0;
     mv.iy = playing ? game.input.axis('moveY') : 0;

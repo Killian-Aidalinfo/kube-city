@@ -92,10 +92,12 @@ export class PolyPath {
   }
 }
 
-/** Téléporte un véhicule (recyclage de pool) : API véhicule si présente, sinon corps Rapier + objet 3D. */
+/** Téléporte un véhicule (recyclage de pool) : API véhicule si présente, sinon corps Rapier + objet 3D. Sans y : posé sur le sol réel (collines comprises). */
 export function relocate(veh, p, yaw, y) {
-  const py = y ?? p.y ?? 0.8;
-  if (typeof veh.teleport === 'function') { veh.teleport({ x: p.x, y: py, z: p.z }, yaw); return; }
+  const g = veh.game?.world?.groundHeight?.(p.x, p.z);
+  const py = y ?? p.y ?? (typeof g === 'number' ? g : 0) + 0.5;
+  const api = veh.game?.vehicles?.teleport;
+  if (typeof api === 'function' && veh.chassis) { api.call(veh.game.vehicles, veh, { x: p.x, y: py, z: p.z }, yaw); return; }
   const h = yaw / 2, q = { x: 0, y: Math.sin(h), z: 0, w: Math.cos(h) };
   const b = veh.chassis;
   if (b?.setTranslation) {

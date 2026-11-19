@@ -46,6 +46,9 @@ export function install(game) {
   colliders.push(pw.createCollider(RAPIER.ColliderDesc.heightfield(N, N, terrainHeights(), { x: TERRAIN_SIZE, y: 1, z: TERRAIN_SIZE }).setFriction(0.9)));
   const yawQ = (r) => ({ x: 0, y: Math.sin(r / 2), z: 0, w: Math.cos(r / 2) });
   const cuboid = (cx, cz, hw, hd, y0, y1, rot = 0) => colliders.push(pw.createCollider(RAPIER.ColliderDesc.cuboid(hw, (y1 - y0) / 2, hd).setTranslation(cx, (y0 + y1) / 2, cz).setRotation(yawQ(rot)).setFriction(0.6)));
+  // murs invisibles au bord du heightfield : au-delà il n'y a plus de sol, on tomberait sous le monde
+  { const E = TERRAIN_SIZE / 2 - 2, L = TERRAIN_SIZE / 2 + 20, T = 4, H = 60;
+    cuboid(0, -E - T, L, T, -20, H); cuboid(0, E + T, L, T, -20, H); cuboid(-E - T, 0, T, L, -20, H); cuboid(E + T, 0, T, L, -20, H); }
   for (const b of city.buildings) {
     if (b.colliders) { for (const c of b.colliders) cuboid(c.cx, c.cz, c.hw, c.hd, c.y0, c.y1, c.rot ?? 0); continue; }
     for (const p of b.parts) {
