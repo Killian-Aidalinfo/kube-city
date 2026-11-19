@@ -16,6 +16,8 @@ Commits `412bc9c` → `a9941cb` sur `main`. Tests : 105/105, build OK, smoke OK 
 - **Qualité Basse** : ~27-30 i/s en rendu logiciel (contre 10), MSAA coupé, terrain découpé en tuiles.
 - **Infos cluster (touche K)** : pod qui me sert, pod précédent, latence, joueurs, leader IA, état Redis — à ouvrir pendant les pannes.
 
+- **Retour à chaud du 19/11 au matin** : course (Maj ou double appui sur Avancer, 9,2 m/s, ~13 s, caméra et jauge) et deux fois plus de voitures en ville.
+
 ## HA et charge
 - Serveur : Pub/Sub par lots, mises à jour moins fréquentes des joueurs lointains, client lent qui saute des snapshots. 60 joueurs : 9,8 → 4,4 Mo/s, Pub/Sub ~900 → ~45 msg/s.
 - Accueil d'un joueur sans attendre Redis pendant une bascule : reconnexion médiane ~0,3 s (Sentinel, maître Redis puis pod tués, 30 joueurs).
@@ -43,7 +45,7 @@ Deux revues : la seconde a corrigé une relance Redis pendant l'arrêt propre, u
 
 ## Points ouverts techniques
 - `scripts/playtest/mcp.mjs` stabilisé (16/16) : le test visait une chasse presque finie ; vrai bug corrigé au passage (un `despawn_agent` pendant le tick du leader ressuscitait l'agent). Non reproduit : « course jamais clôturée » (vu une fois, Redis partagé avec un autre serveur).
-- `npm run smoke` : l'étape carjacking a échoué 1 fois sur 3 chez un agent (PNJ non éjecté), non investigué.
+- `npm run smoke` : étape carjacking fiabilisée (10/10) ; trouvé au passage des voitures de circulation qui tombaient sous le monde (garde-fou : remises sur une route, cause racine non cherchée). Étape 1 « le perso ne marche pas » vue 2 fois sur 20, non reproduite depuis.
 
 ## Frictions restantes (playtest « débutant », 19/11, `scripts/playtest/debutant.mjs`)
 Premier pas jouable : ~4,4 s depuis le chargement de la page (titre 0,5 s, portraits 1,6 s, chargement 1,6 s). Corrigés : prompt « F : Monter » affiché à 4 m alors que F marche à 3 m ; GPS de mission effacé à chaque image par le module social ; aucun premier objectif (maintenant : encadré + GPS vers le marqueur jaune) ; pseudo non pris en compte avant rechargement ; astuces posées sur le perso (déplacées en haut) et affichées pendant K.O./Arrêté ; pas d'astuce sur les étoiles.
