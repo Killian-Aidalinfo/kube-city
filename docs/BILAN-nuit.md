@@ -1,6 +1,6 @@
 # Bilan de la nuit du 18 au 19 novembre 2026
 
-Commits `412bc9c` → `a9941cb` sur `main`. Tests : 100/100, build OK, smoke OK (60 i/s, jour ~210 draw calls, nuit ~160 depuis la moto, le bus et les pigeons).
+Commits `412bc9c` → `a9941cb` sur `main`. Tests : 105/105, build OK, smoke OK (60 i/s, jour ~210 draw calls, nuit ~160 depuis la moto, le bus et les pigeons).
 
 ## Jeu
 - **Missions** : script `scripts/playtest/missions.mjs` (les 9 missions + casse + activités + boutique, ~4 min) ; course contre le Cluster à gagner pour de vrai ; textes et récompenses cohérents ; dialogues réécrits autour du « Cluster ».
@@ -25,6 +25,9 @@ Commits `412bc9c` → `a9941cb` sur `main`. Tests : 100/100, build OK, smoke OK 
 - Pendant une coupure Redis, les joueurs des autres pods restent figés au lieu de disparaître.
 - Scripts : `scripts/charge.mjs` (N joueurs + chaos), `scripts/playtest/multi.mjs` (2 navigateurs, pod tué, Redis tué).
 - Kit étudiants : `deploy/kapsule/` (Kapsule une zone, Redis Sentinel Bitnami 28.3.12 en RWO `scw-bssd`, `chaos.sh`, barème HA sur 20), rejoué sur kind.
+
+## Pour l'enseignant
+- **Page `/status`** (sur chaque cluster) : pods vivants, leader, maître Redis, joueurs et agents, journal des incidents des 30 dernières min (pod disparu sans arrêt propre, coupure Redis et sa durée), score de dispo. À projeter pendant le tour des clusters ; la mesure officielle du barème reste la sonde via l'Ingress.
 
 ## Revues Opus
 Deux revues : la seconde a corrigé une relance Redis pendant l'arrêt propre, un double prix de chasse, une course close encore gagnable et l'absence d'anti-spam.

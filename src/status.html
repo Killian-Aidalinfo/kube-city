@@ -1,0 +1,74 @@
+<!doctype html>
+<html lang="fr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Kube City - état du cluster</title>
+<style>
+:root{--bg:#0d1117;--card:#161b22;--line:#30363d;--tx:#e6edf3;--mu:#8b949e;--ok:#3fb950;--bad:#f85149;--warn:#d29922;--blue:#58a6ff}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--tx);font:20px/1.4 system-ui,sans-serif;padding:20px 28px}
+h1{margin:0 0 4px;font-size:34px}h2{margin:0 0 10px;font-size:22px;color:var(--mu);font-weight:600;text-transform:uppercase;letter-spacing:.05em}
+.top{display:flex;justify-content:space-between;align-items:baseline;gap:20px;flex-wrap:wrap}.mu{color:var(--mu)}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:16px;margin:16px 0}
+.card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:16px 20px}
+.big{font-size:52px;font-weight:700;line-height:1.1}.ok{color:var(--ok)}.bad{color:var(--bad)}.warn{color:var(--warn)}
+.banner{display:none;background:#3d1418;border:2px solid var(--bad);border-radius:12px;padding:14px 20px;margin:12px 0;font-size:22px}
+table{width:100%;border-collapse:collapse}th,td{text-align:left;padding:8px 10px;border-bottom:1px solid var(--line)}th{color:var(--mu);font-weight:600;font-size:16px}
+.dot{display:inline-block;width:14px;height:14px;border-radius:50%;margin-right:8px;background:var(--ok)}.dot.bad{background:var(--bad)}
+.tag{display:inline-block;padding:1px 10px;border-radius:99px;border:1px solid var(--line);font-size:16px;margin-left:6px}
+.leader{color:var(--blue);border-color:var(--blue)}
+ul{list-style:none;margin:0;padding:0}li{padding:7px 0;border-bottom:1px solid var(--line);display:flex;gap:14px}li time{color:var(--mu);min-width:90px;font-variant-numeric:tabular-nums}
+</style></head><body>
+<div class="top"><div><h1>Kube City : état du cluster</h1><div class="mu" id="sub">chargement...</div></div><div class="mu" id="clock"></div></div>
+<div class="banner" id="banner"></div>
+<div class="grid">
+  <div class="card"><h2>Disponibilité 30 min</h2><div class="big" id="avail">-</div><div class="mu" id="availSub"></div></div>
+  <div class="card"><h2>Redis</h2><div class="big" id="redisRole">-</div><div class="mu" id="redisSub"></div></div>
+  <div class="card"><h2>Pods prêts</h2><div class="big" id="podCount">-</div><div class="mu" id="leader"></div></div>
+  <div class="card"><h2>Ville</h2><div class="big" id="players">-</div><div class="mu" id="agents"></div></div>
+</div>
+<div class="card" style="margin-bottom:16px"><h2>Pods vivants (battement toutes les 2 s)</h2>
+<table><thead><tr><th>Pod</th><th>Version</th><th>Joueurs</th><th>Uptime</th><th>Redis vu par le pod</th><th>État</th></tr></thead><tbody id="pods"></tbody></table></div>
+<div class="card"><h2>Journal des incidents (30 dernières minutes)</h2><ul id="log"></ul></div>
+<script>
+const $=id=>document.getElementById(id);
+const T={up:e=>`Pod ${e.pod} apparu`+(e.version?` (version ${e.version})`:''),gone:e=>`Pod ${e.pod} disparu sans arrêt propre (crash, kill ou nœud perdu)`,stop:e=>`Pod ${e.pod} arrêté proprement`,redis_back:e=>`Redis coupé vu par ${e.pod} pendant ${Math.round(e.durMs/100)/10} s, retour à la normale`};
+const COL={up:'ok',gone:'bad',stop:'warn',redis_back:'warn'};
+const dur=s=>s<90?s+' s':s<5400?Math.round(s/60)+' min':(s/3600).toFixed(1)+' h';
+const hm=ts=>new Date(ts).toLocaleTimeString('fr-FR');
+function set(id,t,c){const e=$(id);e.textContent=t;if(c!==undefined)e.className='big '+c}
+function render(d){
+  $('clock').textContent='mis à jour à '+hm(d.now)+' (réponse du pod '+d.pod+')';
+  $('sub').textContent=d.source==='redis'?'Vue complète via Redis, rafraîchie toutes les 2 s':'Redis injoignable : vue LIMITÉE à ce que sait le pod '+d.pod;
+  const b=$('banner');
+  if(d.source!=='redis'){b.style.display='block';b.textContent='Redis injoignable depuis le pod '+d.pod+(d.downForMs?' depuis '+dur(Math.round(d.downForMs/1000)):'')+'. Ci-dessous : uniquement ce que ce pod sait (son propre battement et son journal local). Les autres pods, le leader et le score sont inconnus.';}
+  else b.style.display='none';
+  const a=d.availability;
+  if(a&&a.pct!=null){set('avail',a.pct.toFixed(2)+' %',a.pct>=99.9?'ok':a.pct>=97?'warn':'bad');$('availSub').textContent=a.up+'/'+a.total+' échantillons de 4 s, sur '+dur(Math.round(a.sinceMs/1000))+(d.source!=='redis'?' (dernier calcul connu)':'')}
+  else{set('avail','n/a','');$('availSub').textContent='pas encore d\'échantillon'}
+  const r=d.redis;
+  if(r){set('redisRole',r.role==='master'?'maître':r.role||'?','ok');$('redisSub').textContent=(r.endpoint||'')+' · '+r.connectedReplicas+' réplica(s) connecté(s)'}
+  else{set('redisRole','COUPÉ','bad');$('redisSub').textContent='injoignable depuis le pod '+d.pod}
+  const ready=d.pods.filter(p=>p.ready).length;
+  set('podCount',d.source==='redis'?ready+' / '+d.pods.length:'?',d.source!=='redis'?'warn':ready>=2?'ok':ready===1?'warn':'bad');
+  $('leader').textContent=d.source==='redis'?'leader des agents : '+(d.leader||'aucun'):'leader inconnu';
+  set('players',d.players,'');$('agents').textContent=d.source==='redis'?'dont '+d.agents+' agent(s) IA, '+Math.max(0,d.players-d.agents)+' joueur(s)':'vu par ce pod uniquement';
+  const tb=$('pods');tb.textContent='';
+  for(const p of d.pods){
+    const tr=document.createElement('tr');
+    const cell=(t,html)=>{const td=document.createElement('td');td.textContent=t;tr.appendChild(td);return td};
+    const n=cell('');const dot=document.createElement('span');dot.className='dot'+(p.ready?'':' bad');n.appendChild(dot);n.appendChild(document.createTextNode(p.pod));
+    if(p.pod===d.leader){const t=document.createElement('span');t.className='tag leader';t.textContent='leader';n.appendChild(t)}
+    cell(p.version||'');cell(p.players);cell(dur(p.uptimeSec));
+    const rc=cell(p.redis?'joignable':'COUPÉ');rc.className=p.redis?'ok':'bad';
+    const st=cell(p.ready?'prêt':'arrêt en cours');st.className=p.ready?'ok':'warn';
+    tb.appendChild(tr);
+  }
+  if(!d.pods.length){const tr=document.createElement('tr');const td=document.createElement('td');td.colSpan=6;td.textContent='aucun pod vivant';td.className='bad';tr.appendChild(td);tb.appendChild(tr)}
+  const ul=$('log');ul.textContent='';
+  for(const e of d.incidents){const li=document.createElement('li');const t=document.createElement('time');t.textContent=hm(e.ts);const s=document.createElement('span');s.className=COL[e.type]||'';s.textContent=(T[e.type]||(()=>e.type))(e);li.append(t,s);ul.appendChild(li)}
+  if(!d.incidents.length){const li=document.createElement('li');li.textContent='Aucun incident sur les 30 dernières minutes.';li.className='mu';ul.appendChild(li)}
+}
+async function tick(){
+  try{const r=await fetch('/api/status',{cache:'no-store'});if(!r.ok)throw 0;render(await r.json())}
+  catch{const b=$('banner');b.style.display='block';b.textContent='Aucun pod ne répond à cette page ('+hm(Date.now())+'). Nouvel essai dans 2 s.'}
+}
+tick();setInterval(tick,2000);
+</script></body></html>

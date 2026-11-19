@@ -9,6 +9,7 @@ import * as store from "./store.js";
 import * as game from "./game.js";
 import * as proto from "./protocol.js";
 import { handleMcp } from "./mcp.js";
+import * as status from "./status.js";
 
 const PORT = Number(process.env.PORT || 8080);
 const VERSION = process.env.APP_VERSION || "dev";
@@ -213,6 +214,11 @@ const server = http.createServer(async (req, res) => {
     if (pathname === "/api/info") {
       return json(res, 200, { pod: store.POD, version: VERSION, leader: await store.currentLeader().catch(() => null), uptimeSec: Math.round((Date.now() - startedAt) / 1000), clients: sockets.size, players: players.size, protocol: proto.PROTOCOL });
     }
+    if (pathname === "/api/status") return json(res, 200, await status.snapshot());
+    if (pathname === "/status") {
+      res.writeHead(200, { "content-type": "text/html; charset=utf-8", "cache-control": "no-cache" });
+      return res.end(await fs.readFile(path.join(ROOT, "src", "status.html")));
+    }
     if (pathname === "/api/leaderboard") return json(res, 200, await store.leaderboard(10));
     if (pathname === "/api/places") return json(res, 200, game.placeList());
     if (pathname === "/mcp") return await handleMcp(req, res, req.method === "POST" ? await readBody(req) : undefined, () => players);
@@ -346,6 +352,7 @@ wss.on("connection", (ws) => {
   });
 });
 
+status.start({ version: VERSION, getState: () => ({ ready: !draining, players: players.size, clients: sockets.size, leader }) });
 server.listen(PORT, () => console.log(`Kube City ${VERSION} sur :${PORT} (pod ${store.POD})`));
 
 // ---------- Arrêt propre ----------
@@ -357,6 +364,7 @@ async function shutdown(sig) {
   draining = true;
   console.log(`${sig} reçu : arrêt propre dans ${DRAIN_MS} ms`);
   await store.releaseLead().catch(() => {});
+  await status.stop();
   await new Promise((r) => setTimeout(r, DRAIN_MS));
   broadcast({ t: "bye", pod: store.POD });
   mDrains.inc(sockets.size);

@@ -223,6 +223,19 @@ helm upgrade --install jeu ./chart/kube-city -n jeu \
 
 Persistance : chaque pod Redis a son propre disque (RWO, pas besoin de RWX), avec `appendonly`. Il ne sert que si les trois pods Redis redémarrent en même temps ; la réplication couvre la perte d'un pod.
 
+## Pour l'enseignant : la page /status
+
+Ouvrez `https://<hôte du groupe>/status` (vidéoprojecteur : thème sombre, gros caractères, rafraîchie toutes les 2 s). Le JSON brut est sur `/api/status`.
+
+- **Pods vivants** : un battement Redis toutes les 2 s par pod (nom, version, joueurs, uptime, Redis vu par ce pod), valable 6 s. Un pod sans battement n'apparaît plus.
+- **Leader des agents**, **rôle et adresse du Redis** joint (maître, nombre de réplicas), joueurs et agents IA.
+- **Disponibilité 30 min** : part des créneaux de 4 s où au moins un pod est prêt ET voit Redis, calculée depuis les battements (un créneau sans aucun battement compte comme coupé). Elle part du premier battement : un cluster neuf n'affiche pas 0 %.
+- **Journal des incidents** (30 dernières minutes, conservé dans Redis) : pod apparu, pod disparu sans arrêt propre (kill, crash, nœud perdu), pod arrêté proprement (SIGTERM), coupure Redis vue par un pod avec sa durée au retour.
+- **Redis coupé** : la page affiche un bandeau rouge et ne montre que ce que sait le pod qui répond (son battement, son journal local, le dernier score connu). Les autres pods et le leader sont alors inconnus : c'est normal.
+- **Si la page ne répond plus**, aucun pod ne sert le groupe : c'est une panne totale.
+
+Lien avec le barème (voir le tableau de `deploy/kapsule/README.md`) : le score donne un ordre de grandeur de la disponibilité HTTP ; le journal sert à vérifier une épreuve de chaos (kill d'un pod, du maître Redis, drain) et le temps de bascule (durée de coupure Redis). La mesure officielle reste la sonde via l'Ingress, pas ce score.
+
 ## Les épreuves de chaos
 
 Lancez la sonde **avant** les épreuves et laissez-la tourner :
