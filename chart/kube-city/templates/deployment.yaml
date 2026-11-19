@@ -1,9 +1,18 @@
+{{- $ds := eq .Values.kind "DaemonSet" }}
 apiVersion: apps/v1
-kind: Deployment
+kind: {{ $ds | ternary "DaemonSet" "Deployment" }}
 metadata:
   name: {{ include "pn.name" . }}
   labels: {{- include "pn.labels" . | nindent 4 }}
 spec:
+  {{- if $ds }}
+  # DaemonSet : un pod par nœud ; mise à jour nœud par nœud, le nouveau pod démarre avant l'arrêt de l'ancien
+  updateStrategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 0
+      maxSurge: 1
+  {{- else }}
   {{- if not .Values.autoscaling.enabled }}
   replicas: {{ .Values.replicaCount }}
   {{- end }}
@@ -12,6 +21,7 @@ spec:
     rollingUpdate:
       maxUnavailable: {{ .Values.strategy.maxUnavailable }}
       maxSurge: {{ .Values.strategy.maxSurge }}
+  {{- end }}
   selector:
     matchLabels: {{- include "pn.selector" . | nindent 6 }}
   template:
@@ -29,13 +39,14 @@ spec:
         runAsNonRoot: true
         runAsUser: 1000
         seccompProfile: { type: RuntimeDefault }
-      {{- if .Values.topologySpread.enabled }}
+      {{- if and .Values.topologySpread.enabled (not $ds) }}
       topologySpreadConstraints:
         - maxSkew: 1
           topologyKey: topology.kubernetes.io/zone
           whenUnsatisfiable: {{ .Values.topologySpread.zone }}
           labelSelector:
             matchLabels: {{- include "pn.selector" . | nindent 14 }}
+          matchLabelKeys: [pod-template-hash]
         - maxSkew: 1
           topologyKey: kubernetes.io/hostname
           whenUnsatisfiable: {{ .Values.topologySpread.node }}
@@ -43,6 +54,9 @@ spec:
           nodeTaintsPolicy: Honor
           labelSelector:
             matchLabels: {{- include "pn.selector" . | nindent 14 }}
+          # ne compter que les pods de CE ReplicaSet : sinon, pendant un rollout, le nouveau se place
+          # en fonction de l'ancien et deux pods peuvent finir sur le même nœud une fois l'ancien parti
+          matchLabelKeys: [pod-template-hash]
       {{- end }}
       containers:
         - name: game

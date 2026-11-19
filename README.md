@@ -128,7 +128,7 @@ Réglages HA du chart (`chart/kube-city/values.yaml`) :
 - `PodDisruptionBudget` (`minAvailable: 2`) ;
 - sondes `readiness` (`/readyz`), `liveness` (`/healthz`) et `startup` ;
 - `terminationGracePeriodSeconds` plus long que `DRAIN_DELAY_MS` ;
-- HPA de 3 à 10 pods sur le CPU ;
+- HPA de 3 à 6 pods sur le CPU, montée immédiate, descente lente (un pod toutes les 2 min après 10 min de calme : chaque pod retiré coupe les WebSocket de ses joueurs) ;
 - conteneur non root, système de fichiers en lecture seule.
 
 Redis externe en HA :

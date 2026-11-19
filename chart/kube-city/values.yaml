@@ -5,6 +5,11 @@ image:
   tag: ""            # vide = appVersion du chart
   pullPolicy: IfNotPresent
 
+# Deployment (défaut) : replicaCount pods, répartis par topologySpread, HPA possible.
+# DaemonSet : exactement un pod par nœud (3 nœuds = 3 pods), sans topologySpread ni HPA.
+#   Attention : `kubectl drain --ignore-daemonsets` ne chasse pas les pods d'un DaemonSet (le pod reste jusqu'à l'arrêt du nœud).
+kind: Deployment
+
 # Au moins 3 pods : on peut en perdre un (panne) pendant qu'un autre est remplacé (mise à jour)
 replicaCount: 3
 
@@ -33,8 +38,14 @@ topologySpread:
 autoscaling:
   enabled: true
   minReplicas: 3
-  maxReplicas: 10
+  maxReplicas: 6
   cpu: 70
+  # La montée garde les défauts (réaction immédiate) : un afflux de joueurs ne doit pas attendre.
+  # La descente est volontairement lente : un pod retiré coupe les WebSocket de ses joueurs.
+  behavior:
+    scaleDown:
+      stabilizationWindowSeconds: 600                          # 300 par défaut
+      policies: [{ type: Pods, value: 1, periodSeconds: 120 }]  # un pod à la fois, pas 100 % en 15 s
 
 # Mesuré (README, « Tenir la charge ») : ~110 Mo max et ~15 % d'un coeur par pod pour 60 joueurs.
 # Pas de limite CPU : un throttling ajouterait de la latence aux snapshots ; la limite mémoire reste le garde-fou.
