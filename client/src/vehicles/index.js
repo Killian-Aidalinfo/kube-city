@@ -413,6 +413,16 @@ export function install(game) {
         }
       }
       if (far < 320 || v.driver) v.update(dt, alpha);
+      // noyade : une voiture qui s'enfonce dans la mer ralentit brutalement et se détruit en quelques secondes
+      if (!v.remote && !v.wrecked && far < 320 && (guardN + i) % 3 === 1) {
+        const o = v.object3d.position, dep = game.world?.water?.depth?.(o.x, o.z) ?? 0;
+        if (dep > 1.2) {
+          const lv = v.chassis.linvel(), k = Math.max(0, 1 - 2.4 * dt * 3);
+          v.chassis.setLinvel({ x: lv.x * k, y: lv.y, z: lv.z * k }, true);
+          v.damage(14 * dt * 3, 'noyade');
+          if (v.driver === player && !v._drownWarned) { v._drownWarned = true; game.bus.emit('notify', { text: 'La voiture prend l\'eau : sortez de là !', kind: 'warning', duration: 3 }); }
+        } else v._drownWarned = false;
+      }
       if (far < 320) { const cp = game.three.camera.position, o = v.object3d.position; v.setLod(Math.hypot(o.x - cp.x, o.z - cp.z)); }
       // retournement : remise sur roues après 3 s (5 s avec le joueur au volant)
       if (v.pv && v.pv.flipT > (v.driver === player ? 5 : 3) && !v.wrecked) { v.flip(); }

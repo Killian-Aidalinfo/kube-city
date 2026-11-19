@@ -11,7 +11,7 @@ export function createFullMap(game, ui) {
     <div class="kc-legend"><h3 class="kc-h" style="margin:0 0 8px">Légende</h3>
       <div><i style="background:#c8d3f5;border-radius:2px"></i>Lieu</div><div><i style="background:#ff6a7a"></i>Hôpital</div><div><i style="background:#6a8cff"></i>Commissariat</div>
       <div><i style="background:#ff4fa3"></i>Garage</div><div><i style="background:#ffd23f;border-radius:2px;transform:rotate(45deg)"></i>Mission</div>
-      <div><i style="background:#38e8ff;border-radius:2px;transform:rotate(45deg)"></i>Point GPS</div><div><i style="background:#ff3c50"></i>Police</div><div><i style="background:#7bf59a"></i>Autre joueur</div>
+      <div><i style="background:#38e8ff;border-radius:2px;transform:rotate(45deg)"></i>Point GPS</div><div><i style="background:#ff3c50"></i>Police</div><div><i style="background:#7bf59a"></i>Autre joueur</div><div><i style="background:#7ff0ff"></i>Kube (à moins de 140 m)</div>
       <div style="color:var(--dim);margin-top:10px;display:block">Clic : poser un point GPS<br>Clic droit : l'effacer<br>Molette : zoom · glisser : déplacer<br>M ou Échap : fermer</div></div>
     <div class="tools"><button class="kc-btn small" data-a="in">+</button><button class="kc-btn small" data-a="out">−</button><button class="kc-btn small" data-a="me">Ma position</button><button class="kc-btn small pink" data-a="clear">Effacer le GPS</button><button class="kc-btn small" data-a="close">Fermer</button></div>
     <div class="info"></div>`;

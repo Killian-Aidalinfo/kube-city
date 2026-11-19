@@ -84,7 +84,7 @@ export const TIPS = [
   'Maintenez Alt pour changer de personnage : la caméra survole la ville.',
   'Le panneau en haut au centre montre quel pod sert votre partie. Tuez-le : le jeu continue.',
   'Repeindre un véhicule chez Lou fait baisser votre niveau de recherche.',
-  'Cherchez les kubes cyan cachés dans la ville : 50 en tout, 25 € pièce.',
+  'Cherchez les kubes cyan cachés dans la ville : 50 en tout, 25 € pièce. Les plus proches apparaissent sur la minimap.',
   'Cliquez sur la carte (M) pour poser un point GPS : l\'itinéraire suit les routes.',
   'Inès conduit mieux, Malik répare vite, Jade fait taire la police.',
   'Sortir d\'un véhicule à plus de 30 km/h se termine par une roulade.',

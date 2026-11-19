@@ -61,13 +61,19 @@ export function drawArrow(ctx, x, y, size, rot = 0, color = '#fff') {
   ctx.restore();
 }
 
-/** Récupère l'ensemble des blips à afficher : lieux, marqueurs de mission, joueurs distants. */
+/** Récupère l'ensemble des blips à afficher : lieux, marqueurs de mission, kubes proches, joueurs distants. */
 export function collectBlips(game) {
   const out = [];
   for (const [key, p] of Object.entries(game.world?.places || {})) {
     if (p?.position) out.push({ x: p.position.x, z: p.position.z, label: p.label || key, color: placeColor(key + (p.label || '')), shape: 'sq' });
   }
   for (const m of game.gameplay?.markers || []) if (m.kind !== 'shop') out.push({ x: m.x, z: m.z, label: m.label, color: m.color, shape: 'dia' });
+  // kubes à collectionner : seuls ceux à moins de 140 m apparaissent (radar, sans révéler toute la carte)
+  const gp = game.gameplay, me = game.player?.position;
+  if (me && gp?.kubePositions && gp.profile?.kubes) {
+    const got = new Set(gp.profile.kubes);
+    gp.kubePositions.forEach((k, i) => { if (!got.has(i) && Math.hypot(k.x - me.x, k.z - me.z) < 140) out.push({ x: k.x, z: k.z, color: '#7ff0ff', shape: 'dot' }); });
+  }
   const pls = game.net?.players;
   const arr = pls instanceof Map ? [...pls.values()] : Array.isArray(pls) ? pls : [];
   for (const o of arr) { const p = o?.position ?? o?.pos; if (p) out.push({ x: p.x, z: p.z, label: o.name || 'Joueur', color: '#7bf59a', shape: 'dot' }); }

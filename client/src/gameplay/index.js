@@ -163,6 +163,18 @@ export function install(game) {
       ...SIDE_MISSIONS,
     ];
   }
+  /** Cap d'un véhicule posé près d'une route : dans l'axe de la route, nez vers le centre-ville (jamais face au mur). */
+  function roadYaw(at) {
+    try {
+      const r = game.world?.nearestRoadPoint?.(at);
+      if (!r || !Number.isFinite(r.x)) return 0;
+      const dx = at.x - r.x, dz = at.z - r.z;
+      if (Math.hypot(dx, dz) < 0.5) return 0;
+      // décalage perpendiculaire à la route : s'il est surtout en X, la route court selon Z (et inversement)
+      if (Math.abs(dx) > Math.abs(dz)) return at.z > 0 ? Math.PI : 0;
+      return at.x > 0 ? -Math.PI / 2 : Math.PI / 2;
+    } catch { return 0; }
+  }
   const env = {
     pos: () => game.player?.position || spawn(),
     inVehicle: () => !!game.player?.vehicle,
@@ -174,7 +186,7 @@ export function install(game) {
     notify: (text, kind = 'info', duration = 3) => bus.emit('notify', { text, kind, duration }),
     spawnVehicle(spec) {
       const at = spec.at || env.pos();
-      const v = game.vehicles?.spawn?.(spec.type || 'sedan', { x: at.x, y: groundY(at.x, at.z) + 1, z: at.z }, spec.rotation || 0, { owner: 'player' });
+      const v = game.vehicles?.spawn?.(spec.type || 'sedan', { x: at.x, y: groundY(at.x, at.z) + 1, z: at.z }, spec.rotation ?? roadYaw(at), { owner: 'player' });
       return { vehicle: v, pos: () => v?.object3d?.position ?? at };
     },
     switchTo: (id) => gp.switchCharacter(id, { forced: true }),

@@ -26,7 +26,7 @@ export const STEP_TYPES = {
       let rotation = step.spawn.rotation;
       if (rotation == null && next?.to) { // orienter la voiture vers le premier point de l'itinéraire
         try {
-          const dest = resolveRef(env, next.to), r = env.route?.(at, dest), p1 = Array.isArray(r) && r.length > 1 ? r[1] : dest;
+          const dest = resolveRef(env, next.to), r = env.route?.(at, dest), p1 = Array.isArray(r) && r.length > 1 ? (r.find((q) => Math.hypot(q.x - at.x, q.z - at.z) > 8) ?? r[1]) : dest; // premier point à plus de 8 m : le projeté sur la route est en travers, face au mur d'en face
           if (p1 && Math.hypot(p1.x - at.x, p1.z - at.z) > 0.5) rotation = Math.atan2(p1.x - at.x, p1.z - at.z);
         } catch { /* itinéraire indisponible */ }
       }
