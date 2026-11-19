@@ -418,8 +418,8 @@ export function install(game) {
       }
       // l'incendie ronge la carrosserie jusqu'à l'épave
       if (lvl === 'fire') v.damage(1.4 * dt, 'incendie');
-      // épave abandonnée : disparaît après 2 min si loin du joueur
-      if (v.wrecked && !v.driver && now - (v.wreckedAt ?? now) > 120 && far > 60) vehicles.remove(v);
+      // épave abandonnée (le « conducteur » factice d'une voiture de circulation ne compte pas) : disparaît après 2 min si loin du joueur
+      if (v.wrecked && (!v.driver || v.driver.npc) && now - (v.wreckedAt ?? now) > 120 && far > 60) vehicles.remove(v);
     }
     updateFx(dt);
     // phare du véhicule du joueur

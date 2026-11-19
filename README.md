@@ -236,6 +236,13 @@ Ouvrez `https://<hôte du groupe>/status` (vidéoprojecteur : thème sombre, gro
 
 Lien avec le barème (voir le tableau de `deploy/kapsule/README.md`) : le score donne un ordre de grandeur de la disponibilité HTTP ; le journal sert à vérifier une épreuve de chaos (kill d'un pod, du maître Redis, drain) et le temps de bascule (durée de coupure Redis). La mesure officielle reste la sonde via l'Ingress, pas ce score.
 
+## Endurance (une journée de cours)
+
+`scripts/soak.mjs` (serveur : 40 joueurs qui partent et reviennent avec un nouvel identifiant toutes les ~45 s, agents MCP, chaos toutes les 4 min — kill pod, kill du maître Redis, restart pod — relevé chaque minute de la mémoire des pods, des clés Redis et de la latence) et `scripts/soak-client.mjs` (Chrome headless : marche, voiture, panneaux, changement de perso, police, pannes de pod ; heap JS après GC forcé et `renderer.info.memory`). Variante Sentinel : `COMPOSE_FILE=docker-compose.yml:deploy/sentinel/docker-compose.sentinel.yml REDIS_SERVICE=auto node scripts/soak.mjs --minutes 25`.
+
+- **Serveur, 25 min** : RSS des pods 66-75 → 72-78 Mo (heap 31-37 → 30-34 Mo, handles stables), Redis ~100 clés stables, latence état→snapshot p50/p95 ≈ 40/70 ms du début à la fin. Rien ne monte sans redescendre côté pods. Seul le classement (`pn:scores` + `pn:names`) grossissait sans fin (+30 entrées/min, un id neuf par visiteur, sans TTL) : il est maintenant plafonné à ~2 000 joueurs et expire après 7 jours sans activité. Le journal de disponibilité (`pn:hbh`) atteint sa fenêtre de 30 min puis plafonne : c'est voulu.
+- **Client, 15 min** : textures GPU 85 → 956 (fuite : la `boneTexture` de chaque squelette de joueur parti n'était jamais libérée, `Skeleton.dispose()` manquait) ; après correction 85 → ~185 et stable. Géométries 135 → 1 316 et véhicules 72 → 172 avant correction (les épaves de la circulation gardaient leur faux conducteur PNJ et ne disparaissaient jamais) ; après correction 135 → 655 (le monde se charge autour du joueur) et 92 → 97 véhicules. Heap JS 39 → 52 Mo avant, 46 → 43 Mo après ; écouteurs DOM constants (56).
+
 ## Les épreuves de chaos
 
 Lancez la sonde **avant** les épreuves et laissez-la tourner :

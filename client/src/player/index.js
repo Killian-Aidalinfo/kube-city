@@ -33,7 +33,7 @@ export async function install(game) {
   function disposeModel() {
     if (!model) return;
     pivot.remove(model);
-    model.traverse((o) => { if (o.isSkinnedMesh) { o.geometry?.dispose(); o.material?.dispose?.(); } });
+    model.traverse((o) => { if (o.isSkinnedMesh) { o.geometry?.dispose(); o.skeleton?.dispose?.(); o.material?.dispose?.(); } });
     mixer?.stopAllAction(); actions.clear(); anim.current = null; anim.key = null;
   }
   function buildModel(id) {

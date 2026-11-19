@@ -111,6 +111,6 @@ export function createCharacter(game, kit, outfit) {
       if (mixer) mixer.update(dt);
       else { t += dt; model.position.y = curName.includes('Walk') || curName.includes('Jog') ? Math.abs(Math.sin(t * 8)) * 0.05 : 0; }
     },
-    dispose() { mixer?.stopAllAction(); root.removeFromParent(); },
+    dispose() { mixer?.stopAllAction(); root.removeFromParent(); root.traverse((o) => o.skeleton?.dispose?.()); },
   };
 }

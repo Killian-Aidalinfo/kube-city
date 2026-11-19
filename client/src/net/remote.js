@@ -44,6 +44,7 @@ export function makeBubble(icon) {
 function disposeObject(o) {
   o.traverse((n) => {
     n.geometry?.dispose?.();
+    n.skeleton?.dispose?.(); // libère la boneTexture (16×16 flottants) : sinon une par joueur parti reste en mémoire GPU
     const mats = Array.isArray(n.material) ? n.material : n.material ? [n.material] : [];
     for (const m of mats) { m.map?.dispose?.(); m.dispose?.(); }
   });

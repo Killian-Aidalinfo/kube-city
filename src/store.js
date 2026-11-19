@@ -87,10 +87,20 @@ export async function loadPlayer(id) {
 }
 
 // --- Scores ---
+const SCORES_MAX = 2000, SCORES_TTL = 7 * 24 * 3600;
 export async function addScore(id, name, pts) {
   const n = Math.max(-500, Math.min(500, Math.round(pts)));
-  await redis.hset("pn:names", id, name);
-  return redis.zincrby("pn:scores", n, id);
+  const r = await redis.multi()
+    .hset("pn:names", id, name).zincrby("pn:scores", n, id)
+    .expire("pn:names", SCORES_TTL).expire("pn:scores", SCORES_TTL).zcard("pn:scores").exec();
+  // Endurance : le classement et la table des pseudos ne grossissent pas sans fin (un id neuf par visiteur) :
+  // on garde les SCORES_MAX meilleurs, on oublie les pseudos des autres, et tout expire après 7 jours sans activité.
+  const card = r[4][1];
+  if (card > SCORES_MAX + SCORES_MAX / 10) {
+    const drop = await redis.zrange("pn:scores", 0, card - SCORES_MAX - 1);
+    if (drop.length) await redis.multi().zrem("pn:scores", ...drop).hdel("pn:names", ...drop).exec();
+  }
+  return r[1][1];
 }
 
 export async function leaderboard(n = 10) {
@@ -271,7 +281,7 @@ const SESS_TTL = 12 * 3600;
 export const SESS_KINDS = ["money", "races", "kubes"];
 export async function bumpSession(id, name, kind, n) {
   if (!SESS_KINDS.includes(kind)) return 0;
-  await redis.hset("pn:names", id, name);
+  await redis.multi().hset("pn:names", id, name).expire("pn:names", SCORES_TTL).exec();
   const v = Number(await redis.zincrby(`pn:ss:${kind}`, n, id));
   await redis.expire(`pn:ss:${kind}`, SESS_TTL);
   return v;

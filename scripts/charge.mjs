@@ -4,6 +4,8 @@
 //   node scripts/charge.mjs --players 60 --agents 3 --duration 60 [--url http://localhost:8080]
 //   --docker           échantillonne CPU/mémoire des conteneurs (docker stats)
 //   --chaos redis@20,pod@35   chaos pendant la charge (docker compose : tue le maître Redis, un pod de jeu)
+//   --churn 45         chaque joueur se déconnecte puis revient (nouvel identifiant) toutes les ~45 s (endurance)
+//   --redis-service auto  (Sentinel) tue le maître courant ; --redis-back 25  le redémarre 25 s après (il revient en réplica)
 //   --redis-service redis-a   service Redis à tuer (redis par défaut, redis-a avec Sentinel)
 import { spawn, execFile } from "node:child_process";
 
@@ -11,7 +13,7 @@ const arg = (k, d) => { const i = process.argv.indexOf(`--${k}`); return i < 0 ?
 const BASE = String(arg("url", "http://localhost:8080")).replace(/\/$/, "");
 const WS_URL = BASE.replace(/^http/, "ws") + "/ws";
 const N = +arg("players", 30), AGENTS = +arg("agents", 3), DURATION = +arg("duration", 60);
-const HZ = 15, DOCKER = !!arg("docker", false), REDIS_SVC = String(arg("redis-service", "redis"));
+const CHURN = +arg("churn", 0), HZ = 15, DOCKER = !!arg("docker", false), REDIS_SVC = String(arg("redis-service", "redis"));
 const chaos = String(arg("chaos", "")).split(",").filter(Boolean).map((c) => { const [what, at] = c.split("@"); return { what, at: +at }; });
 const t0 = Date.now(), now = () => performance.now();
 
@@ -24,6 +26,18 @@ class Bot {
     this.x = (Math.random() - 0.5) * 1000; this.z = (Math.random() - 0.5) * 1000; this.yaw = Math.random() * 6.28;
     this.driving = i % 2 === 0; this.seq = 0; this.sent = new Map(); this.everOpen = false; this.closedAt = 0; this.attempt = 0; this.lastSnap = 0;
     this.open();
+    if (CHURN) this.scheduleChurn();
+  }
+  // Endurance : le joueur part pour de bon (fermeture propre), puis un « nouveau » joueur arrive avec un autre id
+  scheduleChurn() {
+    this.churnTimer = setTimeout(() => {
+      if (this.stopped) return;
+      this.stopped = true; clearInterval(this.timer); clearInterval(this.ping); this.ws?.close();
+      setTimeout(() => {
+        this.id = `charge-${String(this.i).padStart(3, "0")}-${Date.now().toString(36)}`; this.stopped = false;
+        this.everOpen = false; this.closedAt = 0; this.attempt = 0; this.sent.clear(); this.open(); this.scheduleChurn();
+      }, 500 + Math.random() * 4000);
+    }, CHURN * 1000 * (0.5 + Math.random()));
   }
   open() {
     const ws = this.ws = new WebSocket(WS_URL);
@@ -74,6 +88,7 @@ class Bot {
     const p = [r2(this.x), this.seq / 100, r2(this.z)];
     if (this.driving) this.send({ t: "vehicle", id: `${this.id}-v`, type: "sedan", p, q: [0, Math.sin(this.yaw / 2), 0, Math.cos(this.yaw / 2)], w: [0, 0], col: "#39ff88", sir: 0, li: 1 });
     this.send({ t: "state", p, r: r2(this.yaw), vel: [r2(Math.sin(this.yaw) * speed), 0, r2(Math.cos(this.yaw) * speed)], a: this.driving ? "drive" : "walk", veh: this.driving ? `${this.id}-v` : null, seat: 0, st: 0 });
+    if (Math.random() < 0.0015) this.send({ t: "mission", pts: 10 }); // alimente le classement (pn:scores, pn:names)
     if (Math.random() < 0.002) this.send({ t: "chat", text: "salut depuis la charge" });
   }
 }
@@ -107,10 +122,17 @@ const places = ["aeroport", "port", "mairie", "stade", "phare"];
 const agentTimer = setInterval(() => agentIds.forEach((id) => mcp("drive_to", { agentId: id, place: places[Math.floor(Math.random() * places.length)] }).catch(() => {})), 20000);
 
 const compose = (...a) => spawn("docker", ["compose", ...a], { stdio: "ignore" });
+const BACK = +arg("redis-back", 0);
+const sh = (...a) => new Promise((r) => execFile("docker", ["compose", ...a], { timeout: 15000 }, (e, out) => r(e ? "" : out)));
+async function masterService() { // variante Sentinel : le maître change à chaque bascule
+  if (REDIS_SVC !== "auto") return REDIS_SVC;
+  for (const svc of ["redis-a", "redis-b", "redis-c"]) if ((await sh("exec", "-T", svc, "redis-cli", "role")).startsWith("master")) return svc;
+  return "redis-a";
+}
 for (const c of chaos) setTimeout(() => {
   console.log(`[${((Date.now() - t0) / 1000).toFixed(0)}s] CHAOS ${c.what}`);
-  if (c.what === "redis") compose("kill", REDIS_SVC);
-  else if (c.what === "pod") compose("kill", "game-2");
+  if (c.what === "redis") masterService().then((svc) => { console.log(`  maître : ${svc}`); compose("kill", svc); if (BACK) setTimeout(() => compose("start", svc), BACK * 1000); });
+  else if (c.what === "pod") { compose("kill", "game-2"); setTimeout(() => compose("start", "game-2"), 20000); } // le pod « revient » comme sous Kubernetes
   else if (c.what === "podrestart") compose("restart", "game-2");
 }, c.at * 1000);
 
