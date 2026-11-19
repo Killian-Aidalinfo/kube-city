@@ -1,6 +1,6 @@
 # Bilan de la nuit du 18 au 19 novembre 2026
 
-Commits `412bc9c` → `a9941cb` sur `main`. Tests : 98/98, build OK, smoke OK (60 i/s, jour ~210 draw calls, nuit ~160 depuis la moto, le bus et les pigeons).
+Commits `412bc9c` → `a9941cb` sur `main`. Tests : 100/100, build OK, smoke OK (60 i/s, jour ~210 draw calls, nuit ~160 depuis la moto, le bus et les pigeons).
 
 ## Jeu
 - **Missions** : script `scripts/playtest/missions.mjs` (les 9 missions + casse + activités + boutique, ~4 min) ; course contre le Cluster à gagner pour de vrai ; textes et récompenses cohérents ; dialogues réécrits autour du « Cluster ».
@@ -30,6 +30,7 @@ Commits `412bc9c` → `a9941cb` sur `main`. Tests : 98/98, build OK, smoke OK (6
 Deux revues : la seconde a corrigé une relance Redis pendant l'arrêt propre, un double prix de chasse, une course close encore gagnable et l'absence d'anti-spam.
 
 ## À vérifier avant le cours
+0. **Agents IA** : donnez à chaque étudiant une clé `X-Kube-Key` différente (3 agents par clé). Les limites par IP sont larges exprès : toute la classe sort par la même IP.
 1. Déployer CETTE version avant l'arrivée des étudiants : un ancien pod ne comprend pas les lots Pub/Sub des nouveaux (les rollouts suivants, même version, ne sont pas concernés).
 2. `docker pull bitnami/redis:latest` et `bitnami/redis-sentinel:latest` : Bitnami ne publie plus que `latest` en gratuit.
 3. Sur une vraie Kapsule : Ingress + Let's Encrypt, perte brutale d'un nœud (scénario 5) et `kubectl top` pour le HPA — non testés cette nuit.

@@ -188,3 +188,11 @@ test('reroute : l\'adresse change quand on s\'approche, le singe fuit', () => {
   const c = createRunner({ id: 'y', steps: [{ type: 'chase', text: 't', from: { x: 0, z: 0 }, to: { x: 100, z: 0 }, speed: 10, radius: 5 }] }, { ...env, pos: () => ({ x: 500, z: 500 }) });
   c.update(2); assert.ok(c.target.x > 15 && c.status === 'running');
 });
+
+test('chase : rattrapé après 2 s à moins de 6 m, ou en percutant', () => {
+  const mk = (me, spd = 0) => createRunner({ id: 'c', steps: [{ type: 'chase', text: 't', from: { x: 0, z: 0 }, to: { x: 100, z: 0 }, speed: 10, radius: 6, hold: 2, spawn: { type: 'police' } }] },
+    { pos: () => me, inVehicle: () => true, speed: () => spd, say() {}, notify() {}, spawnVehicle: () => ({ vehicle: {} }), driveVehicle: () => 50, vehiclePos: () => ({ x: 0, z: 0 }), releaseVehicle() {} });
+  const a = mk({ x: 4, z: 0 }); a.update(1); assert.equal(a.status, 'running'); a.update(1.2); assert.equal(a.status, 'passed');
+  const b = mk({ x: 20, z: 0 }); for (let i = 0; i < 50; i++) b.update(0.1); assert.equal(b.status, 'running');
+  const c = mk({ x: 2, z: 0 }, 12); c.update(0.1); assert.equal(c.status, 'passed');
+});

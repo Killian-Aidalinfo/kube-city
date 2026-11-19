@@ -16,20 +16,33 @@ const fail = (msg) => ({ content: [{ type: "text", text: msg }], isError: true }
 // Tout est compté dans Redis, donc commun à tous les pods. Réglable par variables d'environnement.
 const LIM = {
   perKey: Number(process.env.MCP_MAX_BOTS_PER_KEY || 3),    // agents par clé (en-tête X-Kube-Key, sinon l'IP)
-  perIp: Number(process.env.MCP_MAX_BOTS_PER_IP || 8),      // agents par adresse IP
+  perIp: Number(process.env.MCP_MAX_BOTS_PER_IP || 40),     // agents par adresse IP (toute une classe sort souvent par la même IP NAT)
   total: Number(process.env.MCP_MAX_BOTS || 40),            // agents dans toute la ville
-  rpm: Number(process.env.MCP_RPM || 240),                  // requêtes MCP par minute et par IP
-  spawnPerMin: Number(process.env.MCP_SPAWN_PER_MIN || 6),  // créations d'agents par minute et par IP
-  chatPerMin: Number(process.env.MCP_CHAT_PER_MIN || 15),   // messages de chat par minute et par IP
+  rpm: Number(process.env.MCP_RPM || 3000),                  // requêtes MCP par minute et par IP
+  spawnPerMin: Number(process.env.MCP_SPAWN_PER_MIN || 40),  // créations d'agents par minute et par IP
+  chatPerMin: Number(process.env.MCP_CHAT_PER_MIN || 120),   // messages de chat par minute et par IP
   openRaces: Number(process.env.MCP_MAX_OPEN_RACES || 6),   // courses ouvertes en même temps
 };
 export const MCP_LIMITS = LIM;
 const bad = (s) => /radio\s*kube/i.test(s);
 const clean = (s, n) => String(s ?? "").replace(/[\u0000-\u001f\u007f]/g, " ").replace(/\s+/g, " ").trim().slice(0, n);
 
-/** Qui appelle : IP (derrière un proxy : premier X-Forwarded-For) et clé facultative (X-Kube-Key) pour distinguer des élèves derrière la même box. */
+/**
+ * IP du client : on prend l'adresse ajoutée par NOTRE proxy, pas celle que le client a pu écrire (entrée la plus à gauche, falsifiable).
+ * TRUST_PROXY_HOPS = nombre de proxys de confiance devant l'app (défaut 1 : entrée la plus à droite) ; 0 = ignorer X-Forwarded-For.
+ */
+export function clientIp(req, hops = Number(process.env.TRUST_PROXY_HOPS ?? 1)) {
+  const peer = req.socket?.remoteAddress || "?";
+  const n = Number.isFinite(hops) ? Math.floor(hops) : 1;
+  if (n <= 0) return peer;
+  const list = String(req.headers["x-forwarded-for"] || "").split(",").map((x) => x.trim()).filter(Boolean);
+  if (!list.length) return peer;
+  return list[Math.max(0, list.length - n)];
+}
+
+/** Qui appelle : IP (X-Forwarded-For, voir clientIp) et clé facultative (X-Kube-Key) pour distinguer des élèves derrière la même box. */
 export function whoIs(req) {
-  const ip = String(req.headers["x-forwarded-for"] || req.socket?.remoteAddress || "?").split(",")[0].trim();
+  const ip = clientIp(req);
   const k = String(req.headers["x-kube-key"] || "").trim().slice(0, 40);
   const key = crypto.createHash("sha1").update(k || ip).digest("hex").slice(0, 12);
   return { ip: crypto.createHash("sha1").update(ip).digest("hex").slice(0, 12), key };

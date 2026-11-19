@@ -99,23 +99,43 @@ export const STEP_TYPES = {
     },
     target: (st) => st.pos,
   },
-  // Poursuite : la cible (un singe au volant) fuit le long d'un trajet aller-retour ; il faut la rattraper en véhicule.
+  // Poursuite : la cible (un singe au volant d'une vraie voiture) fuit en roulant sur un trajet en boucle ;
+  // rattrapée si le joueur reste à moins de `radius` m pendant `hold` s, ou la percute.
   chase: {
     start(step, st, env) {
       const a = resolveRef(env, step.from), b = resolveRef(env, step.to);
       const r = env.route?.(a, b);
-      st.path = Array.isArray(r) && r.length > 1 ? r : [a, b];
-      st.len = pathLength(st.path); st.d = 0; st.dir = 1; st.pos = { ...a };
-      if (step.spawn) st.vehicle = env.spawnVehicle({ ...step.spawn, at: a });
+      st.fwd = Array.isArray(r) && r.length > 1 ? r : [a, b];
+      st.bwd = st.fwd.slice().reverse(); st.leg = st.fwd; st.near = 0; st.pos = { ...a };
+      if (step.spawn) {
+        const p1 = st.fwd[1], yaw = Math.atan2(p1.x - a.x, p1.z - a.z);
+        st.vehicle = env.spawnVehicle({ ...step.spawn, at: a, rotation: yaw });
+        env.seatMonkey?.(st.vehicle);
+      }
     },
     update(step, st, env, dt) {
-      st.d += st.dir * (step.speed ?? 9) * dt;
-      if (st.d >= st.len) { st.d = st.len; st.dir = -1; } else if (st.d <= 0) { st.d = 0; st.dir = 1; }
-      const prev = st.pos;
-      st.pos = pointAlong(st.path, st.d);
-      env.moveVehicle?.(st.vehicle, st.pos, Math.atan2(st.pos.x - prev.x, st.pos.z - prev.z));
-      return env.inVehicle() && dist2d(env.pos(), st.pos) <= (step.radius ?? 9) ? 'done' : undefined;
+      const me = env.pos();
+      if (env.driveVehicle && st.vehicle?.vehicle) {
+        const d0 = dist2d(me, st.pos);
+        // fuit vite de près, ralentit quand le joueur est loin pour rester rattrapable
+        const want = d0 > 90 ? (step.speed ?? 10) * 0.7 : d0 > 40 ? (step.speed ?? 10) : (step.speed ?? 10) * 1.5;
+        const left = env.driveVehicle(st.vehicle, st.leg, want, dt);
+        if (left !== null && left < 10) { st.leg = st.leg === st.fwd ? st.bwd : st.fwd; }
+        st.pos = env.vehiclePos?.(st.vehicle) ?? st.pos;
+      } else {
+        // repli sans véhicule physique : balayage du trajet
+        st.d = (st.d ?? 0) + (st.dir ?? 1) * (step.speed ?? 9) * dt; st.dir ??= 1;
+        const len = pathLength(st.fwd);
+        if (st.d >= len) { st.d = len; st.dir = -1; } else if (st.d <= 0) { st.d = 0; st.dir = 1; }
+        st.pos = pointAlong(st.fwd, st.d);
+      }
+      if (!env.inVehicle()) { st.near = 0; return undefined; }
+      const d = dist2d(me, st.pos), r = step.radius ?? 6;
+      if (d <= (step.ramRadius ?? 3.5) && (env.speed?.() ?? 0) > 4) return 'done';
+      st.near = d <= r ? st.near + dt : 0;
+      return st.near >= (step.hold ?? 2) ? 'done' : undefined;
     },
+    stop(st, env) { env.releaseVehicle?.(st.vehicle); },
     target: (st) => st.pos,
   },
   // Adresses mouvantes : le point d'arrivée change dès qu'on s'en approche (le DNS, c'est toujours le DNS).
@@ -180,6 +200,7 @@ export function createRunner(def, env) {
     get timeLeft() { const s = runner.step; return s?.timeLimit ? Math.max(0, s.timeLimit - runner.stepTime) : null; },
     /** Rejoue l'objectif courant depuis le début (point de passage). */
     restartStep() { runner.status = 'running'; runner.failReason = ''; beginStep(); },
+    dispose() { const s = runner.step; if (s) STEP_TYPES[s.type]?.stop?.(runner.st, env); },
     update(dt) {
       if (runner.status !== 'running') return runner.status;
       runner.elapsed += dt; runner.stepTime += dt;
@@ -189,6 +210,7 @@ export function createRunner(def, env) {
       if (s.failOnDamage && env.vehicleDamage?.() > s.failOnDamage) return fail('Le véhicule est trop abîmé !');
       const r = STEP_TYPES[s.type]?.update(s, runner.st, env, dt);
       if (r === 'done') {
+        STEP_TYPES[s.type].stop?.(runner.st, env);
         if (s.type === 'race') runner.result.place = runner.st.place;
         runner.index++;
         if (runner.index >= def.steps.length) runner.status = 'passed'; else beginStep();
@@ -196,7 +218,7 @@ export function createRunner(def, env) {
       return runner.status;
     },
   };
-  function fail(reason) { runner.status = 'failed'; runner.failReason = reason; return runner.status; }
+  function fail(reason) { runner.dispose(); runner.status = 'failed'; runner.failReason = reason; return runner.status; }
   function beginStep() {
     const s = runner.step; runner.stepTime = 0; runner.st = {};
     if (!s) return;

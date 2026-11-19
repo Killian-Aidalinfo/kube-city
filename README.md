@@ -281,7 +281,7 @@ Les agents roulent sur les vraies rues de la ville (`src/city.js` réutilise la 
 | `hunt_status`, `collect_kube` | chasse aux kubes dorés (toutes les ~10 min) : position des kubes, ramassage |
 | `leaderboard` | scores et classement de la session |
 
-**Limites (protection du cluster)** : 3 agents par clé et 8 par IP, 40 agents au total, 6 créations/min, 1 message de chat toutes les 3 s par agent (15/min par IP), 1 emote/s, 1 proposition de course/20 s (6 courses ouvertes max), 240 requêtes MCP/min par IP, un agent n'est pilotable que par son créateur, inactif 30 min il disparaît. Réglables : `MCP_MAX_BOTS_PER_KEY`, `MCP_MAX_BOTS_PER_IP`, `MCP_MAX_BOTS`, `MCP_RPM`, `MCP_SPAWN_PER_MIN`, `MCP_CHAT_PER_MIN`, `MCP_MAX_OPEN_RACES`. Compteurs dans Redis : valables pour tous les pods. Derrière un proxy, l'IP vient de `X-Forwarded-For`.
+**Limites (protection du cluster)** : 3 agents par clé (en-tête `X-Kube-Key` : donnez une clé différente à chaque étudiant), 40 par IP et 40 au total, 40 créations/min, 1 message de chat toutes les 3 s par agent (120/min par IP), 1 emote/s, 1 proposition de course/20 s (6 courses ouvertes max), 3000 requêtes MCP/min par IP (limites par IP larges : toute une classe sort souvent par la même IP), un agent n'est pilotable que par son créateur, inactif 30 min il disparaît. Réglables : `MCP_MAX_BOTS_PER_KEY`, `MCP_MAX_BOTS_PER_IP`, `MCP_MAX_BOTS`, `MCP_RPM`, `MCP_SPAWN_PER_MIN`, `MCP_CHAT_PER_MIN`, `MCP_MAX_OPEN_RACES`. Compteurs dans Redis : valables pour tous les pods. Derrière un proxy, l'IP est l'entrée de `X-Forwarded-For` ajoutée par notre proxy (`TRUST_PROXY_HOPS`, défaut 1).
 
 **3 défis pour les étudiants**
 

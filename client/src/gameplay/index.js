@@ -1,4 +1,6 @@
 // GAMEPLAY (spec 11) : persos jouables, argent, missions et activités data-driven, boutiques, respawn, sauvegarde.
+import { PolyPath, headingOf, steerTo, speedCommand } from '../npc/driver.js';
+import { seatMonkey } from './monkey.js';
 import * as THREE from 'three';
 import { CHARACTERS, CHARACTER_IDS, gainStat, checkAchievements } from './characters.js';
 import { MISSIONS, availableMissions } from './missions.js';
@@ -164,6 +166,7 @@ export function install(game) {
   const env = {
     pos: () => game.player?.position || spawn(),
     inVehicle: () => !!game.player?.vehicle,
+    speed: () => (game.player?.vehicle?.speed ?? 0) / 3.6,
     wanted: () => game.police?.level ?? 0,
     setWanted: (n) => { if (game.police?.setLevel) game.police.setLevel(n); },
     place,
@@ -180,6 +183,31 @@ export function install(game) {
     photoCount: () => photos.count,
     photoNear: (p, r) => !photos.last || dist2d(photos.last, p) <= r,
     route: (a, b) => { try { return game.world?.route?.(a, b); } catch { return null; } },
+    /** Fait rouler un véhicule sans conducteur le long de `pts` (IA de la police) ; renvoie la distance restante. */
+    driveVehicle(h, pts, desired, dt) {
+      const v = h?.vehicle; if (!v || v.driver) return null;
+      const p = v.object3d.position, hd = headingOf(v.object3d, { x: 0, z: 1 }), speed = (v.speed ?? 0) / 3.6;
+      if (h.ptsRef !== pts) { h.ptsRef = pts; h.path = new PolyPath(pts); }
+      const left = h.path.update(p), tgt = h.path.target(Math.max(8, speed), p);
+      h.stuck = speed < 0.6 ? (h.stuck || 0) + dt : 0;
+      if (h.stuck > 2.5) { h.rev = 1.4; h.stuck = 0; }
+      v.engineOn = true;
+      if (h.rev > 0) { h.rev -= dt; v.setControls({ throttle: 0, brake: 1, steer: -steerTo(hd.x, hd.z, tgt.x - p.x, tgt.z - p.z), handbrake: false }); return left; }
+      const steer = steerTo(hd.x, hd.z, tgt.x - p.x, tgt.z - p.z);
+      const cmd = speedCommand(speed, desired * (1 - 0.45 * Math.min(1, Math.abs(steer))));
+      v.setControls({ throttle: cmd.throttle, brake: cmd.brake, steer, handbrake: false });
+      return left;
+    },
+    /** Position réelle d'un véhicule piloté. */
+    vehiclePos: (h) => h?.vehicle?.object3d?.position ?? null,
+    /** Pose un singe au volant. */
+    seatMonkey(h) { if (h?.vehicle && !h.unseat) h.unseat = seatMonkey(h.vehicle); },
+    /** Fin de poursuite : arrête la voiture et enlève le singe. */
+    releaseVehicle(h) {
+      const v = h?.vehicle; if (!v) return;
+      h.unseat?.(); h.unseat = null;
+      v.setControls?.({ throttle: 0, brake: 1, steer: 0, handbrake: true }); v.siren = false;
+    },
     moveVehicle(h, p, heading) {
       const v = h?.vehicle; if (!v || v.driver) return;
       try { game.vehicles.teleport(v, { x: p.x, y: groundY(p.x, p.z), z: p.z }, heading); } catch { /* véhicule retiré */ }
@@ -203,6 +231,7 @@ export function install(game) {
     return true;
   }
   function end() {
+    active?.runner?.dispose?.();
     active = null;
     game.ui?.setWaypoint?.(null, { auto: true });
     refreshMissions();

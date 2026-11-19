@@ -103,3 +103,14 @@ test("isStale : pendant une coupure Redis les joueurs des autres pods restent, p
   assert.equal(proto.isStale(0, 61_000, true, 60_500), false);    // Redis revient à 60,5 s : le délai repart de là
   assert.equal(proto.isStale(0, 67_000, true, 60_500), true);     // sans lot reçu depuis : parti (pod mort)
 });
+
+test("clientIp : adresse ajoutée par notre proxy, pas celle du client", async () => {
+  const { clientIp } = await import("../src/mcp.js");
+  const r = (xff, peer = "10.0.0.9") => ({ headers: xff ? { "x-forwarded-for": xff } : {}, socket: { remoteAddress: peer } });
+  assert.equal(clientIp(r("1.1.1.1, 203.0.113.7"), 1), "203.0.113.7"); // le client a falsifié 1.1.1.1
+  assert.equal(clientIp(r("203.0.113.7"), 1), "203.0.113.7");
+  assert.equal(clientIp(r("9.9.9.9, 203.0.113.7, 10.1.1.1"), 2), "203.0.113.7");
+  assert.equal(clientIp(r("203.0.113.7"), 3), "203.0.113.7"); // moins d'entrées que de sauts
+  assert.equal(clientIp(r("1.1.1.1"), 0), "10.0.0.9");
+  assert.equal(clientIp(r(null), 1), "10.0.0.9");
+});

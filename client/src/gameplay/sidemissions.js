@@ -35,7 +35,7 @@ export function buildSideMission(kind, ctx) {
       steps: [
         { type: 'say', text: 'Écoutez le commissariat.', lines: [L('Commissariat', 'Un singe a volé une voiture de police. Il fait des tests de résistance sur nos feux rouges.'), L('Commissariat', 'Il dit que c\'est « pour la résilience ». Rattrapez-le.', 4)] },
         { type: 'goto', text: 'Rejoignez la dernière position du singe (en voiture).', to: a, vehicle: true, radius: 25 },
-        { type: 'chase', text: 'Rattrapez la voiture de police volée (approchez-vous !).', from: a, to: b, speed: 10, radius: 10, timeLimit: 180, failText: 'Le singe vous a semé. Il a coupé le courant en partant.', spawn: { type: 'police' },
+        { type: 'chase', text: 'Rattrapez la voiture de police volée (restez à moins de 6 m pendant 2 s, ou percutez-la).', from: a, to: b, speed: 10, radius: 6, hold: 2, timeLimit: 180, failText: 'Le singe vous a semé. Il a coupé le courant en partant.', spawn: { type: 'police' },
           say: [L('Singe', 'Ouh ouh ! (Traduction : « arrêtez de me poursuivre, je suis en production. »)', 4)] },
         { type: 'say', text: 'Singe attrapé.', lines: [L('Singe', 'Ouh. (Il rend les clés contre une banane.)', 3), L('Commissariat', 'Voiture récupérée. Un seul feu tricolore a survécu. Merci.', 4)] },
       ],
