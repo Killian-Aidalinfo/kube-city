@@ -51,7 +51,7 @@ Deux revues : la seconde a corrigé une relance Redis pendant l'arrêt propre, u
 
 - Classement global : seulement les joueurs actifs depuis 24 h (`LEADERBOARD_ACTIVE_HOURS`) ; les entrées de test de la nuit disparaîtront d'elles-mêmes.
 
-- Playtest du 19/11 midi : voiture de mission orientée vers la route, voitures qui se noient en mer, radar des kubes à 140 m. Puis voiture libre garée à ~15 m du départ et de chaque réapparition. Reste : monde vide hors de la ville.
+- Playtest du 19/11 midi : voiture de mission orientée vers la route, voitures qui se noient en mer, radar des kubes à 140 m. Puis voiture libre garée à ~15 m du départ et de chaque réapparition. Puis lointain procédural (îles, pont, skyline, cargos) et mer jusqu'à l'horizon. Reste : le terrain s'arrête net au bord est.
 
 ## Frictions restantes (playtest « débutant », 19/11, `scripts/playtest/debutant.mjs`)
 Premier pas jouable : ~4,4 s depuis le chargement de la page (titre 0,5 s, portraits 1,6 s, chargement 1,6 s). Corrigés : prompt « F : Monter » affiché à 4 m alors que F marche à 3 m ; GPS de mission effacé à chaque image par le module social ; aucun premier objectif (maintenant : encadré + GPS vers le marqueur jaune) ; pseudo non pris en compte avant rechargement ; astuces posées sur le perso (déplacées en haut) et affichées pendant K.O./Arrêté ; pas d'astuce sur les étoiles.
