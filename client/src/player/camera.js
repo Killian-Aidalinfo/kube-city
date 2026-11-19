@@ -10,12 +10,12 @@ const VEH_MODES = [
   { hood: true },
 ];
 
-/** Lignes de vitesse : un seul div CSS (conic répété masqué au centre), seule l'opacité change. */
+/** Lignes de vitesse : un seul div CSS (rayons irréguliers répétés, masqués au centre), seule l'opacité change. */
 function speedLines() {
   if (typeof document === 'undefined' || !document.body) return null;
   const el = document.createElement('div');
   el.style.cssText = 'position:fixed;inset:0;z-index:5;pointer-events:none;opacity:0;will-change:opacity;'
-    + 'background:repeating-conic-gradient(from 3deg at 50% 52%,rgba(255,255,255,0) 0deg 5deg,rgba(255,255,255,.5) 5.5deg 6deg,rgba(255,255,255,0) 6.5deg 11deg);'
+    + 'background:repeating-conic-gradient(from 3deg at 50% 52%,rgba(255,255,255,0) 0deg 2.6deg,rgba(255,255,255,.9) 2.9deg 3.6deg,rgba(255,255,255,0) 3.9deg 9.3deg,rgba(255,255,255,.7) 9.5deg 9.9deg,rgba(255,255,255,0) 10.2deg 16.6deg,rgba(255,255,255,.85) 16.9deg 17.5deg,rgba(255,255,255,0) 17.8deg 24deg);'
     + '-webkit-mask-image:radial-gradient(ellipse at 50% 52%,transparent 52%,#000 100%);mask-image:radial-gradient(ellipse at 50% 52%,transparent 52%,#000 100%)';
   document.body.appendChild(el);
   return el;
@@ -79,8 +79,9 @@ export function createCameraRig(game, player) {
       // la caméra se place derrière la trajectoire (un peu de dérapage visible), derrière le nez en marche arrière
       let target = heading;
       if (sp > 5 && fwdSpeed > 0) target = heading + clamp(angleDiff(heading, Math.atan2(lv.x, lv.z)), -0.7, 0.7) * 0.6;
-      // regarde un peu dans le virage (braquage × vitesse), lissé ; droite = cap décroissant
-      const leadT = m.hood ? 0 : -(veh.pv?.steer ?? 0) * clamp(sp / 18, 0, 1) * 0.5;
+      // regarde dans le virage : vitesse de lacet réelle (le braquage en rad est minuscule à haute vitesse), lissée ; gauche = cap croissant
+      const yawRate = veh.chassis?.angvel?.().y ?? 0;
+      const leadT = m.hood ? 0 : clamp(yawRate * 0.5, -0.55, 0.55) * clamp(sp / 10, 0, 1) * (fwdSpeed > 0 ? 1 : 0);
       rig._lead = damp(rig._lead, leadT, 2.6, dt);
       target += rig._lead;
       // suivi plus souple à basse vitesse, plus ferme quand ça va vite (pas d'à-coups, pas de retard)
@@ -90,7 +91,7 @@ export function createCameraRig(game, player) {
       rig.pitch = clamp(pitchBase + rig._userPitch, -0.4, 1.2);
       const dir = orbitDirection(rig.yaw, rig.pitch);
       const sf = clamp(kmh / 200, 0, 1); sfe = sf * sf * (3 - 2 * sf);   // 0..1 progressif
-      fovT = 62 + sfe * 26;
+      fovT = 62 + sfe * 22;
       if (m.hood) {
         hide = true;
         camPos = _v2.set(0, 0.8, 0.5 + (veh.geom?.halfL ?? 1.8) * 0.1).applyQuaternion(vObj.quaternion).add(vObj.position);
@@ -149,7 +150,7 @@ export function createCameraRig(game, player) {
       const t = (game.time?.elapsed ?? 0), a = rig._shake * (veh?.pv?.out.grounded === false ? 0.01 : 0.03);
       camPos.x += (Math.sin(t * 43) + Math.sin(t * 71)) * 0.5 * a; camPos.y += (Math.sin(t * 57) + Math.sin(t * 29)) * 0.5 * a;
     }
-    const lineT = clamp((kmhNow - 120) / 100, 0, 1) * (VEH_MODES[rig.mode].hood ? 0.12 : 0.2);
+    const lineT = clamp((kmhNow - 120) / 100, 0, 1) * (VEH_MODES[rig.mode].hood ? 0.3 : 0.5);
     rig._linesA = damp(rig._linesA, lineT, 4, dt);
     if (rig._linesA > 0.004 || rig._lines) {
       rig._lines ??= speedLines();

@@ -1,7 +1,7 @@
 // MONDE : Kube City en 3D — ville procédurale (citygen.js), chunks fusionnés, collisions Rapier, cycle jour/nuit, météo, eau.
 import * as THREE from 'three';
 import { generateCity, LIGHT_CYCLE, lightPhase, WATER_LEVEL, isWaterAt, groundHeight, SIZE, CHUNK, HALF } from './citygen.js';
-import { buildTerrain, buildChunks, terrainHeights, rampPoints, TERRAIN_CELLS, TERRAIN_SIZE } from './build.js';
+import { buildTerrain, buildSkirt, buildChunks, terrainHeights, rampPoints, TERRAIN_CELLS, TERRAIN_SIZE } from './build.js';
 import { noiseTexture, windowAtlas, glowTexture, signTexture } from './textures.js';
 import { createSky } from './sky.js';
 import { createWater } from './water.js';
@@ -44,6 +44,8 @@ float bn(vec2 p){ vec2 i = floor(p), f = fract(p); f = f * f * (3.0 - 2.0 * f); 
   // ---- terrain et chunks
   const terrain = buildTerrain(terrainMat);
   scene.add(terrain);
+  const skirt = buildSkirt(terrainMat);   // prolonge le sol au-delà du bord (réglage « lointain » : coupée en « off »)
+  scene.add(skirt);
   const built = buildChunks(city);
   const chunks = [];
   const root = new THREE.Group(); root.name = 'chunks';
@@ -188,6 +190,7 @@ float bn(vec2 p){ vec2 i = floor(p), f = fract(p); f = f * f * (3.0 - 2.0 * f); 
     weather.update(dt);
     water.update(dt, sky.state);
     horizon.update(dt, sky.state);
+    skirt.visible = game.settings.get('lointain') !== 'off';
     const night = sky.state.night;
     if (Math.abs(night - lastNight) > 0.004) {
       lastNight = night;

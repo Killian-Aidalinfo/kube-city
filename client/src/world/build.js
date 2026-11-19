@@ -64,6 +64,34 @@ export function buildTerrain(mat) {
   return root;
 }
 
+/**
+ * Jupe de terrain : anneau autour du maillage (même sol analytique, mêmes couleurs) qui prolonge le monde jusqu'à
+ * la brume, pour que le bord ne s'arrête pas net sur la plaine. UN maillage, aucune collision (le mur invisible reste).
+ */
+export function buildSkirt(mat) {
+  const E = TERRAIN_SIZE / 2, fine = [];
+  for (let v = -E + 25; v < E - 1; v += 25) fine.push(v);
+  const axis = [-1900, -1400, -1000, -820, -740, -E, ...fine, E, 740, 820, 1000, 1400, 1900], n = axis.length;
+  const pos = new Float32Array(n * n * 3), col = new Float32Array(n * n * 3), uv = new Float32Array(n * n * 2), idx = [];
+  for (let j = 0; j < n; j++) for (let i = 0; i < n; i++) {
+    const k = j * n + i, x = axis[i], z = axis[j], h = groundHeight(x, z);
+    pos.set([x, h, z], k * 3); col.set(terrainColor(x, z, h), k * 3); uv.set([x / 14, z / 14], k * 2);
+  }
+  // seules les cases hors du terrain sont gardées
+  for (let j = 0; j < n - 1; j++) for (let i = 0; i < n - 1; i++) {
+    const cx = (axis[i] + axis[i + 1]) / 2, cz = (axis[j] + axis[j + 1]) / 2;
+    if (Math.abs(cx) < E && Math.abs(cz) < E) continue;
+    const a = j * n + i;
+    idx.push(a, a + n, a + 1, a + 1, a + n, a + n + 1);
+  }
+  const g = new THREE.BufferGeometry();
+  g.setAttribute('position', new THREE.BufferAttribute(pos, 3)); g.setAttribute('color', new THREE.BufferAttribute(col, 3)); g.setAttribute('uv', new THREE.BufferAttribute(uv, 2));
+  g.setIndex(idx); g.computeVertexNormals();
+  const m = new THREE.Mesh(g, mat);
+  m.name = 'jupe'; m.matrixAutoUpdate = false;
+  return m;
+}
+
 /** Hauteurs pour le heightfield Rapier (même grille que le maillage) : tableau colonne-majeur (z en lignes). */
 export function terrainHeights() {
   const N = TERRAIN_CELLS, step = TERRAIN_SIZE / N, h = new Float32Array((N + 1) ** 2);
