@@ -132,7 +132,6 @@ export function createScreens(game, ui) {
   async function startGame(id) {
     if (S.load) return;
     const nm = S.select?.querySelector('#kc-name')?.value.trim();
-    if (nm) { try { game.net?.setName?.(nm); } catch { /* hors ligne */ } }
     hide('select'); hide('title');
     const el = S.load = mk('kc-screen kc-load', '<h3>Chargement de Kube City</h3><div class="bar"><i></i></div><div class="tip"></div>');
     root.appendChild(el);
@@ -144,6 +143,7 @@ export function createScreens(game, ui) {
     let real = 0;
     const off = bus.on('assets:progress', ({ loaded, total }) => { real = total ? loaded / total : 0; });
     const tick = setInterval(() => { barI.style.width = `${Math.round(Math.min(1, Math.max(real, (performance.now() - t0) / MIN)) * 100)}%`; }, 60);
+    if (nm) { try { await game.net?.setName?.(nm); } catch { /* hors ligne */ } }
     try { await game.gameplay?.chooseCharacter?.(id); } catch (e) { console.error('[ui] choix du perso :', e); }
     await new Promise((r) => setTimeout(r, Math.max(0, MIN - (performance.now() - t0))));
     clearInterval(tt); clearInterval(tick); off();

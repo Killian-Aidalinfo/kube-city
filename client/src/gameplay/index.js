@@ -594,7 +594,7 @@ export function install(game) {
     const onFoot = pl.state === 'onFoot';
     const shop = nearMarker('shop');
     const mis = onFoot && !active ? nearMarker('mission') : null;
-    const veh = onFoot && game.vehicles?.nearestEnterable?.(pl.position, 4);
+    const veh = onFoot && game.vehicles?.nearestEnterable?.(pl.position, 3);
     if (mis && !veh) {
       setPrompt(`F : Parler (${mis.label})`);
       if (game.input.pressed('interact')) gp.startMission(mis.id);

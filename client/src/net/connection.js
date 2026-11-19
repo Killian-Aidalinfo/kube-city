@@ -69,6 +69,8 @@ export function createConnection({ url, hello, onMessage, onEvent, WS = globalTh
       if (!api.open) return false;
       try { ws.send(JSON.stringify(msg)); return true; } catch { return false; }
     },
+    /** Referme la socket pour que la reprise renvoie un `hello` à jour (ex. pseudo choisi après la connexion). */
+    reopen() { if (ws) { try { ws.close(); } catch { /* déjà fermée */ } } },
     connect() { stopped = false; if (!ws && !retryTimer) open(); },
     close() { stopped = true; timers.clearTimeout(retryTimer); timers.clearInterval(pingTimer); retryTimer = null; try { ws?.close(); } catch {} ws = null; },
   };

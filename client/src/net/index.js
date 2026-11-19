@@ -17,6 +17,7 @@ export function install(game) {
     return v;
   })();
   let name = LS('kc.name') || 'Joueur-' + id.slice(-3).toUpperCase();
+  let helloName = name, renaming = false;
   const players = new Map();
   const remotes = createRemotes(game, players);
   const status = { connected: false, pod: null, version: null, reconnects: 0, ping: 0, leader: null, sync: true, previousPod: null };
@@ -54,13 +55,13 @@ export function install(game) {
     switch (m.t) {
       case 'welcome': {
         const re = everConnected;
-        if (everConnected) status.reconnects++;
+        if (everConnected && !renaming) status.reconnects++;
         everConnected = true;
         if (status.pod && status.pod !== m.pod) status.previousPod = status.pod;
         Object.assign(status, { connected: true, pod: m.pod, version: m.version, sync: m.sync !== false });
         net.id = m.id;
         emitStatus();
-        showOffline(false);
+        showOffline(false); renaming = false;
         game.bus.emit('net:profile', { profile: m.profile ?? null, reconnect: re });
         if (re) resaveProfile();
         for (const c of m.chat || []) game.bus.emit('net:chat', { ...c, history: true });
@@ -104,7 +105,7 @@ export function install(game) {
       emitStatus();
     } else if (ev.type === 'close') {
       if (status.connected) { status.connected = false; emitStatus(); } // l'icône clignote ; le jeu, lui, continue
-      if (everConnected) showOffline(true);
+      if (everConnected && !renaming) showOffline(true);
       for (const [, resolve] of pending) resolve({ ok: false, profile: null });
       pending.clear();
     }
@@ -112,7 +113,7 @@ export function install(game) {
 
   const conn = createConnection({
     url: () => `${location.protocol === 'https:' ? 'wss' : 'ws'}://${location.host}/ws`,
-    hello: () => { const l = readLook(game); lastLook = JSON.stringify(l); const p = readState(game)?.p; return { id, name, ch: l.ch, outfit: l.outfit, ...(p ? { p } : {}) }; },
+    hello: () => { helloName = name; const l = readLook(game); lastLook = JSON.stringify(l); const p = readState(game)?.p; return { id, name, ch: l.ch, outfit: l.outfit, ...(p ? { p } : {}) }; },
     onMessage, onEvent,
   });
 
@@ -153,7 +154,13 @@ export function install(game) {
     remotes,
     send(type, payload = {}) { return conn.send({ t: type, ...payload }); },
     connect() { conn.connect(); },
-    setName(n) { name = String(n || '').slice(0, 20) || name; LS('kc.name', name); },
+    /** Le serveur ne lit le pseudo que dans le `hello` : on le renvoie en rouvrant la socket, sans bandeau « Reconnexion ». Résout quand c'est fait (2 s au plus). */
+    setName(n) {
+      name = String(n || '').slice(0, 20) || name; LS('kc.name', name);
+      if (name === helloName || !conn.open) return Promise.resolve();
+      renaming = true; conn.reopen();
+      return new Promise((res) => { const off = game.bus.on('net:welcome', () => { off(); res(); }); setTimeout(() => { off(); renaming = false; res(); }, 2000); });
+    },
     sendChat(text) { return conn.send({ t: 'chat', text }); },
     sendEmote(e) { return conn.send({ t: 'emote', e }); },
     /** Événement partagé (course multijoueur, mission coopérative) : relayé à tous, reçu via le bus `net:event`. */

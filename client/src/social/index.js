@@ -60,9 +60,13 @@ export function install(game) {
   };
   const lastPoint = (r) => r.checkpoints?.at(-1);
 
+  // GPS automatique : ce module ne retire que le point qu'il a posé (sinon il effaçait celui de la mission à chaque image)
+  let ownsWp = false;
+  const setWp = (p) => { ownsWp = true; game.ui?.setWaypoint?.({ x: p.x, y: 0, z: p.z }, { auto: true }); };
+  const clearWp = () => { if (ownsWp) { ownsWp = false; game.ui?.setWaypoint?.(null, { auto: true }); } };
   function raceUpdate() {
     const r = myRace(), t = sNow();
-    if (!r) { elCount.style.display = t < goUntil ? '' : 'none'; if (t >= goUntil) { game.ui?.setWaypoint?.(null, { auto: true }); } return; }
+    if (!r) { elCount.style.display = t < goUntil ? '' : 'none'; if (t >= goUntil) clearWp(); return; }
     const dest = lastPoint(r), left = (r.startAt - t) / 1000;
     elCount.style.display = '';
     if (left > 0) {
@@ -74,7 +78,7 @@ export function install(game) {
     if (!started.has(r.id)) { started.add(r.id); goUntil = t + 1500; bus.emit('ui:sound', { name: 'ui_click', volume: 0.8 }); notify('Partez ! Rendez-vous à l\'arrivée.', 'success', 3); }
     const d = dest && pos() ? Math.round(Math.hypot(dest.x - pos().x, dest.z - pos().z)) : null;
     elCount.innerHTML = t < goUntil ? `<div class="big">PARTEZ !</div>` : `<div class="sm">Course vers ${esc(r.toLabel)} · ${fmtMs(t - r.startAt)}${d != null ? ` · ${d} m` : ''}</div>`;
-    if (dest) game.ui?.setWaypoint?.({ x: dest.x, y: 0, z: dest.z }, { auto: true });
+    if (dest) setWp(dest);
     // arrivée : le serveur contrôle (course en cours, inscrit, pas plus vite qu'une voiture à fond) ; on réessaie chaque seconde
     if (dest && pos() && d <= FINISH_RADIUS && game.state === 'playing' && performance.now() - lastFinishTry > 1200) {
       lastFinishTry = performance.now();
@@ -131,8 +135,8 @@ export function install(game) {
     elHunt.style.display = game.state === 'playing' ? '' : 'none';
     elHunt.textContent = `Chasse aux kubes dorés · ${left} restant${left > 1 ? 's' : ''} · ${fmtClock((hunt.endAt - sNow()) / 1000)}${nd < 1e8 ? ` · le plus proche : ${Math.round(nd)} m` : ''}`;
     // GPS vers le kube le plus proche, sauf course ou mission en cours
-    if (near && !myRace() && !gp()?.active) game.ui?.setWaypoint?.({ x: near.x, y: 0, z: near.z }, { auto: true });
-    else if (!near && !myRace() && !gp()?.active) game.ui?.setWaypoint?.(null, { auto: true });
+    if (near && !myRace() && !gp()?.active && !game.ui?.firstGoal?.()) setWp(near);
+    else if (!myRace() && !gp()?.active) clearWp();
   }
 
   // ---------- classement de la session (touche L) ----------

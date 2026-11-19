@@ -55,6 +55,21 @@ export function install(game) {
     } else wp.manual = pos ? pt(pos) : null;
     refreshWaypoint();
   };
+  /** Premier objectif d'un débutant (aucune mission terminée, rien en cours) : le marqueur jaune de la première mission. */
+  ui.firstGoal = () => {
+    const gp = game.gameplay;
+    if (!gp || gp.active || game.state !== 'playing' || Object.keys(gp.profile?.missions || {}).length) return null;
+    const m = gp.markers?.find((k) => k.kind === 'mission');
+    return m ? { x: m.x, z: m.z, label: m.label } : null;
+  };
+  let firstWp = false;
+  function syncFirstGoal() {
+    const g = ui.firstGoal();
+    if (g && !wp.manual) { firstWp = true; ui.setWaypoint(g, { auto: true }); }
+    else if (firstWp && !gp0()?.active) { firstWp = false; ui.setWaypoint(null, { auto: true }); }
+    else firstWp = false;
+  }
+  const gp0 = () => game.gameplay;
   Object.defineProperty(ui, 'waypoint', { get: () => ui.state.waypoint });
   Object.defineProperty(ui, 'route', { get: () => ui.state.route });
 
@@ -113,7 +128,7 @@ export function install(game) {
   });
 
   // ---------- boucle (ordre 100 : après la caméra) ----------
-  let routeT = 0;
+  let routeT = 0, syncT = 0;
   game.onUpdate((dt) => {
     hud.update(dt);
     const inp = game.input;
@@ -131,6 +146,7 @@ export function install(game) {
       } else if (screens.wheelOpen) screens.hideWheel(false);
     } else if (game.state === 'paused' && inp.pressed('pause') && screens.S.pause) ui.resume();
     // itinéraire : recalculé une fois par seconde, point manuel effacé à l'arrivée
+    syncT -= dt; if (syncT <= 0) { syncT = 0.5; syncFirstGoal(); }
     routeT -= dt;
     if (routeT <= 0 && ui.state.waypoint) {
       routeT = 1;

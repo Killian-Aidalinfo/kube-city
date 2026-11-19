@@ -119,7 +119,7 @@ export function createHud(game, ui) {
       // invites : celles des modules, sinon « Monter » près d'un véhicule
       let text = [...prompts.values()][0];
       if (!text && pl?.state === 'onFoot' && game.state === 'playing') {
-        try { if (game.vehicles?.nearestEnterable?.(pl.position, 4)) text = 'F : Monter'; } catch { /* API absente */ }
+        try { if (game.vehicles?.nearestEnterable?.(pl.position, 3)) text = 'F : Monter'; } catch { /* API absente */ }
       }
       el.prompt.style.display = text && game.state === 'playing' ? '' : 'none';
       if (text) el.prompt.textContent = text;
@@ -128,7 +128,8 @@ export function createHud(game, ui) {
       slow -= dt;
       if (slow <= 0) {
         slow = 0.25;
-        const a = game.gameplay?.active;
+        const fg = game.gameplay?.active ? null : ui.firstGoal?.();
+        const a = game.gameplay?.active || (fg && { kind: 'goal', title: 'Premier objectif', text: `Rejoignez le marqueur jaune « ${fg.label} » (flèche cyan sur la minimap) puis appuyez sur F pour parler.`, target: fg });
         el.obj.style.display = a ? '' : 'none';
         if (a) {
           el.objH.textContent = a.kind === 'mission' ? `Mission · ${a.title}` : a.title;

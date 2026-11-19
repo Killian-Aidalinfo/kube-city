@@ -39,3 +39,15 @@ Deux revues : la seconde a corrigé une relance Redis pendant l'arrêt propre, u
 3. Sur une vraie Kapsule : Ingress + Let's Encrypt, perte brutale d'un nœud (scénario 5) et `kubectl top` pour le HPA — non testés cette nuit.
 4. À l'oreille et à la main : sons, manette, ressenti de conduite, qualité basse sur un portable sans GPU.
 5. Pendant une coupure Redis, deux joueurs sur des pods différents se voient figés jusqu'au retour de Redis (normal : le Pub/Sub passe par Redis).
+
+## Frictions restantes (playtest « débutant », 19/11, `scripts/playtest/debutant.mjs`)
+Premier pas jouable : ~4,4 s depuis le chargement de la page (titre 0,5 s, portraits 1,6 s, chargement 1,6 s). Corrigés : prompt « F : Monter » affiché à 4 m alors que F marche à 3 m ; GPS de mission effacé à chaque image par le module social ; aucun premier objectif (maintenant : encadré + GPS vers le marqueur jaune) ; pseudo non pris en compte avant rechargement ; astuces posées sur le perso (déplacées en haut) et affichées pendant K.O./Arrêté ; pas d'astuce sur les étoiles.
+Restent :
+- Le marqueur rose « Garage » (boutique) recouvre le marqueur jaune de la mission 1 ; « E : Entrer (Garage) » s'affiche pendant le dialogue de Lou.
+- La voiture de sport de la mission 1 apparaît cap +Z, face à une place puis un immeuble : un débutant qui tient Z s'y encastre. L'orienter vers le premier point de l'itinéraire.
+- La Chasse aux kubes dorés démarre dès l'arrivée (bandeau jaune + GPS vers un kube après la mission) et concurrence l'objectif ; envisager de la différer de 3 min pour un nouveau joueur.
+- Message « Arrêté » : ni montant de l'amende ni durée ; K.O. : idem hors frais fixes.
+- Astuces Z Q S D en dur : un clavier QWERTY lit « Z Q S D » (afficher W A S D selon la disposition).
+- Entrée dans le champ pseudo ne lance pas la partie ; le bandeau « Cliquez dans le jeu » reste après chaque panneau fermé.
+- Le fond du classement garde les joueurs simulés d'anciens tests (Redis de dev), illisible en test.
+- Les astuces par minuteur (Tab, P, Alt, K) arrivent sans lien avec l'action en cours.

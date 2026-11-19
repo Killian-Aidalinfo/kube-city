@@ -5,6 +5,7 @@ const save = (s) => { try { localStorage.setItem(KEY, JSON.stringify([...s])); }
 
 /** Liste des astuces : `when(ctx)` décide du moment, `action` (facultatif) la valide si le joueur fait déjà le geste. */
 export const TIP_LIST = [
+  { id: 'police', when: (c) => c.wanted, text: '<b>★</b> La police vous recherche : fuyez en voiture, sortez de son champ de vision ou cachez-vous pour perdre vos étoiles' },
   { id: 'move', after: 1, text: '<b>Z Q S D</b> pour bouger · <b>Souris</b> pour regarder (cliquez dans le jeu) · <b>Maj</b> pour courir · <b>Espace</b> pour sauter' },
   { id: 'car', when: (c) => c.nearCar, action: 'interact', text: '<b>F</b> pour entrer dans la voiture' },
   { id: 'drive', when: (c) => c.inVehicle, text: '<b>Z</b>/<b>S</b> accélérer et freiner · <b>Q</b>/<b>D</b> tourner · <b>Espace</b> frein à main · <b>H</b> klaxon · <b>V</b> caméra · <b>F</b> pour sortir' },
@@ -22,7 +23,7 @@ export function createOnboarding(game, ui) {
   el.className = 'kc-tip'; el.style.display = 'none';
   ui.root.appendChild(el);
   const st = document.createElement('style');
-  st.textContent = `.kc-tip{position:absolute;left:50%;bottom:210px;transform:translateX(-50%);max-width:min(640px,92vw);background:var(--panel2);border:1px solid var(--yellow);border-radius:10px;padding:10px 18px;font-size:15px;text-align:center;z-index:30;box-shadow:0 0 16px rgba(255,210,63,.3);pointer-events:none}.kc-tip b{color:var(--yellow);border:1px solid var(--line);border-radius:4px;padding:0 6px;background:rgba(255,255,255,.07)}.kc-tip small{display:block;color:var(--dim);font-size:11px;margin-top:3px}`;
+  st.textContent = `.kc-tip{position:absolute;left:50%;top:84px;transform:translateX(-50%);max-width:min(500px,92vw);background:var(--panel2);border:1px solid var(--yellow);border-radius:10px;padding:10px 18px;font-size:15px;text-align:center;z-index:30;box-shadow:0 0 16px rgba(255,210,63,.3);pointer-events:none}.kc-tip b{color:var(--yellow);border:1px solid var(--line);border-radius:4px;padding:0 6px;background:rgba(255,255,255,.07)}.kc-tip small{display:block;color:var(--dim);font-size:11px;margin-top:3px}`;
   document.head.appendChild(st);
   let playTime = 0, current = null, until = 0, scan = 0, pad = false;
   globalThis.addEventListener?.('gamepadconnected', () => { pad = true; });
@@ -38,7 +39,7 @@ export function createOnboarding(game, ui) {
     seen,
     reset() { seen.clear(); save(seen); },
     update(dt) {
-      const playing = game.state === 'playing' && !ui.modalOpen;
+      const playing = game.state === 'playing' && !ui.modalOpen && !ui.screens?.S?.end;
       if (!playing) { if (current) el.style.display = 'none'; return; }
       if (current && el.style.display === 'none') el.style.display = '';
       playTime += dt;
@@ -50,8 +51,8 @@ export function createOnboarding(game, ui) {
       scan = 0.4;
       const pl = game.player;
       let nearCar = false;
-      try { nearCar = pl?.state === 'onFoot' && !!game.vehicles?.nearestEnterable?.(pl.position, 4); } catch { /* API absente */ }
-      const ctx = { nearCar, inVehicle: !!pl?.vehicle, pad };
+      try { nearCar = pl?.state === 'onFoot' && !!game.vehicles?.nearestEnterable?.(pl.position, 3); } catch { /* API absente */ }
+      const ctx = { nearCar, inVehicle: !!pl?.vehicle, pad, wanted: (game.police?.level ?? 0) > 0 };
       const next = TIP_LIST.find((t) => !seen.has(t.id) && playTime >= (t.after ?? 0) && (!t.when || t.when(ctx)));
       if (next) show(next);
     },
