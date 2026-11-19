@@ -1,14 +1,15 @@
 // Écrans plein écran : titre, sélection des persos, chargement, pause, « Arrêté » / « K.O. », « Mission réussie », roue des persos.
 import { buildSettings, buildKeys } from './panels.js';
 import { renderPortraits } from './portrait.js';
+import { moveKeys } from '../core/keylabels.js';
 import { formatMoney, TIPS } from './mapmath.js';
 
 const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 export const CHAR_COLORS = { ines: '#ff6a55', malik: '#4aa3ff', jade: '#b06aff' };
 const mk = (cls, html = '') => { const d = document.createElement('div'); d.className = cls; d.innerHTML = html; return d; };
 
-const RECAP = [['Z Q S D', 'Bouger'], ['Souris', 'Regarder'], ['Maj', 'Courir'], ['F', 'Monter / parler'], ['M', 'Carte'], ['Tab', 'Armes'], ['K', 'Infos cluster'], ['Échap', 'Pause']];
-const recapHtml = () => `<div class="kc-recap">${RECAP.map(([k, d]) => `<span><b>${k}</b> ${d}</span>`).join('')}</div>`;
+const RECAP = () => [[moveKeys(), 'Bouger'], ['Souris', 'Regarder'], ['Maj', 'Courir'], ['F', 'Monter / parler'], ['M', 'Carte'], ['Tab', 'Armes'], ['K', 'Infos cluster'], ['Échap', 'Pause']];
+const recapHtml = () => `<div class="kc-recap">${RECAP().map(([k, d]) => `<span><b>${k}</b> ${d}</span>`).join('')}</div>`;
 
 /** Fenêtre modale simple avec un bouton Fermer. */
 export function modal(ui, title, node, cls = 'kc-set') {
@@ -108,7 +109,7 @@ export function createScreens(game, ui) {
     const choose = (id) => { game.audio?.play?.('ui_ok'); startGame(id); };
     el.addEventListener('click', (e) => { const b = e.target.closest('.kc-char'); if (b) choose(b.dataset.id); });
     const onKey = (e) => {
-      if (e.target?.tagName === 'INPUT') return;
+      if (e.target?.tagName === 'INPUT') { if (e.key === 'Enter' && S.select && ids[0]) { e.preventDefault(); choose(ids[0]); } return; } // Entrée dans le pseudo : lance avec le 1er perso
       if (!S.select) return globalThis.removeEventListener('keydown', onKey);
       const i = '123'.indexOf(e.key);
       if (i >= 0 && ids[i]) choose(ids[i]);

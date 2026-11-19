@@ -110,8 +110,17 @@ export function install(game) {
 
   // ---------- événements ----------
   bus.on('ui:shop', ({ id }) => { if (game.state === 'playing') shop.show(id); });
-  bus.on('player:ko', () => { if (game.state === 'playing') screens.showEnd('ko', 'Vous vous réveillez à l\'hôpital. Frais de soins : 200 €.'); });
-  bus.on('wanted:busted', () => { if (game.state === 'playing') screens.showEnd('busted', 'Vous êtes arrêté. Direction le commissariat, et une amende à payer.'); });
+  const eur = (n) => `${Math.round(n)} €`;
+  bus.on('player:ko', () => {
+    if (game.state !== 'playing') return;
+    const m = game.gameplay?.money ?? 0, cost = Math.min(200, m);
+    screens.showEnd('ko', `Vous vous réveillez à l'hôpital dans quelques secondes. Frais de soins : ${eur(cost)}${cost < 200 ? ' (tout ce que vous aviez)' : ''}.`);
+  });
+  bus.on('wanted:busted', () => {
+    if (game.state !== 'playing') return;
+    const m = game.gameplay?.money ?? 0, fine = Math.min(500, Math.floor(m * 0.1));
+    screens.showEnd('busted', `Vous êtes arrêté : direction le commissariat dans quelques secondes. Amende : ${eur(fine)} (10 % de votre argent, 500 € au plus).`);
+  });
   bus.on('player:respawn', ({ where, cost }) => {
     screens.hideEnd();
     bus.emit('notify', { text: where === 'hôpital' ? `Réveil à l'hôpital. Frais : ${formatMoney(cost)}.` : `Libéré du commissariat. Amende : ${formatMoney(cost)}.`, kind: 'warning', duration: 4 });

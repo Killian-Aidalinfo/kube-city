@@ -20,7 +20,18 @@ export const STEP_TYPES = {
     target: (st) => st.pos,
   },
   enterVehicle: {
-    start(step, st, env) { if (step.spawn) st.vehicle = env.spawnVehicle({ ...step.spawn, at: resolveRef(env, step.spawn.at) }); },
+    start(step, st, env, next) {
+      if (!step.spawn) return;
+      const at = resolveRef(env, step.spawn.at);
+      let rotation = step.spawn.rotation;
+      if (rotation == null && next?.to) { // orienter la voiture vers le premier point de l'itinéraire
+        try {
+          const dest = resolveRef(env, next.to), r = env.route?.(at, dest), p1 = Array.isArray(r) && r.length > 1 ? r[1] : dest;
+          if (p1 && Math.hypot(p1.x - at.x, p1.z - at.z) > 0.5) rotation = Math.atan2(p1.x - at.x, p1.z - at.z);
+        } catch { /* itinéraire indisponible */ }
+      }
+      st.vehicle = env.spawnVehicle({ ...step.spawn, at, rotation });
+    },
     update(step, st, env) { return env.inVehicle() ? 'done' : undefined; },
     target: (st) => st.vehicle?.pos?.() ?? null,
   },
@@ -225,7 +236,7 @@ export function createRunner(def, env) {
     if (!STEP_TYPES[s.type]) throw new Error(`Type d'objectif inconnu : ${s.type}`);
     // dialogues d'accompagnement (sans bloquer)
     for (const l of s.say || []) env.say(l.speaker, l.text, l.dur ?? 4);
-    STEP_TYPES[s.type].start(s, runner.st, env);
+    STEP_TYPES[s.type].start(s, runner.st, env, def.steps[runner.index + 1]);
     env.onStep?.(runner);
   }
   beginStep();

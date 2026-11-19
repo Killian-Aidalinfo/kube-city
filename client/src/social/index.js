@@ -117,7 +117,18 @@ export function install(game) {
       }
     }
   }
+  // un nouveau joueur ne voit ni bandeau, ni rayons, ni GPS de chasse pendant ses 3 premières minutes (l'objectif d'abord)
+  const NEWBIE_MS = 180000, FP_KEY = 'kubecity.firstplay.v1';
+  let firstPlay = 0;
+  const newbie = () => {
+    if (game.state !== 'playing') return !firstPlay || Date.now() - firstPlay < NEWBIE_MS;
+    if (!firstPlay) {
+      try { firstPlay = +localStorage.getItem(FP_KEY) || 0; if (!firstPlay) localStorage.setItem(FP_KEY, String(firstPlay = Date.now())); } catch { firstPlay = Date.now(); }
+    }
+    return Date.now() - firstPlay < NEWBIE_MS;
+  };
   function huntUpdate(dt) {
+    huntGroup.visible = !newbie();
     if (hunt && sNow() > hunt.endAt + 8000) setHunt(null);
     if (!hunt) { elHunt.style.display = 'none'; return; }
     const t = performance.now() / 1000, p = pos();
@@ -132,6 +143,7 @@ export function install(game) {
       }
     }
     const left = hunt.kubes.length - Object.keys(hunt.claims || {}).length;
+    if (newbie()) { elHunt.style.display = 'none'; return; }
     elHunt.style.display = game.state === 'playing' ? '' : 'none';
     elHunt.textContent = `Chasse aux kubes dorés · ${left} restant${left > 1 ? 's' : ''} · ${fmtClock((hunt.endAt - sNow()) / 1000)}${nd < 1e8 ? ` · le plus proche : ${Math.round(nd)} m` : ''}`;
     // GPS vers le kube le plus proche, sauf course ou mission en cours

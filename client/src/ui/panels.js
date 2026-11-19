@@ -1,5 +1,6 @@
 // Panneaux réutilisables : réglages, liste des touches, boutique.
 import { formatMoney } from './mapmath.js';
+import { moveKeys } from '../core/keylabels.js';
 
 const PRESETS = {
   low:    { shadows: false, shadowMapSize: 1024, viewDistance: 250, pedDensity: 0.3, maxPixelRatio: 0.75 },
@@ -66,7 +67,7 @@ export const KEYS = [
 
 export function buildKeys() {
   const t = document.createElement('table');
-  t.innerHTML = KEYS.map(([k, d]) => `<tr><td>${k}</td><td>${d}</td></tr>`).join('');
+  t.innerHTML = KEYS.map(([k, d], i) => `<tr><td>${i === 0 ? `${moveKeys()} / flèches` : k}</td><td>${d}</td></tr>`).join('');
   return t;
 }
 

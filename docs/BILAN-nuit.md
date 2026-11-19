@@ -42,12 +42,8 @@ Deux revues : la seconde a corrigé une relance Redis pendant l'arrêt propre, u
 
 ## Frictions restantes (playtest « débutant », 19/11, `scripts/playtest/debutant.mjs`)
 Premier pas jouable : ~4,4 s depuis le chargement de la page (titre 0,5 s, portraits 1,6 s, chargement 1,6 s). Corrigés : prompt « F : Monter » affiché à 4 m alors que F marche à 3 m ; GPS de mission effacé à chaque image par le module social ; aucun premier objectif (maintenant : encadré + GPS vers le marqueur jaune) ; pseudo non pris en compte avant rechargement ; astuces posées sur le perso (déplacées en haut) et affichées pendant K.O./Arrêté ; pas d'astuce sur les étoiles.
+Corrigés ensuite (19/11) : marqueur Garage masqué tant qu'un marqueur de mission est à moins de 10 m, et invite « E » coupée pendant le dialogue ; voiture de mission orientée vers le premier point de l'itinéraire ; Chasse aux kubes (bandeau, rayons, GPS) masquée les 3 premières minutes d'un nouveau joueur (localStorage `kubecity.firstplay.v1`, côté client) ; écrans Arrêté/K.O. avec montant et délai ; lettres de déplacement selon la disposition (`navigator.keyboard.getLayoutMap`, repli par langue ; contrôles déjà en codes physiques KeyW/A/S/D) ; Entrée dans le pseudo lance avec le 1er perso, bandeau « Cliquez dans le jeu » limité à 4 s et fermé au clic ; astuces Tab/P/Alt/K liées au contexte (police ou blessure, loin du départ, mission faite, en voiture) avec repli tardif.
 Restent :
-- Le marqueur rose « Garage » (boutique) recouvre le marqueur jaune de la mission 1 ; « E : Entrer (Garage) » s'affiche pendant le dialogue de Lou.
-- La voiture de sport de la mission 1 apparaît cap +Z, face à une place puis un immeuble : un débutant qui tient Z s'y encastre. L'orienter vers le premier point de l'itinéraire.
-- La Chasse aux kubes dorés démarre dès l'arrivée (bandeau jaune + GPS vers un kube après la mission) et concurrence l'objectif ; envisager de la différer de 3 min pour un nouveau joueur.
-- Message « Arrêté » : ni montant de l'amende ni durée ; K.O. : idem hors frais fixes.
-- Astuces Z Q S D en dur : un clavier QWERTY lit « Z Q S D » (afficher W A S D selon la disposition).
-- Entrée dans le champ pseudo ne lance pas la partie ; le bandeau « Cliquez dans le jeu » reste après chaque panneau fermé.
-- Le fond du classement garde les joueurs simulés d'anciens tests (Redis de dev), illisible en test.
-- Les astuces par minuteur (Tab, P, Alt, K) arrivent sans lien avec l'action en cours.
+- Classement de session : aucune date d'activité par ligne (`pn:ss:*` sans horodatage), donc pas de filtrage côté affichage sans toucher au serveur ; les entrées expirent seules (TTL de session) ; rien effacé dans Redis.
+- Garage inaccessible par le marqueur tant que la mission 1 attend à côté (il revient après acceptation).
+- Non vérifié sur un vrai clavier QWERTY/AZERTY physique (seulement la logique et le build).

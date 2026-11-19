@@ -88,10 +88,12 @@ export function createHud(game, ui) {
   offs.push(game.bus.on('money:changed', ({ amount }) => { el.money.textContent = formatMoney(amount); }));
 
   let hintUntil = 0;
+  globalThis.addEventListener?.('pointerdown', () => { hintUntil = 0; }, true); // un clic dans le jeu suffit : le bandeau disparaît
   const hud = {
     el: root,
     show(v) { root.style.display = v ? '' : 'none'; },
-    showHint(sec = 8) { hintUntil = game.time.now + sec; },
+    showHint(sec = 8) { hintUntil = game.time.now + Math.min(sec, 4); },
+    hideHint() { hintUntil = 0; },
     update(dt) {
       const pl = game.player, pol = game.police;
       // étoiles

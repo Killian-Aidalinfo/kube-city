@@ -515,7 +515,10 @@ export function install(game) {
       if (t) list.push({ x: t.x, z: t.z, color: '#38e8ff', label: active.def.title, kind: 'objective', radius: 0 });
     }
     for (const [id, label] of [['vetements', 'Boutique'], ['garage', 'Garage']]) {
-      const p = place(id); list.push({ x: p.x, z: p.z, color: id === 'garage' ? '#ff4fa3' : '#9ae66e', label, kind: 'shop', id, radius: 6 });
+      const p = place(id);
+      // un marqueur de mission au même endroit prime : le jaune ne doit pas être recouvert par le rose
+      if (list.some((m) => m.kind === 'mission' && dist2d(m, p) < 10)) continue;
+      list.push({ x: p.x, z: p.z, color: id === 'garage' ? '#ff4fa3' : '#9ae66e', label, kind: 'shop', id, radius: 6 });
     }
     return list;
   }
@@ -598,7 +601,7 @@ export function install(game) {
     if (mis && !veh) {
       setPrompt(`F : Parler (${mis.label})`);
       if (game.input.pressed('interact')) gp.startMission(mis.id);
-    } else if (shop && (onFoot || pl.vehicle)) setPrompt(`E : Entrer (${shop.label})`);
+    } else if (shop && (onFoot || pl.vehicle) && active?.runner?.step?.type !== 'say') setPrompt(`E : Entrer (${shop.label})`);
     else setPrompt(null);
   }
   globalThis.addEventListener?.('keydown', (e) => {
