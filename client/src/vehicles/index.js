@@ -486,4 +486,56 @@ export function install(game) {
     return n;
   }
   spawnParked();
+
+  // ---------- voiture libre près du joueur (départ et réapparitions) ----------
+  const NEAR_FREE = 30, STARTER_MAX = 3;
+  const isFree = (v) => !v.driver && !v.wrecked && !v.remote && v.health > 50 && v.owner !== 'police' && v.owner !== 'remote';
+  /** Gare une berline au bord de la route, 8 à 28 m du point, orientée dans le sens de la voie. Renvoie le véhicule ou null. */
+  vehicles.ensureNearby = (pos) => {
+    const roads = game.world?.roads;
+    if (!roads?.nearest || !pos) return null;
+    const dist = (a, b) => Math.hypot(a.x - b.x, a.z - b.z);
+    for (const v of vehicles.list) {
+      if (!isFree(v)) continue;
+      const t = v.chassis.translation();
+      if (dist(t, pos) < NEAR_FREE) return v; // déjà une voiture à portée
+    }
+    // plafond : les voitures de départ abandonnées au loin sont retirées avant d'en poser une autre
+    const starters = vehicles.list.filter((v) => v._starter);
+    for (const v of starters) if (!v.driver && dist(v.chassis.translation(), pos) > 80) vehicles.remove(v);
+    if (vehicles.list.filter((v) => v._starter).length >= STARTER_MAX) return null;
+    const near = roads.nearest(pos.x, pos.z); if (!near?.edge) return null;
+    // à éviter : lieux et cible de mission, autres véhicules
+    const avoid = (game.gameplay?.markers ?? []).filter((m) => m.kind === 'mission').map((m) => ({ x: m.x, z: m.z }));
+    const tg = game.gameplay?.active?.target; if (tg) avoid.push({ x: tg.x, z: tg.z });
+    let best = null, bs = Infinity;
+    const e = near.edge;
+    for (const ds of [0, 8, -8, 14, -14, 20, -20, 28, -28, 36, -36]) {
+      const s = near.s + ds; if (s < 10 || s > e.len - 10) continue;
+      const p = roads.pointAt(e, s);
+      for (const side of [1, -1]) {
+        const off = side * (e.width / 2 - 1.5), x = p.x - p.tz * off, z = p.z + p.tx * off;
+        const d = dist({ x, z }, pos);
+        if (d < 8 || d > 28) continue;
+        if ((game.world?.water?.depth?.(x, z) ?? 0) > 0.1) continue;
+        if (avoid.some((a) => dist(a, { x, z }) < 12)) continue;
+        if (vehicles.list.some((v) => dist(v.chassis.translation(), { x, z }) < 6)) continue;
+        const score = Math.abs(d - 14);
+        if (score < bs) { bs = score; best = { x, z, rot: Math.atan2(p.tx * side, p.tz * side) }; }
+      }
+    }
+    if (!best) return null;
+    const v = vehicles.spawn('sedan', { x: best.x, z: best.z }, best.rot, { owner: 'npc' });
+    v._starter = true;
+    return v;
+  };
+  // départ puis réapparitions : on laisse le joueur se placer, puis on vérifie
+  let starterAt = null, starterDone = false;
+  game.bus.on('player:respawn', () => { starterAt = 0.6; });
+  game.onUpdate((dt) => {
+    if (!starterDone && game.state === 'playing') { starterDone = true; starterAt = 0.8; }
+    if (starterAt == null) return;
+    starterAt -= dt;
+    if (starterAt <= 0) { starterAt = null; if (player?.position) vehicles.ensureNearby(player.position); }
+  }, 5);
 }

@@ -190,6 +190,8 @@ export class Vehicle {
   physicsStep(fdt, wet) {
     if (!this.pv) return;
     const pv = this.pv, body = this.chassis;
+    // un conducteur qui accélère ou braque réveille toujours le châssis (l'endormissement peut suivre l'entrée)
+    if (this.driver && body.isSleeping() && (this.controls.throttle || this.controls.steer)) body.wakeUp();
     const asleep = body.isSleeping();
     this._prevP.copy(this._curP); this._prevQ.copy(this._curQ);
     if (!asleep) {

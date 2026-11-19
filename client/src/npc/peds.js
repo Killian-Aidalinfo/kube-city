@@ -189,7 +189,7 @@ export function createPeds(game, rng) {
     dry = (game.world?.weather?.rain ?? 0) < 0.15;
     fast.length = 0;
     for (const v of game.vehicles?.list ?? []) {
-      if (!v.object3d || v.wrecked || Math.abs(v.speed) < 22) continue;
+      if (!v.object3d || v.wrecked || Math.abs(v.speed) < (v === driver ? 10 : 22)) continue; // la voiture du joueur effraie dès 10 km/h
       const q = v.object3d.position;
       if (Math.abs(q.x - pp.x) < 80 && Math.abs(q.z - pp.z) < 80) fast.push(v);
     }
