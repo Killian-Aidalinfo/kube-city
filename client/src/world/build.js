@@ -30,21 +30,38 @@ export function buildTerrain(mat) {
     const k = j * (N + 1) + i, x = -TERRAIN_SIZE / 2 + i * step, z = -TERRAIN_SIZE / 2 + j * step, h = groundHeight(x, z), c = terrainColor(x, z, h);
     pos.set([x, h, z], k * 3); col.set(c, k * 3); uv.set([x / 14, z / 14], k * 2);
   }
-  const idx = new Uint32Array(N * N * 6);
+  // 4 x 4 tuiles partageant les mêmes sommets : le frustum élimine celles qui ne sont pas à l'écran
+  const attrs = { position: new THREE.BufferAttribute(pos, 3), color: new THREE.BufferAttribute(col, 3), uv: new THREE.BufferAttribute(uv, 2) };
+  // normales calculées une fois sur la grille entière (pas de couture entre tuiles)
+  const whole = new THREE.BufferGeometry();
+  whole.setAttribute('position', attrs.position);
+  const widx = new Uint32Array(N * N * 6);
   let q = 0;
   for (let j = 0; j < N; j++) for (let i = 0; i < N; i++) {
     const a = j * (N + 1) + i, b = a + 1, c = a + N + 1, d = c + 1;
-    idx.set([a, c, b, b, c, d], q); q += 6;
+    widx.set([a, c, b, b, c, d], q); q += 6;
   }
-  const g = new THREE.BufferGeometry();
-  g.setAttribute('position', new THREE.BufferAttribute(pos, 3));
-  g.setAttribute('color', new THREE.BufferAttribute(col, 3));
-  g.setAttribute('uv', new THREE.BufferAttribute(uv, 2));
-  g.setIndex(new THREE.BufferAttribute(idx, 1));
-  g.computeVertexNormals();
-  const m = new THREE.Mesh(g, mat);
-  m.receiveShadow = true; m.matrixAutoUpdate = false;
-  return m;
+  whole.setIndex(new THREE.BufferAttribute(widx, 1));
+  whole.computeVertexNormals();
+  attrs.normal = whole.getAttribute('normal');
+  const T = 4, root = new THREE.Group(); root.name = 'terrain';
+  for (let tj = 0; tj < T; tj++) for (let ti = 0; ti < T; ti++) {
+    const i0 = Math.floor(ti * N / T), i1 = Math.floor((ti + 1) * N / T), j0 = Math.floor(tj * N / T), j1 = Math.floor((tj + 1) * N / T);
+    const idx = new Uint32Array((i1 - i0) * (j1 - j0) * 6); let k = 0;
+    for (let j = j0; j < j1; j++) for (let i = i0; i < i1; i++) {
+      const a = j * (N + 1) + i, b = a + 1, c = a + N + 1, d = c + 1;
+      idx.set([a, c, b, b, c, d], k); k += 6;
+    }
+    const g = new THREE.BufferGeometry();
+    for (const [n, at] of Object.entries(attrs)) g.setAttribute(n, at);
+    g.setIndex(new THREE.BufferAttribute(idx, 1));
+    const x0 = -TERRAIN_SIZE / 2 + i0 * step, x1 = -TERRAIN_SIZE / 2 + i1 * step, z0 = -TERRAIN_SIZE / 2 + j0 * step, z1 = -TERRAIN_SIZE / 2 + j1 * step;
+    g.boundingSphere = new THREE.Sphere(new THREE.Vector3((x0 + x1) / 2, 20, (z0 + z1) / 2), Math.hypot(x1 - x0, z1 - z0) / 2 + 60);
+    const m = new THREE.Mesh(g, mat);
+    m.receiveShadow = true; m.matrixAutoUpdate = false;
+    root.add(m);
+  }
+  return root;
 }
 
 /** Hauteurs pour le heightfield Rapier (même grille que le maillage) : tableau colonne-majeur (z en lignes). */

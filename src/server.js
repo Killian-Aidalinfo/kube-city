@@ -42,7 +42,10 @@ store.subscribe((ev) => {
   else if (ev.k === "chat") broadcast({ t: "chat", msg: ev.msg });
   else if (ev.k === "emote") broadcast({ t: "emote", id: ev.id, e: ev.e });
   else if (ev.k === "ev") broadcast({ t: "event", from: ev.from, kind: ev.kind, data: ev.data });
-  else if (ev.k === "race") broadcast({ t: "race", race: ev.race });
+  else if (ev.k === "race") broadcast({ t: "race", race: ev.race, now: Date.now() });
+  else if (ev.k === "race_end") broadcast({ t: "race_end", raceId: ev.raceId, toLabel: ev.toLabel, rows: ev.rows });
+  else if (ev.k === "hunt") broadcast({ t: "hunt", hunt: ev.hunt, now: Date.now() });
+  else if (ev.k === "hunt_end") broadcast({ t: "hunt_end", huntId: ev.huntId, winner: ev.winner, rows: ev.rows, prize: ev.prize });
 });
 
 const sockets = new Set();
@@ -148,6 +151,11 @@ setInterval(async () => {
   try { leader = await store.tryLead(); } catch { leader = false; }
   mLeader.set(leader ? 1 : 0);
 }, 1000);
+// Événements de ville (chasse aux kubes dorés) et clôture des courses : toutes les secondes, par le leader seulement
+setInterval(async () => {
+  if (!leader) return;
+  try { await game.tickEvents(); await game.tickRaces(); } catch (e) { console.error("tick événements", e.message); }
+}, 1000);
 let lastTick = Date.now();
 setInterval(async () => {
   const now = Date.now(), dt = Math.min(0.5, (now - lastTick) / 1000);
@@ -239,14 +247,14 @@ wss.on("connection", (ws) => {
         // Redis absent (bascule Sentinel) : on accueille tout de suite sans l'attendre, le client redemandera son profil
         const up = store.redisReady();
         const read = (f, d) => (up ? f().catch(() => d) : Promise.resolve(d));
-        const [saved, profile, chat, races, board] = await Promise.all([
+        const [saved, profile, chat, races, board, hunt] = await Promise.all([
           read(() => store.loadPlayer(id), null), read(() => store.loadProfile(id), null),
-          read(() => store.recentChat(20), []), read(() => store.listRaces(), []), read(() => store.leaderboard(10), []),
+          read(() => store.recentChat(20), []), read(() => store.listRaces(), []), read(() => store.leaderboard(10), []), read(() => store.huntView(), null),
         ]);
         me = { id, name: h.name, ch: h.ch, o: h.o, p: h.p || saved?.p || [0, 0, 0], r: 0, vel: [0, 0, 0], a: "idle", veh: null, seat: 0, st: 0, vh: null };
         send(ws, {
           t: "welcome", v: proto.PROTOCOL, id, pod: store.POD, version: VERSION, sync: store.redisReady(), leader,
-          profile, chat, races, board,
+          profile, chat, races, board, hunt, now: Date.now(),
         });
         send(ws, fullSnapshot());
         // après une reconnexion (pod tué, mise à jour…), pas de message : le joueur ne doit rien remarquer
@@ -276,8 +284,8 @@ wss.on("connection", (ws) => {
         const text = proto.parseChat(m);
         if (text) await store.pushChat({ from: me.name, text, ts: Date.now() });
       } else if (m.t === "emote") {
-        const e = proto.parseEmote(m);
-        if (e) await store.publish({ k: "emote", id: me.id, e });
+        const e = proto.parseEmote(m), now = Date.now();
+        if (e && now - (ws.lastEmote || 0) > 600 && store.redisReady()) { ws.lastEmote = now; await store.publish({ k: "emote", id: me.id, e }); }
       } else if (m.t === "event") {
         // événement partagé (course multijoueur, mission coopérative…) : relayé tel quel, taille bornée
         const kind = String(m.kind || "").replace(/[^a-z0-9_.:-]/gi, "").slice(0, 32);
@@ -292,15 +300,25 @@ wss.on("connection", (ws) => {
         try { send(ws, { t: "profile", rid: m.rid, ok: true, profile: await store.loadProfile(me.id) }); }
         catch (e) { send(ws, { t: "profile", rid: m.rid, ok: false, profile: null }); }
       } else if (m.t === "race_new") {
-        await game.createRace({ creatorId: me.id, creatorName: me.name, from: { x: me.p[0], z: me.p[2] }, toKey: m.to });
+        try { await game.createRace({ creatorId: me.id, creatorName: me.name, from: { x: me.p[0], z: me.p[2] }, toKey: m.to }); }
+        catch (e) { send(ws, { t: "race_error", reason: e.message }); }
       } else if (m.t === "race_join") {
-        const race = await store.loadRace(m.raceId);
-        if (race && game.raceStatus(race) !== "terminée") {
-          await store.joinRace(race.id, me.id, me.name);
-          send(ws, { t: "joined", raceId: race.id });
+        send(ws, { t: "joined", ...(await game.joinRace(String(m.raceId), me.id, me.name, me.p)) });
+      } else if (m.t === "hunt_claim") {
+        send(ws, { t: "hunt_claim", huntId: m.huntId, ...(await game.claimHuntKube(me.id, me.name, me.p, String(m.huntId), Number(m.i))) });
+      } else if (m.t === "stat") {
+        // gains déclarés par le client (jeu coopératif entre étudiants, pas de compétition à enjeu) : bornés et espacés
+        const now = Date.now();
+        if (now - (ws.lastStat || 0) >= 2000) {
+          ws.lastStat = now;
+          const money = Math.min(3000, Math.max(0, Math.round(+m.money || 0))), kubes = Math.min(5, Math.max(0, Math.round(+m.kubes || 0)));
+          if (money) await game.recordStat(me.id, me.name, "money", money);
+          if (kubes) await game.recordStat(me.id, me.name, "kubes", kubes);
         }
+      } else if (m.t === "sboard") {
+        send(ws, { t: "sboard", rows: await store.sessionBoard(12) });
       } else if (m.t === "race_finish") {
-        send(ws, { t: "finish", ...(await game.finish(m.raceId, me.id, me.name)) });
+        send(ws, { t: "finish", raceId: m.raceId, ...(await game.finish(m.raceId, me.id, me.name)) });
       } else if (m.t === "mission") {
         // mission réussie : petit bonus, plafonné côté serveur
         await store.addScore(me.id, me.name, Math.min(80, Math.max(0, +m.pts || 0)));

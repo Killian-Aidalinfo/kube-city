@@ -109,7 +109,18 @@ export async function recentChat(n = 20) {
 export async function saveRace(race) {
   await redis.set(`pn:race:${race.id}`, JSON.stringify(race), "EX", 900);
   await redis.sadd("pn:races", race.id);
-  await publish({ k: "race", race });
+}
+
+// Vue d'une course diffusée aux joueurs : la course + ses inscrits (id -> nom)
+export async function raceView(id) {
+  const race = await loadRace(id);
+  if (!race) return null;
+  return { ...race, entrants: await raceEntrants(id), closed: await raceClosed(id) };
+}
+export async function publishRace(id) {
+  const race = await raceView(id);
+  if (race) await publish({ k: "race", race });
+  return race;
 }
 
 export async function loadRace(id) {
@@ -121,7 +132,7 @@ export async function listRaces() {
   const ids = await redis.smembers("pn:races");
   const out = [];
   for (const id of ids) {
-    const r = await loadRace(id);
+    const r = await raceView(id);
     if (r) out.push(r); else await redis.srem("pn:races", id);
   }
   return out;
@@ -223,3 +234,76 @@ export async function loadProfile(id) {
   if (!raw) return null;
   try { return JSON.parse(raw); } catch { return null; }
 }
+
+// Classement final d'une course : arrivés (par temps) puis ceux qui n'ont pas fini
+export async function raceBoard(id) {
+  const [entrants, fin] = await Promise.all([raceEntrants(id), raceResults(id)]);
+  const done = new Set(fin.map((f) => f.id));
+  return {
+    entrants: Object.keys(entrants).length,
+    rows: [...fin.map((f) => ({ id: f.id, name: entrants[f.id] || "?", ms: f.ms })), ...Object.entries(entrants).filter(([pid]) => !done.has(pid)).map(([pid, name]) => ({ id: pid, name, ms: null }))],
+  };
+}
+// Clôture d'une course : un verrou court (8 s) évite le doublon entre deux leaders ; s'il meurt avant d'avoir annoncé
+// le résultat, le verrou expire et le suivant reprend. La marque « clôturée » n'est posée qu'après l'annonce.
+export async function raceClosed(id) { return (await redis.exists(`pn:race:${id}:closed`)) === 1; }
+export async function lockRaceClose(id) { return (await redis.set(`pn:race:${id}:lock`, POD, "PX", 8000, "NX")) === "OK"; }
+export async function markRaceClosed(id) { await redis.set(`pn:race:${id}:closed`, "1", "EX", 900); }
+
+// --- Classement de la session : argent gagné, courses, kubes (zsets Redis, 12 h) ---
+const SESS_TTL = 12 * 3600;
+export const SESS_KINDS = ["money", "races", "kubes"];
+export async function bumpSession(id, name, kind, n) {
+  if (!SESS_KINDS.includes(kind)) return 0;
+  await redis.hset("pn:names", id, name);
+  const v = Number(await redis.zincrby(`pn:ss:${kind}`, n, id));
+  await redis.expire(`pn:ss:${kind}`, SESS_TTL);
+  return v;
+}
+export async function sessionTop(kind) {
+  const f = await redis.zrevrange(`pn:ss:${kind}`, 0, 0, "WITHSCORES");
+  return f.length ? { id: f[0], score: Number(f[1]) } : null;
+}
+export async function sessionBoard(n = 12) {
+  const tops = await Promise.all(SESS_KINDS.map((k) => redis.zrevrange(`pn:ss:${k}`, 0, n - 1)));
+  const ids = [...new Set(tops.flat())];
+  if (!ids.length) return [];
+  const pipe = redis.pipeline();
+  for (const k of SESS_KINDS) for (const id of ids) pipe.zscore(`pn:ss:${k}`, id);
+  pipe.hmget("pn:names", ...ids);
+  const res = await pipe.exec();
+  const names = res.at(-1)[1] || [];
+  const rows = ids.map((id, i) => ({
+    id, name: names[i] || "?",
+    ...Object.fromEntries(SESS_KINDS.map((k, ki) => [k, Number(res[ki * ids.length + i][1]) || 0])),
+  }));
+  return rows.sort((a, b) => b.money - a.money || b.kubes - a.kubes).slice(0, n);
+}
+export async function getLeaderAnnounced() { return redis.get("pn:ss:lead"); }
+export async function setLeaderAnnounced(id) { await redis.set("pn:ss:lead", id, "EX", SESS_TTL); }
+
+// --- Chasse aux kubes dorés : tout l'état est dans Redis, le leader n'en garde rien en mémoire ---
+export async function huntNextAt() { const v = await redis.get("pn:hunt:next"); return v ? Number(v) : null; }
+export async function setHuntNext(ts) { await redis.set("pn:hunt:next", String(ts), "EX", 24 * 3600); }
+// Démarre la chasse seulement si aucune n'est en cours (NX)
+export async function startHunt(hunt) {
+  return (await redis.set("pn:hunt", JSON.stringify(hunt), "PX", Math.max(1000, hunt.endAt - Date.now() + 60_000), "NX")) === "OK";
+}
+export async function huntView() {
+  const raw = await redis.get("pn:hunt");
+  if (!raw) return null;
+  const hunt = JSON.parse(raw);
+  const claims = await redis.hgetall(`pn:hunt:${hunt.id}:claims`);
+  const ids = [...new Set(Object.values(claims))];
+  const nm = ids.length ? await redis.hmget("pn:names", ...ids) : [];
+  return { ...hunt, claims, names: Object.fromEntries(ids.map((id, i) => [id, nm[i] || "?"])) };
+}
+// Atomique : le premier joueur à écrire la case gagne le kube
+export async function claimKube(huntId, i, playerId) {
+  const ok = await redis.hsetnx(`pn:hunt:${huntId}:claims`, String(i), playerId);
+  if (ok) await redis.expire(`pn:hunt:${huntId}:claims`, 3600);
+  return ok === 1;
+}
+// Même principe que pour les courses : verrou court, puis l'annonce, puis on efface la chasse
+export async function lockHuntEnd(huntId) { return (await redis.set(`pn:hunt:${huntId}:lock`, POD, "PX", 8000, "NX")) === "OK"; }
+export async function clearHunt() { await redis.del("pn:hunt"); }

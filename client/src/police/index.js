@@ -150,10 +150,20 @@ export function install(game) {
     blockT = 0;
   }
 
+  /** Cône de vision d'une voiture : < 14 m (on entend le moteur) ou devant, à ±70° et à moins de `range`. */
+  function inCone(obj, p, range) {
+    const o = obj.position, d = dist(o, p);
+    if (d > range) return false;
+    if (d < 14) return true;
+    const h = headingOf(obj, fwd);
+    return (h.x * (p.x - o.x) + h.z * (p.z - o.z)) / d > Math.cos(1.22);
+  }
+
   function seenByPolice(p) {
-    for (const u of cars) if (dist(u.veh.object3d.position, p) < 55) return true;
-    for (const u of blocks) if (dist(u.veh.object3d.position, p) < 40) return true;
-    if (heli.active && dist(heli.position, p) < 90) return true;
+    for (const u of cars) if (inCone(u.veh.object3d, p, 55)) return true;
+    for (const u of blocks) if (inCone(u.veh.object3d, p, 40)) return true;
+    // hélicoptère : projecteur la nuit (disque lumineux sous la cible), vue dégagée de jour
+    if (heli.active && (heli.beam ? dist(heli.target, p) < heli.beamRadius : dist(heli.position, p) < 90)) return true;
     for (const c of foot.cops) if (c.active && !c.isDown && dist(c.position, p) < 35) return true;
     return false;
   }
@@ -206,10 +216,10 @@ export function install(game) {
     if (lvl <= 0) { heli.update(dt, p, p, t); foot.update(dt, p, false); return; }
 
     ensureUnits();
-    // hélicoptère à partir de 4 étoiles
-    heli.set(lvl >= 4, p);
+    // hélicoptère à 5 étoiles (projecteur la nuit)
+    heli.set(lvl >= 5, p);
     // barrages à partir de 3 étoiles, renouvelés régulièrement
-    if (lvl >= 3) { blockT += dt; if (blockT > 25 && frame % 30 === 0) placeBlocks(); } else if (blocks.length) for (const b of blocks.splice(0)) dismiss(b);
+    if (lvl >= 3) { blockT += dt; if (blockT > (blocks.length ? 22 : 6) && frame % 30 === 0) placeBlocks(); } else if (blocks.length) for (const b of blocks.splice(0)) dismiss(b);
 
     const seen = seenByPolice(p);
     const st = stepSearch(search, { dt, seen, pos: p, level: lvl });
@@ -224,6 +234,8 @@ export function install(game) {
     const v = playerVel();
     const lk = search.lastKnown ?? p;
     let target = seen ? p : lk;
+    // à 4+ étoiles, les `lvl - 3` voitures les plus proches tentent un PIT doux
+    const pitIds = new Set(lvl >= 4 && seen ? [...cars].sort((a, b) => dist(a.veh.object3d.position, p) - dist(b.veh.object3d.position, p)).slice(0, lvl - 3) : []);
     for (let i = 0; i < cars.length; i++) {
       const u = cars[i];
       const q = u.veh.object3d.position, d = dist(q, p);
@@ -232,7 +244,14 @@ export function install(game) {
         u.wander = (u.wander ?? 0) - dt;
         if (u.wander <= 0 || !u.wp) { u.wander = 9; const a = rng() * 6.28, r = rng() * search.zone.radius; u.wp = { x: search.zone.center.x + Math.cos(a) * r, z: search.zone.center.z + Math.sin(a) * r }; u.path = null; }
         tg = u.wp; desired = 15;
-      } else if (seen && lvl >= 3 && inVeh && d < 26) {
+      } else if (seen && lvl >= 4 && inVeh && d < 45 && pitIds.has(u)) {
+        // PIT doux : se cale à l'arrière-flanc du joueur, un peu plus vite, et se rabat sans le percuter de plein fouet
+        const sp = Math.hypot(v.x, v.z) || 1, nx = -v.z / sp, nz = v.x / sp;
+        const side = (q.x - p.x) * nx + (q.z - p.z) * nz >= 0 ? 1 : -1;
+        const lat = d < 9 ? 0.9 : 2.8;
+        tg = { x: p.x + v.x * 0.3 + nx * side * lat, z: p.z + v.z * 0.3 + nz * side * lat };
+        desired = Math.min(36, sp * 1.06 + 1.5); ram = true;
+      } else if (seen && lvl === 3 && inVeh && d < 26) {
         ram = true; tg = { x: p.x + v.x * 0.45, z: p.z + v.z * 0.45 }; desired = 32; // éperonnage
       }
       if (onFoot && seen && d < 14) {

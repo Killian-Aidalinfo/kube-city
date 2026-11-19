@@ -39,7 +39,8 @@ test("vehicle : quaternion, roues, couleur", () => {
 test("chat, emote, profil", () => {
   assert.equal(proto.parseChat({ text: "  salut\n" }), "salut");
   assert.equal(proto.parseChat({ text: "x".repeat(500) }).length, 160);
-  assert.equal(proto.parseEmote({ e: "dance" }), "dance");
+  assert.equal(proto.parseEmote({ e: "danse" }), "danse");
+  assert.equal(proto.parseEmote({ e: "dance" }), null);
   assert.equal(proto.parseEmote({ e: "../etc" }), null);
   assert.deepEqual(proto.parseProfile({ money: 5 }), { money: 5 });
   assert.equal(proto.parseProfile([1]), null);

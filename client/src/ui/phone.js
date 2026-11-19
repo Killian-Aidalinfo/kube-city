@@ -8,6 +8,9 @@ const APPS = [
   { id: 'missions', label: 'Missions', ic: '★', c: '#ffd23f' },
   { id: 'activities', label: 'Activités', ic: '⚑', c: '#ff4fa3' },
   { id: 'photo', label: 'Photo', ic: '◉', c: '#38e8ff' },
+  { id: 'races', label: 'Courses', ic: '⚐', c: '#ff8a3d' },
+  { id: 'board', label: 'Classement', ic: '♛', c: '#ffd23f' },
+  { id: 'emotes', label: 'Emotes', ic: '☺', c: '#7bf59a' },
   { id: 'players', label: 'Joueurs', ic: '☻', c: '#c08cff' },
   { id: 'settings', label: 'Réglages', ic: '⚙', c: '#c8d3f5' },
 ];
@@ -54,10 +57,33 @@ export function createPhone(game, ui) {
       const arr = pl instanceof Map ? [...pl.values()] : Array.isArray(pl) ? pl : [];
       body.innerHTML = `<h3>Joueurs connectés</h3>${item(`${gp?.charData?.[gp.currentCharacter]?.short || 'Moi'} (vous)`, pod ? `Pod : ${pod}` : '')}
         ${arr.map((p) => item(p.name || 'Joueur', p.character ? `Perso : ${p.character}` : '')).join('') || '<small>Aucun autre joueur pour le moment.</small>'}`;
+    } else if (page === 'races') {
+      const so = game.social;
+      body.innerHTML = `<h3>Course entre joueurs</h3>${item('Lancer une course', 'Les autres ont 30 s pour vous rejoindre, près de vous. Départ commun, classement pour tous.',
+        `<select data-race-to class="kc-btn small">${(so?.places || []).map((p) => `<option value="${esc(p.key)}">${esc(p.label)}</option>`).join('')}</select> <button class="kc-btn small" data-race-new>Lancer</button>`)}<div data-rl></div>`;
+      refreshLive();
+    } else if (page === 'board') {
+      body.innerHTML = '<h3>Classement de la session</h3><div data-bl></div>';
+      game.social?.fetchBoard(); refreshLive();
+    } else if (page === 'emotes') {
+      body.innerHTML = `<h3>Emotes</h3>${item('Touches 5 à 8 en jeu', 'Les autres joueurs voient votre emote au-dessus de votre tête.')}
+        ${(game.social?.emotes || []).map((e) => item(`${e.icon} ${e.label}`, `Touche ${e.key.replace('Digit', '')}`, `<button class="kc-btn small" data-emote="${e.id}">Essayer</button>`)).join('')}`;
     } else if (page === 'settings') {
       body.innerHTML = '<h3>Réglages</h3>';
       body.appendChild(buildSettings(game));
     }
+  }
+
+  // Courses et classement : seule la partie vivante est redessinée (la liste déroulante garde sa valeur)
+  function refreshLive() {
+    const so = game.social;
+    const rl = body.querySelector('[data-rl]');
+    if (rl) rl.innerHTML = (so?.raceList() || []).map((r) => item(`Vers ${r.toLabel}`,
+      `${r.status === 'inscriptions' ? `Départ dans ${Math.max(0, r.secs)} s` : 'En cours'} · lancée par ${r.creatorName} · ${r.entrants.length} inscrit(s) : ${r.entrants.join(', ')}`,
+      r.status === 'inscriptions' && !r.joined ? `<button class="kc-btn small" data-race-join="${esc(r.id)}">Rejoindre</button>` : '',
+      r.joined ? { cls: 'available', text: r.done ? 'Arrivé' : 'Inscrit' } : undefined)).join('') || '<small>Aucune course ouverte. Lancez la première !</small>';
+    const bl = body.querySelector('[data-bl]');
+    if (bl) bl.innerHTML = `<table style="width:100%"><tr><th align="left">#</th><th align="left">Joueur</th><th align="right">€</th><th align="right">Courses</th><th align="right">Kubes</th></tr>${(so?.board || []).map((r, i) => `<tr><td>${i + 1}</td><td>${esc(r.name)}</td><td align="right">${Math.round(r.money)}</td><td align="right">${r.races}</td><td align="right">${r.kubes}</td></tr>`).join('')}</table>`;
   }
 
   function shot(selfie) {
@@ -81,6 +107,9 @@ export function createPhone(game, ui) {
     else if ('close' in t.dataset) ui.closePhone();
     else if (t.dataset.mission) { if (gp.startMission(t.dataset.mission)) ui.closePhone(); else render(); }
     else if (t.dataset.activity) { if (gp.startActivity(t.dataset.activity)) ui.closePhone(); else render(); }
+    else if ('raceNew' in t.dataset) { const sel = body.querySelector('[data-race-to]'); if (sel?.value) game.social?.createRace(sel.value); }
+    else if (t.dataset.raceJoin) game.social?.joinRace(t.dataset.raceJoin);
+    else if (t.dataset.emote) game.social?.emote(t.dataset.emote);
     else if (t.dataset.act === 'abandon') { gp.abandon(); render(); }
     else if (t.dataset.act === 'taxi') { gp.callTaxi(); }
     else if (t.dataset.act === 'garage') { gp.callGarage(); }
@@ -93,7 +122,7 @@ export function createPhone(game, ui) {
   return {
     el,
     get open() { return open; },
-    show() { if (open) return; open = true; page = 'home'; el.style.display = 'flex'; game.input.exitPointerLock(); render(); timer = setInterval(() => { clk.textContent = formatClock(game.time.dayTime); podEl.textContent = pod; if (page === 'activities' || page === 'missions') { /* ne pas redessiner : conserve les clics */ } }, 500); clk.textContent = formatClock(game.time.dayTime); podEl.textContent = pod; },
+    show() { if (open) return; open = true; page = 'home'; el.style.display = 'flex'; game.input.exitPointerLock(); render(); timer = setInterval(() => { clk.textContent = formatClock(game.time.dayTime); podEl.textContent = pod; if (page === 'races' || page === 'board') refreshLive(); }, 500); clk.textContent = formatClock(game.time.dayTime); podEl.textContent = pod; },
     hide() { open = false; el.style.display = 'none'; clearInterval(timer); },
     back() { if (page !== 'home') { page = 'home'; render(); return true; } return false; },
   };

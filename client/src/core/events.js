@@ -108,4 +108,6 @@ export const EVENTS = Object.freeze({
   NET_PLAYERS: 'net:players',
   /** RÉSEAU — message brut non reconnu */
   NET_MESSAGE: 'net:message',
+  /** Accueil du serveur (courses, chasse en cours, heure serveur) : { races, hunt, now, … }. */
+  NET_WELCOME: 'net:welcome',
 });

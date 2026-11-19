@@ -16,6 +16,9 @@ export const DEFAULTS = Object.freeze({
   subtitles: true,
 });
 
+/** Préréglage Basse (rendu logiciel mesuré ~30 i/s avec ces valeurs, voir scripts/perf-low.mjs). Appliqué quand quality passe à 'low'. */
+export const LOW_PRESET = Object.freeze({ shadows: false, shadowMapSize: 1024, viewDistance: 200, pedDensity: 0.2, maxPixelRatio: 0.5 });
+
 /** Réglages réactifs : settings.get/set/onChange. */
 export function createSettings(storage = globalThis.localStorage) {
   let data = { ...DEFAULTS };
@@ -25,7 +28,11 @@ export function createSettings(storage = globalThis.localStorage) {
   return {
     get: (k) => data[k],
     all: () => ({ ...data }),
-    set(k, v) { if (data[k] === v) return; data[k] = v; save(); for (const f of listeners) f(k, v); },
+    set(k, v) {
+      if (data[k] === v) return;
+      data[k] = v; save(); for (const f of listeners) f(k, v);
+      if (k === 'quality' && v === 'low') for (const [pk, pv] of Object.entries(LOW_PRESET)) if (data[pk] !== pv) { data[pk] = pv; save(); for (const f of listeners) f(pk, pv); }
+    },
     reset() { data = { ...DEFAULTS }; save(); for (const f of listeners) f('*', null); },
     /** fn(clé, valeur) ; renvoie le désabonnement */
     onChange(fn) { listeners.add(fn); return () => listeners.delete(fn); },

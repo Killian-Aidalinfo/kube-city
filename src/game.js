@@ -5,7 +5,9 @@ import * as store from "./store.js";
 
 export const BOT_SPEED = 14;         // m/s (~50 km/h) : les agents roulent sagement
 const BOT_TURN = 3;                  // rad/s : vitesse de rotation max du véhicule
-const RACE_LOBBY_MS = 20_000;        // délai pour s'inscrire avant le départ
+const RACE_LOBBY_MS = Number(process.env.RACE_LOBBY_MS || 30_000); // délai pour s'inscrire avant le départ
+const RACE_GRACE_MS = 45_000;        // après le premier arrivé, les autres ont ce temps pour finir
+export const JOIN_RADIUS = 200;      // m : pour s'inscrire, il faut être près de la ligne de départ
 const RACE_MAX_MS = 5 * 60_000;
 const MAX_SPEED = 45;                // m/s : au-delà, une arrivée est jugée invraisemblable
 const PRIZES = [300, 200, 100];
@@ -41,7 +43,8 @@ export async function createRace({ creatorId, creatorName, from, toKey }) {
   };
   await store.saveRace(race);
   await store.joinRace(race.id, creatorId, creatorName);
-  await store.pushChat({ from: "Radio Kube", text: `${creatorName} lance une course vers ${to.label} ! Départ dans 20 s, rejoignez-la depuis le téléphone.`, ts: now });
+  await store.publishRace(race.id);
+  await store.pushChat({ from: "Radio Kube", text: `${creatorName} lance une course vers ${to.label} ! Départ dans ${Math.round(RACE_LOBBY_MS / 1000)} s : rejoignez-la depuis le téléphone (P, puis Courses).`, ts: now });
   return race;
 }
 
@@ -66,7 +69,133 @@ export async function finish(raceId, playerId, name) {
   const prize = PRIZES[place - 1] ?? 50;
   await store.addScore(playerId, name, prize);
   await store.pushChat({ from: "Radio Kube", text: `${name} termine ${place === 1 ? "1er" : `${place}e`} de la course vers ${race.toLabel} en ${(ms / 1000).toFixed(1)} s (+${prize}).`, ts: now });
+  await recordStat(playerId, name, "races", 1);
   return { ok: true, place, ms, prize };
+}
+
+// Inscription : avant le départ seulement, et près de la ligne de départ (sinon le chrono serait injuste)
+export async function joinRace(raceId, playerId, name, pos) {
+  const race = await store.loadRace(raceId);
+  if (!race) return { ok: false, reason: "course inconnue" };
+  if (raceStatus(race) !== "inscriptions") return { ok: false, reason: "les inscriptions sont closes" };
+  if (pos && Math.hypot(pos[0] - race.from.x, pos[2] - race.from.z) > JOIN_RADIUS) return { ok: false, reason: `trop loin du départ (à plus de ${JOIN_RADIUS} m)` };
+  await store.joinRace(raceId, playerId, name);
+  await store.publishRace(raceId);
+  return { ok: true, raceId };
+}
+
+// Clôture (leader) : tout le monde a fini, ou le délai après le premier arrivé est écoulé, ou la course est trop vieille.
+// Classement final diffusé à tous. Tout vit dans Redis : si le leader meurt, le suivant reprend.
+export async function tickRaces(now = Date.now()) {
+  for (const race of await store.listRaces()) {
+    if (now < race.startAt || race.closed) continue;
+    const board = await store.raceBoard(race.id);
+    const fin = board.rows.filter((r) => r.ms != null);
+    const over = fin.length >= board.entrants || now > race.startAt + RACE_MAX_MS || (fin.length > 0 && now > race.startAt + fin[0].ms + RACE_GRACE_MS);
+    if (!over || !(await store.lockRaceClose(race.id))) continue;
+    const rows = board.rows.map((r, i) => ({ ...r, place: r.ms != null ? i + 1 : null, prize: r.ms != null ? (PRIZES[i] ?? 50) : 0 }));
+    await store.publish({ k: "race_end", raceId: race.id, toLabel: race.toLabel, rows });
+    if (fin.length) await store.pushChat({ from: "Radio Kube", text: `Course vers ${race.toLabel} terminée. Podium : ${rows.filter((r) => r.place && r.place <= 3).map((r) => `${r.place}. ${r.name}`).join(", ")}.`, ts: now });
+    await store.markRaceClosed(race.id);
+  }
+}
+
+// ---------- Classement de session et exploits (Radio Kube) ----------
+const MILES = { money: [1000, 5000, 10000, 25000, 50000], races: [3, 10], kubes: [10, 25, 50] };
+/** Plus haut palier franchi en passant de `before` à `after`, ou null. */
+export function crossedMilestone(kind, before, after) {
+  const l = (MILES[kind] || []).filter((t) => before < t && after >= t);
+  return l.length ? l.at(-1) : null;
+}
+export function exploitText(name, kind, t) {
+  if (kind === "money") return `${name} dépasse ${t} € gagnés depuis le début de la session !`;
+  if (kind === "races") return `${name} compte déjà ${t} courses terminées. Quelqu'un peut l'arrêter ?`;
+  return `${name} a ramassé ${t} kubes. La ville en perd son éclat.`;
+}
+const LEAD_MIN = 3000;
+export async function recordStat(id, name, kind, n) {
+  n = Math.round(n);
+  if (!(n > 0)) return;
+  const after = await store.bumpSession(id, name, kind, n);
+  const t = crossedMilestone(kind, after - n, after);
+  if (t) await store.pushChat({ from: "Radio Kube", text: exploitText(name, kind, t), ts: Date.now() });
+  if (kind === "money") {
+    const top = await store.sessionTop("money");
+    if (top && top.id === id && top.score >= LEAD_MIN && (await store.getLeaderAnnounced()) !== id) {
+      await store.setLeaderAnnounced(id);
+      await store.pushChat({ from: "Radio Kube", text: `${name} prend la tête du classement de la session avec ${Math.round(top.score)} € !`, ts: Date.now() });
+    }
+  }
+}
+
+// ---------- Événement de ville : la Chasse aux kubes dorés (toutes les ~10 min, pilotée par le leader) ----------
+const HUNT_EVERY_MS = Number(process.env.HUNT_EVERY_MS || 10 * 60_000);
+const HUNT_DURATION_MS = Number(process.env.HUNT_DURATION_MS || 3 * 60_000);
+export const HUNT_KUBES = 5;
+export const HUNT_CLAIM_RADIUS = 25; // m : tolérance côté serveur (latence, vitesse d'un véhicule)
+
+/** Classement d'une chasse : plus de kubes d'abord ; à égalité, celui qui a le kube de plus petit numéro. Pure. */
+export function huntRows(claims, names = {}) {
+  const by = new Map();
+  for (const [i, id] of Object.entries(claims)) {
+    const e = by.get(id) || { id, name: names[id] || "?", count: 0, first: Infinity };
+    e.count++; e.first = Math.min(e.first, Number(i));
+    by.set(id, e);
+  }
+  return [...by.values()].sort((a, b) => b.count - a.count || a.first - b.first).map(({ id, name, count }) => ({ id, name, count }));
+}
+
+function pickHuntPoints(n) {
+  const pts = [];
+  for (let tries = 0; pts.length < n && tries < 200; tries++) {
+    const p = randomRoadPoint();
+    if (pts.every((q) => Math.hypot(q.x - p.x, q.z - p.z) > 150) || tries > 150) pts.push({ x: Math.round(p.x), z: Math.round(p.z) });
+  }
+  return pts.map((p, i) => ({ i, ...p }));
+}
+
+export async function startHunt(now = Date.now()) {
+  const hunt = { id: newId("chasse"), startAt: now, endAt: now + HUNT_DURATION_MS, kubes: pickHuntPoints(HUNT_KUBES), prize: 500 };
+  if (!(await store.startHunt(hunt))) return null;
+  await store.setHuntNext(now + HUNT_EVERY_MS);
+  await store.publish({ k: "hunt", hunt: await store.huntView() });
+  await store.pushChat({ from: "Radio Kube", text: `Chasse aux kubes dorés ! ${HUNT_KUBES} kubes dorés viennent d'apparaître en ville. Le plus rapide en ramasse le plus : ${Math.round(HUNT_DURATION_MS / 60000 * 10) / 10} min.`, ts: now });
+  return hunt;
+}
+
+export async function endHunt(hunt) {
+  if (!(await store.lockHuntEnd(hunt.id))) return;
+  const rows = huntRows(hunt.claims || {}, hunt.names || {});
+  const winner = rows[0] || null;
+  if (winner) await store.addScore(winner.id, winner.name, hunt.prize / 10);
+  await store.publish({ k: "hunt_end", huntId: hunt.id, winner, rows, prize: hunt.prize });
+  await store.pushChat({ from: "Radio Kube", text: winner ? `Chasse terminée ! ${winner.name} l'emporte avec ${winner.count} kube${winner.count > 1 ? "s" : ""} doré${winner.count > 1 ? "s" : ""} (+${hunt.prize} €).` : "Chasse terminée : personne n'a trouvé de kube doré. Les kubes retournent dans l'ombre.", ts: Date.now() });
+  await store.clearHunt();
+}
+
+/** Appelée ~1 fois par seconde par le leader. Aucun état en mémoire : tout est relu dans Redis. */
+export async function tickEvents(now = Date.now()) {
+  const hunt = await store.huntView();
+  if (hunt) {
+    if (Object.keys(hunt.claims).length >= hunt.kubes.length || now >= hunt.endAt) await endHunt(hunt);
+    return;
+  }
+  const next = await store.huntNextAt();
+  if (next === null) await store.setHuntNext(now + HUNT_EVERY_MS);
+  else if (now >= next) await startHunt(now);
+}
+
+/** Un joueur ramasse un kube doré : le premier qui écrit la case gagne (atomique côté Redis). */
+export async function claimHuntKube(playerId, name, pos, huntId, i) {
+  const hunt = await store.huntView();
+  if (!hunt || hunt.id !== huntId || Date.now() > hunt.endAt) return { ok: false, reason: "pas de chasse en cours" };
+  const k = hunt.kubes.find((x) => x.i === i);
+  if (!k) return { ok: false, reason: "kube inconnu" };
+  if (Math.hypot(pos[0] - k.x, pos[2] - k.z) > HUNT_CLAIM_RADIUS) return { ok: false, reason: "trop loin" };
+  if (!(await store.claimKube(hunt.id, i, playerId))) return { ok: false, taken: true, reason: "déjà pris" };
+  await recordStat(playerId, name, "kubes", 1);
+  await store.publish({ k: "hunt", hunt: await store.huntView() });
+  return { ok: true, i, reward: 100 };
 }
 
 // ---------- Agents IA ----------

@@ -17,12 +17,13 @@ import { install as installAudio } from './audio/index.js';
 import { install as installGameplay } from './gameplay/index.js';
 import { install as installNet } from './net/index.js';
 import { install as installUi } from './ui/index.js';
+import { install as installSocial } from './social/index.js';
 
 // Ordre d'installation imposé par la spec (core est déjà fait ci-dessous).
 export const MODULES = [
   ['world', installWorld], ['player', installPlayer], ['vehicles', installVehicles], ['npc', installNpc],
   ['police', installPolice], ['combat', installCombat], ['audio', installAudio], ['gameplay', installGameplay],
-  ['net', installNet], ['ui', installUi],
+  ['net', installNet], ['ui', installUi], ['social', installSocial],
 ];
 
 export async function boot() {

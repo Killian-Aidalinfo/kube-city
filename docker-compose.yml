@@ -14,11 +14,11 @@ x-game: &game
 services:
   redis:
     image: redis:7-alpine
-  game-1: { <<: *game, hostname: game-1, environment: { REDIS_URL: "redis://redis:6379", APP_VERSION: local, DRAIN_DELAY_MS: "1000", POD_NAME: game-1 } }
-  game-2: { <<: *game, hostname: game-2, environment: { REDIS_URL: "redis://redis:6379", APP_VERSION: local, DRAIN_DELAY_MS: "1000", POD_NAME: game-2 } }
-  game-3: { <<: *game, hostname: game-3, environment: { REDIS_URL: "redis://redis:6379", APP_VERSION: local, DRAIN_DELAY_MS: "1000", POD_NAME: game-3 } }
+  game-1: { <<: *game, hostname: game-1, environment: { REDIS_URL: "redis://redis:6379", APP_VERSION: local, DRAIN_DELAY_MS: "1000", POD_NAME: game-1, HUNT_EVERY_MS: "${HUNT_EVERY_MS:-600000}", HUNT_DURATION_MS: "${HUNT_DURATION_MS:-180000}", RACE_LOBBY_MS: "${RACE_LOBBY_MS:-30000}" } }
+  game-2: { <<: *game, hostname: game-2, environment: { REDIS_URL: "redis://redis:6379", APP_VERSION: local, DRAIN_DELAY_MS: "1000", POD_NAME: game-2, HUNT_EVERY_MS: "${HUNT_EVERY_MS:-600000}", HUNT_DURATION_MS: "${HUNT_DURATION_MS:-180000}", RACE_LOBBY_MS: "${RACE_LOBBY_MS:-30000}" } }
+  game-3: { <<: *game, hostname: game-3, environment: { REDIS_URL: "redis://redis:6379", APP_VERSION: local, DRAIN_DELAY_MS: "1000", POD_NAME: game-3, HUNT_EVERY_MS: "${HUNT_EVERY_MS:-600000}", HUNT_DURATION_MS: "${HUNT_DURATION_MS:-180000}", RACE_LOBBY_MS: "${RACE_LOBBY_MS:-30000}" } }
   lb:
     image: nginx:1.27-alpine
     volumes: ["./deploy/local/nginx.conf:/etc/nginx/conf.d/default.conf:ro"]
-    ports: ["8080:80"]
+    ports: ["${LB_PORT:-8080}:80"]
     depends_on: [game-1, game-2, game-3]

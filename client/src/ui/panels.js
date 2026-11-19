@@ -59,7 +59,7 @@ export function buildSettings(game) {
 export const KEYS = [
   ['Z Q S D / W A S D / flèches', 'Se déplacer'], ['Souris', 'Regarder (cliquez dans le jeu pour capturer)'], ['Maj', 'Sprint'], ['Espace', 'Saut · frein à main en véhicule'],
   ['F', 'Monter / descendre · parler'], ['E', 'Entrer dans une boutique ou le garage'], ['Clic gauche / clic droit', 'Attaquer · viser'], ['Tab (maintenu)', 'Roue d\'armes'],
-  ['H', 'Klaxon'], ['R', 'Radio suivante (en véhicule)'], ['L', 'Phares'], ['V', 'Changer de caméra'],
+  ['H', 'Klaxon'], ['R', 'Radio suivante (en véhicule)'], ['N', 'Phares'], ['L', 'Classement de la session'], ['5-8', 'Emotes'], ['V', 'Changer de caméra'],
   ['P', 'Téléphone'], ['M', 'Carte plein écran'], ['Alt (maintenu)', 'Roue des personnages'], ['G', 'Capacité spéciale du perso'],
   ['K', 'Infos cluster (pod, latence, leader, Redis)'], ['T', 'Discussion'], ['F2', 'Replier le panneau HA'], ['Échap', 'Pause'], ['Manette', 'Stick gauche : bouger · stick droit : caméra · A : sauter · Y : entrer/sortir · RT : attaquer ou accélérer · LT : viser ou reculer · RB : frein à main · Start : pause'],
 ];

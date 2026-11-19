@@ -6,7 +6,7 @@ import { DELAY, adaptiveDelay, pushSample, sampleAt } from './interp.js';
 // Animation du protocole -> clip de la bibliothèque (animations/ual.glb)
 const CLIPS = {
   idle: 'Idle_Loop', walk: 'Walk_Loop', run: 'Jog_Fwd_Loop', sprint: 'Sprint_Loop', jump: 'Jump_Loop', fall: 'Jump_Loop',
-  drive: 'Driving_Loop', swim: 'Swim_Fwd_Loop', ko: 'Death01', punch: 'Punch_Jab', crouch: 'Crouch_Idle_Loop', dance: 'Dance_Loop', talk: 'Idle_Talking_Loop',
+  drive: 'Driving_Loop', swim: 'Swim_Fwd_Loop', ko: 'Death01', punch: 'Punch_Jab', crouch: 'Crouch_Idle_Loop', dance: 'Dance_Loop', danse: 'Dance_Loop', talk: 'Idle_Talking_Loop',
 };
 const EMOTE_MS = 3500;
 
@@ -22,6 +22,22 @@ function makeLabel(text, color = '#ffffff') {
   const sprite = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex, depthTest: false, transparent: true }));
   sprite.scale.set(1.8, 0.45, 1);
   sprite.renderOrder = 999;
+  return sprite;
+}
+
+const EMOTE_ICONS = { salut: '👋', danse: '💃', bravo: '👏', rire: '😂' };
+/** Bulle d'emote (emoji) à poser au-dessus d'un personnage. */
+export function makeBubble(icon) {
+  const c = document.createElement('canvas');
+  c.width = 128; c.height = 128;
+  const g = c.getContext('2d');
+  g.font = '88px sans-serif'; g.textAlign = 'center'; g.textBaseline = 'middle';
+  g.fillText(icon, 64, 70);
+  const tex = new THREE.CanvasTexture(c);
+  tex.colorSpace = THREE.SRGBColorSpace;
+  const sprite = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex, depthTest: false, transparent: true }));
+  sprite.scale.set(1.1, 1.1, 1);
+  sprite.renderOrder = 1000;
   return sprite;
 }
 
@@ -201,7 +217,10 @@ export function createRemotes(game, players) {
     },
     emote(id, e) {
       const rec = recs.get(id);
-      if (rec) { rec.emote = e; rec.emoteUntil = performance.now() + EMOTE_MS; }
+      if (!rec) return;
+      rec.emote = e; rec.emoteUntil = performance.now() + EMOTE_MS;
+      if (rec.bubble) { rec.root.remove(rec.bubble); disposeObject(rec.bubble); rec.bubble = null; }
+      if (EMOTE_ICONS[e] && rec.root) { rec.bubble = makeBubble(EMOTE_ICONS[e]); rec.root.add(rec.bubble); }
     },
     remove(id) {
       const rec = recs.get(id);
@@ -249,6 +268,10 @@ export function createRemotes(game, players) {
         if (rec.placeholder) rec.placeholder.visible = !inCar;
         rec.label.visible = !inCar || !!en.vehicle; // un passager n'a pas de pseudo flottant
         rec.label.position.y = en.vehicle ? 2.6 : 2.2;
+        if (rec.bubble) {
+          rec.bubble.position.y = en.vehicle ? 3.3 : 2.9;
+          if (performance.now() > rec.emoteUntil) { rec.root.remove(rec.bubble); disposeObject(rec.bubble); rec.bubble = null; }
+        }
         if (rec.mixer) {
           const emoting = performance.now() < rec.emoteUntil;
           play(rec, emoting ? rec.emote : rec.anim);

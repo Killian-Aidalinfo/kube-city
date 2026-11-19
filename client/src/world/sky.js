@@ -83,6 +83,7 @@ export function createSky(game) {
     scene.background = state.horizon;
     if (scene.fog) { scene.fog.color.copy(tmp); scene.fog.near = 120 - cloud * 50; scene.fog.far = game.settings.get('viewDistance') * (1 - weather.rain * 0.35) * (1 - night * 0.2); }
     dome.position.copy(camera.position);
+    dome.scale.setScalar(Math.min(1, camera.far * 0.9 / 900));
     // lumières
     hemi.color.copy(NIGHT.hemiSky).lerp(DAY.hemiSky, day); hemi.groundColor.copy(NIGHT.hemiGround).lerp(DAY.hemiGround, day);
     hemi.intensity = (0.85 + 0.2 * day) * (1 - 0.25 * cloud);

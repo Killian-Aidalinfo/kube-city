@@ -66,7 +66,9 @@ export function parseVehicle(m) {
 }
 
 export const parseChat = (m) => String(m.text || "").replace(/[\u0000-\u001f]/g, " ").trim().slice(0, 160);
-export const parseEmote = (m) => (/^[a-z0-9_]{1,16}$/i.test(m.e || m.id || "") ? String(m.e || m.id) : null);
+// Emotes rapides (touches 5 à 8 côté client) : liste fermée, pour ne rien relayer d'inattendu
+export const EMOTES = ["salut", "danse", "bravo", "rire"];
+export const parseEmote = (m) => (EMOTES.includes(m.e || m.id) ? String(m.e || m.id) : null);
 
 /** Profil persisté : objet JSON de taille bornée (sinon null). */
 export function parseProfile(p) {

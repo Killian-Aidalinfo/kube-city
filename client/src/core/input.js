@@ -5,7 +5,7 @@
 /** Liste des actions logiques. */
 export const ACTIONS = [
   'forward', 'back', 'left', 'right', 'sprint', 'jump', 'interact', 'handbrake', 'attack', 'aim',
-  'weaponWheel', 'horn', 'radioNext', 'radioPrev', 'lights', 'camera', 'phone', 'map', 'switchChar', 'chat', 'pause', 'cluster',
+  'weaponWheel', 'horn', 'radioNext', 'radioPrev', 'lights', 'camera', 'phone', 'map', 'switchChar', 'chat', 'pause', 'cluster', 'board',
 ];
 
 // Clavier : code → actions
@@ -15,7 +15,7 @@ const KEY_CODES = {
   ShiftLeft: ['sprint'], ShiftRight: ['sprint'],
   Space: ['jump', 'handbrake'],
   KeyF: ['interact'], Tab: ['weaponWheel'], KeyH: ['horn'], KeyR: ['radioNext'],
-  KeyL: ['lights'], KeyV: ['camera'], KeyP: ['phone'], KeyM: ['map'], KeyK: ['cluster'],
+  KeyN: ['lights'], KeyL: ['board'], KeyV: ['camera'], KeyP: ['phone'], KeyM: ['map'], KeyK: ['cluster'],
   AltLeft: ['switchChar'], AltRight: ['switchChar'], KeyT: ['chat'], Escape: ['pause'],
 };
 // Clavier : touche tapée (lettres ZQSD pour les claviers QWERTY)

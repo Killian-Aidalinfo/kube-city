@@ -1,8 +1,18 @@
 // Rendu Three.js : renderer, scène, caméra, ombres réglables, resize, pixel ratio plafonné.
 import * as THREE from 'three';
 
+/** GPU logiciel (SwiftShader, llvmpipe…) : le MSAA y coûte ~2x le temps de frame. */
+function softwareGpu() {
+  try {
+    const gl = document.createElement('canvas').getContext('webgl');
+    const ext = gl?.getExtension('WEBGL_debug_renderer_info');
+    return !gl || /swiftshader|llvmpipe|software|basic render/i.test(ext ? String(gl.getParameter(ext.UNMASKED_RENDERER_WEBGL)) : '');
+  } catch { return false; }
+}
+
 export function createRenderer(canvas, settings) {
-  const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, powerPreference: 'high-performance' });
+  const lowEnd = softwareGpu();
+  const renderer = new THREE.WebGLRenderer({ canvas, antialias: !lowEnd && settings.get('quality') !== 'low', powerPreference: 'high-performance' });
   renderer.outputColorSpace = THREE.SRGBColorSpace;
   renderer.toneMapping = THREE.ACESFilmicToneMapping;
   renderer.toneMappingExposure = 1;
@@ -19,19 +29,24 @@ export function createRenderer(canvas, settings) {
     renderer.shadowMap.enabled = !!settings.get('shadows');
     renderer.shadowMap.needsUpdate = true;
     if (scene.fog) scene.fog.far = settings.get('viewDistance');
+    // plan lointain = fin du brouillard (rien n'est visible au-delà) : le frustum élimine le reste de la ville
+    camera.far = Math.max(300, settings.get('viewDistance') * 1.1);
+    camera.updateProjectionMatrix();
     resize();
   }
 
   function resize() {
     const w = window.innerWidth, h = window.innerHeight;
-    renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, settings.get('maxPixelRatio')));
+    // qualité Basse : résolution interne plafonnée à 0,5 (mesuré : 17 -> 30 i/s en rendu logiciel)
+    const cap = settings.get('quality') === 'low' ? Math.min(0.5, settings.get('maxPixelRatio')) : settings.get('maxPixelRatio');
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, cap));
     renderer.setSize(w, h, false);
     camera.aspect = w / Math.max(1, h);
     camera.updateProjectionMatrix();
   }
 
   window.addEventListener('resize', resize);
-  settings.onChange((k) => { if (['shadows', 'viewDistance', 'maxPixelRatio', 'shadowMapSize'].includes(k) || k === '*') applySettings(); });
+  settings.onChange((k) => { if (['quality', 'shadows', 'viewDistance', 'maxPixelRatio', 'shadowMapSize'].includes(k) || k === '*') applySettings(); });
   applySettings();
 
   return { scene, camera, renderer, resize, applySettings };

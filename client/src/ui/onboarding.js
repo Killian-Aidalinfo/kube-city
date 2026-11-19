@@ -68,7 +68,6 @@ export function autoQuality(game) {
     const weak = !gl || /swiftshader|llvmpipe|software|basic render/i.test(name) || (navigator.hardwareConcurrency || 8) <= 2;
     if (!weak) return false;
     game.settings.set('quality', 'low');
-    for (const [k, v] of Object.entries({ shadows: false, shadowMapSize: 1024, viewDistance: 250, pedDensity: 0.3, maxPixelRatio: 0.75 })) game.settings.set(k, v);
     return true;
   } catch { return false; }
 }

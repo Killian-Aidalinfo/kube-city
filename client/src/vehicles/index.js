@@ -239,7 +239,7 @@ export function install(game) {
     player.vehicle = v; player.state = 'inVehicle'; player.seat = seat;
     player.playAnim(seat === 0 ? 'driveWheel' : 'drive', { fade: 0.2 });
     game.bus.emit('player:enterVehicle', { vehicle: v, seat });
-    game.bus.emit('notify', { text: v.label + ' — H : klaxon, L : phares' + (v.spec.siren ? ' (2× : sirène)' : ''), kind: 'info', duration: 2.2 });
+    game.bus.emit('notify', { text: v.label + ' — H : klaxon, N : phares' + (v.spec.siren ? ' (2× : sirène)' : ''), kind: 'info', duration: 2.2 });
   }
   /** Sortie : forcée (épave, éjection) ou normale. Renvoie la position de sortie. */
   function beginExit(forced) {

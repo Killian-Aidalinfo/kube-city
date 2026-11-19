@@ -66,6 +66,7 @@ export function install(game) {
         for (const c of m.chat || []) game.bus.emit('net:chat', { ...c, history: true });
         if (m.races) net.races = m.races;
         if (m.board) net.board = m.board;
+        game.bus.emit('net:welcome', m);
         sendLook(true);
         pollInfo();
         break;
