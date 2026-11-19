@@ -88,27 +88,35 @@ export async function loadPlayer(id) {
 
 // --- Scores ---
 const SCORES_MAX = 2000, SCORES_TTL = 7 * 24 * 3600;
+// Dernière activité par joueur (pn:seen, ms) : le classement global n'affiche que les joueurs actifs récemment.
+// Mise à jour progressive : un ancien pod ne remplit pas pn:seen, ses joueurs n'apparaissent donc pas au classement.
+export const LEADERBOARD_ACTIVE_MS = () => Math.max(1, Number(process.env.LEADERBOARD_ACTIVE_HOURS) || 24) * 3600_000;
 export async function addScore(id, name, pts) {
   const n = Math.max(-500, Math.min(500, Math.round(pts)));
   const r = await redis.multi()
-    .hset("pn:names", id, name).zincrby("pn:scores", n, id)
-    .expire("pn:names", SCORES_TTL).expire("pn:scores", SCORES_TTL).zcard("pn:scores").exec();
+    .hset("pn:names", id, name).zincrby("pn:scores", n, id).zadd("pn:seen", Date.now(), id)
+    .expire("pn:names", SCORES_TTL).expire("pn:scores", SCORES_TTL).expire("pn:seen", SCORES_TTL).zcard("pn:scores").exec();
   // Endurance : le classement et la table des pseudos ne grossissent pas sans fin (un id neuf par visiteur) :
   // on garde les SCORES_MAX meilleurs, on oublie les pseudos des autres, et tout expire après 7 jours sans activité.
-  const card = r[4][1];
+  const card = r[6][1];
   if (card > SCORES_MAX + SCORES_MAX / 10) {
     const drop = await redis.zrange("pn:scores", 0, card - SCORES_MAX - 1);
-    if (drop.length) await redis.multi().zrem("pn:scores", ...drop).hdel("pn:names", ...drop).exec();
+    if (drop.length) await redis.multi().zrem("pn:scores", ...drop).zrem("pn:seen", ...drop).hdel("pn:names", ...drop).exec();
   }
   return r[1][1];
 }
 
 export async function leaderboard(n = 10) {
-  const flat = await redis.zrevrange("pn:scores", 0, n - 1, "WITHSCORES");
-  const ids = [];
-  for (let i = 0; i < flat.length; i += 2) ids.push(flat[i]);
-  const names = ids.length ? await redis.hmget("pn:names", ...ids) : [];
-  return ids.map((id, i) => ({ id, name: names[i] || "?", score: Number(flat[i * 2 + 1]) }));
+  // On lit large (les inactifs en tête sont écartés), puis on garde les n premiers actifs.
+  const flat = await redis.zrevrange("pn:scores", 0, SCORES_MAX - 1, "WITHSCORES");
+  const all = [];
+  for (let i = 0; i < flat.length; i += 2) all.push([flat[i], Number(flat[i + 1])]);
+  if (!all.length) return [];
+  const seen = await redis.zmscore("pn:seen", ...all.map(([id]) => id));
+  const since = Date.now() - LEADERBOARD_ACTIVE_MS();
+  const top = all.filter((_, i) => seen[i] !== null && Number(seen[i]) >= since).slice(0, n);
+  const names = top.length ? await redis.hmget("pn:names", ...top.map(([id]) => id)) : [];
+  return top.map(([id, score], i) => ({ id, name: names[i] || "?", score }));
 }
 
 // --- Chat ---
@@ -288,7 +296,8 @@ const SESS_TTL = 12 * 3600;
 export const SESS_KINDS = ["money", "races", "kubes"];
 export async function bumpSession(id, name, kind, n) {
   if (!SESS_KINDS.includes(kind)) return 0;
-  await redis.multi().hset("pn:names", id, name).expire("pn:names", SCORES_TTL).exec();
+  await redis.multi().hset("pn:names", id, name).expire("pn:names", SCORES_TTL)
+    .zadd("pn:seen", Date.now(), id).expire("pn:seen", SCORES_TTL).exec();
   const v = Number(await redis.zincrby(`pn:ss:${kind}`, n, id));
   await redis.expire(`pn:ss:${kind}`, SESS_TTL);
   return v;

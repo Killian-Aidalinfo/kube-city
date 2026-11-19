@@ -42,8 +42,11 @@ try {
 
   const shot = async (name) => { step++; await page.screenshot({ path: path.join(out, `smoke-${step}-${name}.png`) }); };
   const state = () => page.evaluate(() => { const g = window.__game; return { state: g.state, p: g.player?.state, x: g.player?.position.x, z: g.player?.position.z }; });
+  // état détaillé joint au message d'échec de l'étape 1 (entrée reçue ou non, focus, pointer lock, joueur)
+  const diag = () => page.evaluate(() => { const g = window.__game; return JSON.stringify({ jeu: g.state, joueur: g.player?.state, pos: [g.player?.position.x, g.player?.position.y, g.player?.position.z].map((v) => +v?.toFixed(2)), focus: document.hasFocus(), lock: !!document.pointerLockElement, touches: window.__keys, axeY: g.input.axis('moveY'), ecrans: [...document.querySelectorAll('.kc-screen,.kc-modal')].filter((e) => getComputedStyle(e).display !== 'none').map((e) => e.className) }); });
   const must = (cond, msg) => { if (!cond) errors.push(`étape ${step} : ${msg}`); };
 
+  await page.addInitScript(() => { window.__keys = []; addEventListener('keydown', (e) => window.__keys.push(e.code + '@' + Math.round(performance.now())), true); });
   await page.goto(url, { waitUntil: 'load' });
   await page.waitForFunction(() => typeof window.__quickStart === 'function' && window.__game, null, { timeout: 60000 });
   await page.evaluate(() => window.__quickStart());
@@ -60,7 +63,7 @@ try {
   await page.keyboard.press('Space'); await sleep(600);
   const s1 = await state();
   report.marche = Math.hypot(s1.x - s0.x, s1.z - s0.z).toFixed(1) + ' m';
-  must(Math.hypot(s1.x - s0.x, s1.z - s0.z) > 1, 'le perso ne marche pas');
+  must(Math.hypot(s1.x - s0.x, s1.z - s0.z) > 1, 'le perso ne marche pas ' + (Math.hypot(s1.x - s0.x, s1.z - s0.z) > 1 ? '' : await diag()));
   await shot('marche');
 
   // 2. entrer dans la voiture la plus proche (F)
