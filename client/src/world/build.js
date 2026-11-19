@@ -1,7 +1,7 @@
 // Construction des maillages du monde : terrain, routes/trottoirs/marquages et bâtiments, fusionnés par chunk de 100 m.
 import * as THREE from 'three';
 import { GeoBuilder, addBox, addCyl, addTree, addLamp, addSignal, addProp, rgb } from './geom.js';
-import { CHUNK, HALF, SW, CURB, XS, ZS, groundHeight, districtAt, shoreZ, WATER_LEVEL } from './citygen.js';
+import { CHUNK, HALF, SW, CURB, XS, ZS, groundHeight, districtAt, shoreZ, WATER_LEVEL, mulberry32 } from './citygen.js';
 
 const ROAD_Y = 0.03, MARK_Y = 0.05;
 const ASPHALT = rgb(0x3a3c43), PAVE = rgb(0xb6b3ab), CURBC = rgb(0x8d8a84), WHITE = rgb(0xe9e9e4), YELLOW = rgb(0xe6b92c), ASPH2 = rgb(0x2f3138);
@@ -118,6 +118,17 @@ function resample(pts, step) {
   return out;
 }
 
+/** Équipements de toit (groupes de clim, citerne, antenne) sur les toits plats des immeubles hauts : visuel seulement. */
+function addRoofGear(gb, p) {
+  const h = p.y1 - p.y0;
+  if (h < 12 || p.w < 9 || p.d < 9 || p.rot) return;
+  const r = mulberry32((Math.imul(Math.round(p.cx * 7) + 1013, 73856093) ^ Math.imul(Math.round(p.cz * 7) + 7919, 19349663)) >>> 0), top = p.y1;
+  const place = (w, d, hh, color, fx = 0.5, fz = 0.5) => addBox(gb, { cx: p.cx + (fx - 0.5) * (p.w - w - 2), cz: p.cz + (fz - 0.5) * (p.d - d - 2), w, d, y0: top, y1: top + hh, color, win: false, roof: 'flat' });
+  for (let k = 0, n = 1 + Math.floor(r() * 3); k < n; k++) place(1.8 + r() * 2.2, 1.8 + r() * 2.2, 1 + r() * 1.2, [0xa9adb3, 0x8f959d, 0xc2c5c9][Math.floor(r() * 3)], r(), r());
+  if (h > 24 && r() < 0.6) place(3.4, 3.4, 2.8, 0x7d6a58, r(), r());                       // citerne / local technique
+  if (h > 34) place(0.5, 0.5, 6 + r() * 8, 0x6b7078, 0.5, 0.5);                           // antenne
+}
+
 /** Construit tous les chunks. Renvoie { chunks: Map, physics: { sidewalkTris, ... } }. */
 export function buildChunks(city) {
   const chunks = new Chunks(), g = city.roads;
@@ -184,7 +195,7 @@ export function buildChunks(city) {
   // bâtiments, arbres, lampadaires, feux
   for (const b of city.buildings) for (const p of b.parts) {
     const ch = chunks.get(b.x, b.z);
-    if (p.t === 'box') addBox(ch.bld, p); else addCyl(ch.bld, p, 12);
+    if (p.t === 'box') { addBox(ch.bld, p); if (p.win && (p.roof ?? 'flat') === 'flat') addRoofGear(ch.bld, p); } else addCyl(ch.bld, p, 12);
   }
   for (const b of city.buildings) if (b.pitch) {
     const ch = chunks.get(b.x, b.z), { x, z, rx, rz, y } = b.pitch, c = rgb(0x4fae52), pts = [];

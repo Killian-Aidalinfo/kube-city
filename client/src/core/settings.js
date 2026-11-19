@@ -14,10 +14,11 @@ export const DEFAULTS = Object.freeze({
   volumeMusic: 0.6,
   volumeSfx: 0.8,
   subtitles: true,
+  lointain: 'full',         // décor lointain : 'off' | 'light' (silhouettes) | 'full' (+ bateaux, houle)
 });
 
 /** Préréglage Basse (rendu logiciel mesuré ~30 i/s avec ces valeurs, voir scripts/perf-low.mjs). Appliqué quand quality passe à 'low'. */
-export const LOW_PRESET = Object.freeze({ shadows: false, shadowMapSize: 1024, viewDistance: 200, pedDensity: 0.2, maxPixelRatio: 0.5 });
+export const LOW_PRESET = Object.freeze({ shadows: false, shadowMapSize: 1024, viewDistance: 200, pedDensity: 0.2, maxPixelRatio: 0.5, lointain: 'light' });
 
 /** Réglages réactifs : settings.get/set/onChange. */
 export function createSettings(storage = globalThis.localStorage) {

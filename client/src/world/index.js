@@ -6,6 +6,7 @@ import { noiseTexture, windowAtlas, glowTexture, signTexture } from './textures.
 import { createSky } from './sky.js';
 import { createWater } from './water.js';
 import { createWeather } from './weather.js';
+import { createHorizon } from './horizon.js';
 
 const LAMP_LIGHTS = 5;
 
@@ -23,6 +24,22 @@ export function install(game) {
   const terrainMat = new THREE.MeshStandardMaterial({ vertexColors: true, map: noise, roughness: 1 });
   const roadMat = new THREE.MeshStandardMaterial({ vertexColors: true, map: noise, roughness: 0.92, metalness: 0, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2 });
   const bldMat = new THREE.MeshStandardMaterial({ vertexColors: true, map: win.map, emissiveMap: win.emissiveMap, emissive: 0xffffff, emissiveIntensity: 0, roughness: 0.82, metalness: 0.02 });
+  // variété des façades sans texture : teinte et crasse lissées dans l'espace, quartiers plus ou moins éclairés la nuit
+  if (game.settings.get('lointain') === 'full') bldMat.onBeforeCompile = (sh) => { // coupé en qualité Basse (coût fragment)
+    sh.vertexShader = sh.vertexShader.replace('#include <common>', '#include <common>\nvarying vec3 vBP;').replace('#include <begin_vertex>', '#include <begin_vertex>\nvBP = position;');
+    sh.fragmentShader = sh.fragmentShader
+      .replace('#include <common>', `#include <common>
+varying vec3 vBP;
+float bh(vec2 p){ return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
+float bn(vec2 p){ vec2 i = floor(p), f = fract(p); f = f * f * (3.0 - 2.0 * f); return mix(mix(bh(i), bh(i + vec2(1.0, 0.0)), f.x), mix(bh(i + vec2(0.0, 1.0)), bh(i + vec2(1.0, 1.0)), f.x), f.y); }`)
+      .replace('#include <color_fragment>', `#include <color_fragment>
+      { float n1 = bn(vBP.xz * 0.045), n2 = bn(vBP.xz * 0.19 + 5.0);
+        diffuseColor.rgb *= mix(vec3(0.9, 0.94, 1.03), vec3(1.07, 1.0, 0.9), n1) * (0.93 + 0.14 * n2) * mix(0.84, 1.0, smoothstep(0.0, 5.0, vBP.y)); }`)
+      .replace('#include <emissivemap_fragment>', `#include <emissivemap_fragment>
+      { float occ = smoothstep(0.22, 0.6, bn(vBP.xz * 0.011 + 9.0) * 0.75 + bn(vBP.xz * 0.09) * 0.25);
+        float flick = 0.7 + 0.3 * bn(vBP.xz * 0.5 + vBP.y * 0.9);
+        totalEmissiveRadiance *= (0.12 + 0.88 * occ) * flick * mix(vec3(1.0), vec3(0.78, 0.9, 1.1), bn(vBP.xz * 0.07 + 3.0)); }`);
+  };
 
   // ---- terrain et chunks
   const terrain = buildTerrain(terrainMat);
@@ -123,6 +140,7 @@ export function install(game) {
   // ---- ciel, eau, météo
   const sky = createSky(game);
   const water = createWater(game);
+  const horizon = createHorizon(game);
   const weather = createWeather(game, roadMat);
 
   // ---- feux tricolores : état lisible par la circulation
@@ -169,6 +187,7 @@ export function install(game) {
     sky.update(game.time.dayTime, weather, dt);
     weather.update(dt);
     water.update(dt, sky.state);
+    horizon.update(dt, sky.state);
     const night = sky.state.night;
     if (Math.abs(night - lastNight) > 0.004) {
       lastNight = night;

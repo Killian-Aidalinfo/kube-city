@@ -17,7 +17,7 @@ const q = process.argv[3] || 'low';
 const browser = await chromium.launch({ executablePath: CHROME, headless: true, args: ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist'] });
 try {
   const page = await browser.newPage({ viewport: { width: 1280, height: 720 } });
-  const LOW = { shadows: false, shadowMapSize: 1024, viewDistance: 250, pedDensity: 0.3, maxPixelRatio: 0.75, ...JSON.parse(process.env.LOW || '{}') };
+  const LOW = { shadows: false, shadowMapSize: 1024, viewDistance: 250, pedDensity: 0.3, maxPixelRatio: 0.75, lointain: 'light', ...JSON.parse(process.env.LOW || '{}') };
   await page.addInitScript(([q, low]) => localStorage.setItem('kubecity.settings.v1', JSON.stringify({ quality: q, ...(q === 'low' ? low : {}) })), [q, LOW]);
   await page.goto(url);
   await page.waitForFunction(() => typeof window.__quickStart === 'function' && window.__game, null, { timeout: 90000 });

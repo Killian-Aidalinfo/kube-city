@@ -11,7 +11,7 @@ const OVERCAST = C(0x9aa3ad);
 const SKY_VS = `varying vec3 vDir; void main(){ vDir = normalize(position); vec4 p = modelViewMatrix * vec4(position,1.0); gl_Position = projectionMatrix * p; gl_Position.z = gl_Position.w; }`;
 const SKY_FS = `
 varying vec3 vDir;
-uniform vec3 uZen, uHor, uSun; uniform float uNight, uCloud, uTime, uDusk;
+uniform vec3 uZen, uHor, uSun; uniform float uNight, uCloud, uTime, uDusk, uClip;
 float hash(vec2 p){ return fract(sin(dot(p, vec2(127.1,311.7))) * 43758.5453); }
 float noise(vec2 p){ vec2 i=floor(p), f=fract(p); f=f*f*(3.0-2.0*f);
   return mix(mix(hash(i),hash(i+vec2(1,0)),f.x), mix(hash(i+vec2(0,1)),hash(i+vec2(1,1)),f.x), f.y); }
@@ -20,7 +20,11 @@ void main(){
   vec3 d = normalize(vDir);
   float h = clamp(d.y, 0.0, 1.0);
   vec3 col = mix(uHor, uZen, pow(h, 0.55));
-  if (d.y < 0.0) col = mix(uHor, uHor * 0.55, clamp(-d.y * 4.0, 0.0, 1.0));
+  if (d.y < 0.0) { // sous l'horizon (au-delà du terrain) : plaine brumeuse, mer côté sud
+    float sea = smoothstep(0.45, 0.7, d.z / max(length(d.xz), 0.001));
+    vec3 gr = mix(vec3(0.24, 0.38, 0.23), vec3(0.08, 0.27, 0.42), sea) * (1.0 - uNight * 0.92);
+    col = mix(uHor, gr, smoothstep(uClip, uClip + 0.05, -d.y) * 0.85);   // uClip : angle sous lequel le terrain est tronqué par le plan lointain
+  }
   float sd = max(dot(d, uSun), 0.0);
   col += vec3(1.0, 0.85, 0.6) * (pow(sd, 600.0) * 3.0 + pow(sd, 12.0) * 0.28 * (1.0 + uDusk)) * (1.0 - uNight * 0.9) * (1.0 - uCloud * 0.7);
   // lune et étoiles
@@ -46,7 +50,7 @@ export function createSky(game) {
   const { scene, camera } = game.three;
   const mat = new THREE.ShaderMaterial({
     vertexShader: SKY_VS, fragmentShader: SKY_FS, side: THREE.BackSide, depthWrite: false, depthTest: false, fog: false,
-    uniforms: { uZen: { value: new THREE.Color() }, uHor: { value: new THREE.Color() }, uSun: { value: new THREE.Vector3(0, 1, 0) }, uNight: { value: 0 }, uCloud: { value: 0 }, uTime: { value: 0 }, uDusk: { value: 0 } },
+    uniforms: { uZen: { value: new THREE.Color() }, uHor: { value: new THREE.Color() }, uSun: { value: new THREE.Vector3(0, 1, 0) }, uNight: { value: 0 }, uCloud: { value: 0 }, uTime: { value: 0 }, uDusk: { value: 0 }, uClip: { value: 0 } },
   });
   const dome = new THREE.Mesh(new THREE.SphereGeometry(900, 24, 16), mat);
   dome.frustumCulled = false; dome.renderOrder = -10;
@@ -82,6 +86,7 @@ export function createSky(game) {
     state.horizon.copy(tmp);
     scene.background = state.horizon;
     if (scene.fog) { scene.fog.color.copy(tmp); scene.fog.near = 120 - cloud * 50; scene.fog.far = game.settings.get('viewDistance') * (1 - weather.rain * 0.35) * (1 - night * 0.2); }
+    mat.uniforms.uClip.value = camera.position.y / Math.max(100, camera.far);
     dome.position.copy(camera.position);
     dome.scale.setScalar(Math.min(1, camera.far * 0.9 / 900));
     // lumières

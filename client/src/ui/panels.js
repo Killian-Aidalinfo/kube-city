@@ -3,9 +3,9 @@ import { formatMoney } from './mapmath.js';
 import { moveKeys } from '../core/keylabels.js';
 
 const PRESETS = {
-  low:    { shadows: false, shadowMapSize: 1024, viewDistance: 250, pedDensity: 0.3, maxPixelRatio: 0.75 },
-  medium: { shadows: true, shadowMapSize: 1024, viewDistance: 500, pedDensity: 0.7, maxPixelRatio: 1.5 },
-  high:   { shadows: true, shadowMapSize: 2048, viewDistance: 800, pedDensity: 1, maxPixelRatio: 2 },
+  low:    { shadows: false, shadowMapSize: 1024, viewDistance: 250, pedDensity: 0.3, maxPixelRatio: 0.75, lointain: 'light' },
+  medium: { shadows: true, shadowMapSize: 1024, viewDistance: 500, pedDensity: 0.7, maxPixelRatio: 1.5, lointain: 'full' },
+  high:   { shadows: true, shadowMapSize: 2048, viewDistance: 800, pedDensity: 1, maxPixelRatio: 2, lointain: 'full' },
 };
 
 /** Panneau de réglages (spec 12) : qualité, sensibilité, inversion Y, volumes, sous-titres. */
@@ -16,6 +16,7 @@ export function buildSettings(game) {
     { k: 'quality', label: 'Qualité graphique', type: 'select', opts: [['low', 'Basse'], ['medium', 'Moyenne'], ['high', 'Haute']] },
     { k: 'shadows', label: 'Ombres', type: 'check' },
     { k: 'viewDistance', label: 'Distance de vue', type: 'range', min: 200, max: 1000, step: 50, fmt: (v) => `${v} m` },
+    { k: 'lointain', label: 'Décor lointain', type: 'select', opts: [['off', 'Aucun'], ['light', 'Léger'], ['full', 'Complet']] },
     { k: 'pedDensity', label: 'Densité des piétons', type: 'range', min: 0, max: 1, step: 0.1, fmt: (v) => `${Math.round(v * 100)} %` },
     { k: 'sensitivity', label: 'Sensibilité de la souris', type: 'range', min: 0.3, max: 2.5, step: 0.1, fmt: (v) => `×${(+v).toFixed(1)}` },
     { k: 'invertY', label: 'Inverser l\'axe vertical', type: 'check' },
@@ -32,7 +33,7 @@ export function buildSettings(game) {
       input = document.createElement('select');
       for (const [v, l] of r.opts) { const o = document.createElement('option'); o.value = v; o.textContent = l; input.appendChild(o); }
       input.value = s.get(r.k);
-      input.onchange = () => { s.set(r.k, input.value); for (const [k, v] of Object.entries(PRESETS[input.value] || {})) s.set(k, v); sync(); };
+      input.onchange = () => { s.set(r.k, input.value); if (r.k === 'quality') for (const [k, v] of Object.entries(PRESETS[input.value] || {})) s.set(k, v); sync(); };
     } else if (r.type === 'check') {
       input = document.createElement('input'); input.type = 'checkbox'; input.checked = !!s.get(r.k);
       input.onchange = () => s.set(r.k, input.checked);
