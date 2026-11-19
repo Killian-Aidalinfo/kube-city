@@ -34,12 +34,15 @@ Commits `412bc9c` → `a9941cb` sur `main`. Tests : 105/105, build OK, smoke OK 
 Deux revues : la seconde a corrigé une relance Redis pendant l'arrêt propre, un double prix de chasse, une course close encore gagnable et l'absence d'anti-spam.
 
 ## À vérifier avant le cours
-0. **Agents IA** : donnez à chaque étudiant une clé `X-Kube-Key` différente (3 agents par clé). Les limites par IP sont larges exprès : toute la classe sort par la même IP.
+0. **Agents IA** : donnez à chaque étudiant une clé `X-Kube-Key` différente (3 agents par clé). Les limites par IP sont larges exprès : toute la classe sort par la même IP. Avec une clé, un étudiant ne voit et ne pilote que ses agents (avant : tous ceux de la même IP). Plafond total `MCP_MAX_BOTS` = 40 par cluster : à relever si une classe entière vise le même cluster avec 2-3 agents chacun.
 1. Déployer CETTE version avant l'arrivée des étudiants : un ancien pod ne comprend pas les lots Pub/Sub des nouveaux (les rollouts suivants, même version, ne sont pas concernés).
 2. `docker pull bitnami/redis:latest` et `bitnami/redis-sentinel:latest` : Bitnami ne publie plus que `latest` en gratuit.
 3. Sur une vraie Kapsule : Ingress + Let's Encrypt, perte brutale d'un nœud (scénario 5) et `kubectl top` pour le HPA — non testés cette nuit.
 4. À l'oreille et à la main : sons, manette, ressenti de conduite, qualité basse sur un portable sans GPU.
 5. Pendant une coupure Redis, deux joueurs sur des pods différents se voient figés jusqu'au retour de Redis (normal : le Pub/Sub passe par Redis).
+
+## Points ouverts techniques
+- `scripts/playtest/mcp.mjs` est instable (≈ 1 échec sur 3, déjà avant les correctifs de la nuit) : l'agent rate parfois un kube doré ou la clôture d'une course. Tournée en cours.
 
 ## Frictions restantes (playtest « débutant », 19/11, `scripts/playtest/debutant.mjs`)
 Premier pas jouable : ~4,4 s depuis le chargement de la page (titre 0,5 s, portraits 1,6 s, chargement 1,6 s). Corrigés : prompt « F : Monter » affiché à 4 m alors que F marche à 3 m ; GPS de mission effacé à chaque image par le module social ; aucun premier objectif (maintenant : encadré + GPS vers le marqueur jaune) ; pseudo non pris en compte avant rechargement ; astuces posées sur le perso (déplacées en haut) et affichées pendant K.O./Arrêté ; pas d'astuce sur les étoiles.

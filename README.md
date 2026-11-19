@@ -331,7 +331,7 @@ Les agents roulent sur les vraies rues de la ville (`src/city.js` réutilise la 
 | `APP_VERSION` | `dev` | version affichée (fixée au build de l'image) |
 | `DRAIN_DELAY_MS` | `5000` | attente entre « plus prêt » et la fermeture des WebSocket |
 | `MCP_TOKEN` | vide | jeton exigé sur `/mcp` |
-| `MCP_MAX_BOTS_PER_KEY` / `_PER_IP` / `MCP_MAX_BOTS` | 3 / 8 / 40 | plafonds d'agents IA |
+| `MCP_MAX_BOTS_PER_KEY` / `_PER_IP` / `MCP_MAX_BOTS` | 3 / 40 / 40 | plafonds d'agents IA |
 | `MCP_RPM`, `MCP_SPAWN_PER_MIN`, `MCP_CHAT_PER_MIN`, `MCP_MAX_OPEN_RACES` | 240, 6, 15, 6 | anti-spam MCP |
 
 Licence MIT.
