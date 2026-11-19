@@ -24,6 +24,7 @@ Commits `412bc9c` → `a9941cb` sur `main`. Tests : 105/105, build OK, smoke OK 
 - **Preuve avec le vrai client** (`SENTINEL=1 node scripts/playtest/multi.mjs`, 2 navigateurs + 20 joueurs simulés) : kill du maître Redis → synchro en pause 3,8 s, 0 coupure joueur ; kill / restart d'un pod → coupure 0,1-0,2 s ; argent et missions intacts. Détection Sentinel 2 s + élection ≈ 3,5 s (objectif « coupure ≤ 5 s » tenu, « 1-2 s » non).
 - Pendant une coupure Redis, les joueurs des autres pods restent figés au lieu de disparaître.
 - Scripts : `scripts/charge.mjs` (N joueurs + chaos), `scripts/playtest/multi.mjs` (2 navigateurs, pod tué, Redis tué).
+- **Endurance** (`scripts/soak.mjs`, `scripts/soak-client.mjs`) : 25 min, 40 joueurs qui vont et viennent, panne toutes les 4 min → pods stables (RSS 66-78 Mo, heap plat, latence p50/p95 ≈ 40/70 ms). Corrigé : classement Redis qui grossissait sans fin (plafond ~2000 + TTL 7 j), textures de squelette jamais libérées côté navigateur (85 → 956 textures en 15 min, maintenant ~185 stable), épaves de la circulation jamais retirées. Non élucidé : 2 agents IA sur 5 non créés pendant la charge.
 - Kit étudiants : `deploy/kapsule/` (Kapsule une zone, Redis Sentinel Bitnami 28.3.12 en RWO `scw-bssd`, `chaos.sh`, barème HA sur 20), rejoué sur kind.
 
 ## Pour l'enseignant
