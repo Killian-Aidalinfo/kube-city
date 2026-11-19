@@ -226,6 +226,8 @@ const server = http.createServer(async (req, res) => {
 // ---------- WebSocket : le jeu (protocole v2) ----------
 const wss = new WebSocketServer({ server, path: "/ws", maxPayload: 64 * 1024 });
 const send = (ws, msg) => { if (ws.readyState === 1) ws.send(JSON.stringify(msg)); };
+// Anti-spam par connexion : vrai si le même type de message est revenu trop tôt (le jeu est public)
+const tooSoon = (ws, key, ms) => { const now = Date.now(); ws.rl ||= {}; if (now - (ws.rl[key] || 0) < ms) return true; ws.rl[key] = now; return false; };
 
 wss.on("connection", (ws) => {
   if (draining) return ws.close(1012, "pod en arrêt");
@@ -300,11 +302,14 @@ wss.on("connection", (ws) => {
         try { send(ws, { t: "profile", rid: m.rid, ok: true, profile: await store.loadProfile(me.id) }); }
         catch (e) { send(ws, { t: "profile", rid: m.rid, ok: false, profile: null }); }
       } else if (m.t === "race_new") {
+        if (tooSoon(ws, "race_new", 15000)) return send(ws, { t: "race_error", reason: "une course à la fois, réessaie dans quelques secondes" });
         try { await game.createRace({ creatorId: me.id, creatorName: me.name, from: { x: me.p[0], z: me.p[2] }, toKey: m.to }); }
         catch (e) { send(ws, { t: "race_error", reason: e.message }); }
       } else if (m.t === "race_join") {
+        if (tooSoon(ws, "race_join", 1000)) return;
         send(ws, { t: "joined", ...(await game.joinRace(String(m.raceId), me.id, me.name, me.p)) });
       } else if (m.t === "hunt_claim") {
+        if (tooSoon(ws, "hunt_claim", 200)) return;
         send(ws, { t: "hunt_claim", huntId: m.huntId, ...(await game.claimHuntKube(me.id, me.name, me.p, String(m.huntId), Number(m.i))) });
       } else if (m.t === "stat") {
         // gains déclarés par le client (jeu coopératif entre étudiants, pas de compétition à enjeu) : bornés et espacés
@@ -316,6 +321,7 @@ wss.on("connection", (ws) => {
           if (kubes) await game.recordStat(me.id, me.name, "kubes", kubes);
         }
       } else if (m.t === "sboard") {
+        if (tooSoon(ws, "sboard", 1000)) return;
         send(ws, { t: "sboard", rows: await store.sessionBoard(12) });
       } else if (m.t === "race_finish") {
         send(ws, { t: "finish", raceId: m.raceId, ...(await game.finish(m.raceId, me.id, me.name)) });
@@ -357,8 +363,7 @@ async function shutdown(sig) {
   for (const ws of sockets) ws.close(1012, "redémarrage du serveur");
   server.close();
   setTimeout(() => process.exit(0), 1500).unref();
-  await store.redis.quit().catch(() => {});
-  await store.sub.quit().catch(() => {});
+  await store.closeStore();
 }
 process.on("SIGTERM", () => shutdown("SIGTERM"));
 process.on("SIGINT", () => shutdown("SIGINT"));

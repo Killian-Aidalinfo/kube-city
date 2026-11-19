@@ -59,7 +59,7 @@ export async function finish(raceId, playerId, name) {
   const race = await store.loadRace(raceId);
   if (!race) return { ok: false, reason: "course inconnue" };
   const now = Date.now();
-  if (raceStatus(race, now) !== "en cours") return { ok: false, reason: "la course n'est pas en cours" };
+  if (raceStatus(race, now) !== "en cours" || (await store.raceClosed(raceId))) return { ok: false, reason: "la course n'est pas en cours" };
   const ms = now - race.startAt;
   if (ms < minDurationMs(race)) return { ok: false, reason: "trop rapide pour être vrai" };
   const entrants = await store.raceEntrants(raceId);
@@ -156,8 +156,9 @@ function pickHuntPoints(n) {
 
 export async function startHunt(now = Date.now()) {
   const hunt = { id: newId("chasse"), startAt: now, endAt: now + HUNT_DURATION_MS, kubes: pickHuntPoints(HUNT_KUBES), prize: 500 };
-  if (!(await store.startHunt(hunt))) return null;
+  // prochaine date posée AVANT : si le leader meurt juste après le départ, le suivant n'enchaîne pas une 2e chasse
   await store.setHuntNext(now + HUNT_EVERY_MS);
+  if (!(await store.startHunt(hunt))) return null;
   await store.publish({ k: "hunt", hunt: await store.huntView() });
   await store.pushChat({ from: "Radio Kube", text: `Chasse aux kubes dorés ! ${HUNT_KUBES} kubes dorés viennent d'apparaître en ville. Le plus rapide en ramasse le plus : ${Math.round(HUNT_DURATION_MS / 60000 * 10) / 10} min.`, ts: now });
   return hunt;
@@ -167,7 +168,7 @@ export async function endHunt(hunt) {
   if (!(await store.lockHuntEnd(hunt.id))) return;
   const rows = huntRows(hunt.claims || {}, hunt.names || {});
   const winner = rows[0] || null;
-  if (winner) await store.addScore(winner.id, winner.name, hunt.prize / 10);
+  if (winner && (await store.markHuntPaid(hunt.id))) await store.addScore(winner.id, winner.name, hunt.prize / 10);
   await store.publish({ k: "hunt_end", huntId: hunt.id, winner, rows, prize: hunt.prize });
   await store.pushChat({ from: "Radio Kube", text: winner ? `Chasse terminée ! ${winner.name} l'emporte avec ${winner.count} kube${winner.count > 1 ? "s" : ""} doré${winner.count > 1 ? "s" : ""} (+${hunt.prize} €).` : "Chasse terminée : personne n'a trouvé de kube doré. Les kubes retournent dans l'ombre.", ts: Date.now() });
   await store.clearHunt();

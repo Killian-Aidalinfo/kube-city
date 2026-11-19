@@ -41,14 +41,22 @@ function connect() {
 export const redis = connect();
 export const sub = connect();
 
+// Arrêt voulu : ioredis remet `manuallyClosing` à false AVANT d'émettre « end », on ne peut donc pas s'y fier.
+let closing = false;
+export async function closeStore() {
+  closing = true;
+  // quit si la connexion est prête, sinon disconnect (un quit sur une connexion absente attendrait pour rien)
+  await Promise.all([redis, sub].map((c) => (c.status === "ready" ? c.quit().catch(() => c.disconnect()) : c.disconnect())));
+}
+
 for (const [n, c] of [["redis", redis], ["sub", sub]]) {
   c.on("error", (e) => console.error(`[${n}] ${e.message}`));
   // ioredis peut passer en « end » pour de bon (si une annonce de bascule tombe pendant qu'il cherche déjà le maître) :
   // sans cette relance, le pod resterait sans Redis jusqu'à son redémarrage.
   c.on("end", () => {
-    if (c.manuallyClosing) return; // arrêt voulu (quit/disconnect) : pas de relance
+    if (closing) return; // arrêt voulu (closeStore) : pas de relance
     console.error(`[${n}] connexion terminée, relance`);
-    setTimeout(() => { if (c.status === "end") c.connect().catch(() => {}); }, 200);
+    setTimeout(() => { if (!closing && c.status === "end") c.connect().catch(() => {}); }, 200);
   });
 }
 
@@ -306,4 +314,6 @@ export async function claimKube(huntId, i, playerId) {
 }
 // Même principe que pour les courses : verrou court, puis l'annonce, puis on efface la chasse
 export async function lockHuntEnd(huntId) { return (await redis.set(`pn:hunt:${huntId}:lock`, POD, "PX", 8000, "NX")) === "OK"; }
+// Prix versé une seule fois par chasse, même si un leader meurt entre le versement et l'effacement (le suivant rejoue endHunt)
+export async function markHuntPaid(huntId) { return (await redis.set(`pn:hunt:${huntId}:paid`, "1", "EX", 3600, "NX")) === "OK"; }
 export async function clearHunt() { await redis.del("pn:hunt"); }

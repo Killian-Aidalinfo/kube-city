@@ -5,7 +5,7 @@ import * as proto from "../src/protocol.js";
 import { crossedMilestone, exploitText, huntRows } from "../src/game.js";
 import * as store from "../src/store.js";
 
-after(async () => { await store.redis.quit().catch(() => {}); await store.sub.quit().catch(() => {}); });
+after(() => store.closeStore());
 
 test("paliers : seul le plus haut palier franchi est annoncé", () => {
   assert.equal(crossedMilestone("money", 900, 950), null);

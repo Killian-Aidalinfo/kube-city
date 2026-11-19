@@ -94,7 +94,7 @@ test("course : durée minimale vraisemblable", () => {
 });
 
 // game.js importe store.js, qui ouvre des connexions Redis : on les ferme pour que le test se termine
-after(() => { store.redis.disconnect(); store.sub.disconnect(); });
+after(() => store.closeStore());
 
 test("isStale : pendant une coupure Redis les joueurs des autres pods restent, puis 6 s de grâce au retour", () => {
   assert.equal(proto.isStale(0, 10_000, true, 0), true);          // Redis ok, silence de 10 s : périmé

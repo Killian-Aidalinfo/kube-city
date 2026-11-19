@@ -91,6 +91,7 @@ export function install(game) {
   const beam = new THREE.MeshBasicMaterial({ color: 0xffd23f, transparent: true, opacity: 0.28, depthWrite: false });
   const groundY = (x, z) => { try { return game.world?.groundHeight?.(x, z) ?? 0; } catch { return 0; } };
   const claimTry = new Map();
+  const endedHunts = new Set(); // chasses déjà clôturées (rediffusion possible de hunt_end)
   function setHunt(h) {
     if (h?.id !== hunt?.id) { for (const g of huntMeshes.values()) huntGroup.remove(g); huntMeshes.clear(); claimTry.clear(); }
     hunt = h || null;
@@ -189,12 +190,15 @@ export function install(game) {
         showResults(`Course vers ${m.toLabel} : classement final`, m.rows, me());
         break;
       }
-      case 'hunt': setHunt(m.hunt); break;
+      case 'hunt': if (!endedHunts.has(m.hunt?.id)) setHunt(m.hunt); break;
       case 'hunt_claim':
         if (m.ok) { gp()?.addMoney?.(m.reward, 'kube doré'); notify(`Kube doré ramassé : +${m.reward} €`, 'success', 3); }
         else if (m.taken) notify('Trop tard, ce kube doré est déjà pris.', 'warning', 2.5);
         break;
       case 'hunt_end':
+        // une clôture peut être rediffusée si le leader meurt pendant l'annonce : un seul prix par chasse
+        if (endedHunts.has(m.huntId)) break;
+        endedHunts.add(m.huntId);
         if (hunt?.id === m.huntId) setHunt(null);
         if (m.winner?.id === me()) { gp()?.addMoney?.(m.prize, 'chasse aux kubes dorés'); notify(`Vous remportez la chasse aux kubes dorés : +${m.prize} €`, 'success', 6); }
         if (m.rows?.length) showResults('Chasse aux kubes dorés', m.rows.map((r, i) => ({ ...r, rank: i + 1 })), me());
