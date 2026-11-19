@@ -29,6 +29,8 @@ Commits `412bc9c` → `a9941cb` sur `main`. Tests : 105/105, build OK, smoke OK 
 - **Endurance** (`scripts/soak.mjs`, `scripts/soak-client.mjs`) : 25 min, 40 joueurs qui vont et viennent, panne toutes les 4 min → pods stables (RSS 66-78 Mo, heap plat, latence p50/p95 ≈ 40/70 ms). Corrigé : classement Redis qui grossissait sans fin (plafond ~2000 + TTL 7 j), textures de squelette jamais libérées côté navigateur (85 → 956 textures en 15 min, maintenant ~185 stable), épaves de la circulation jamais retirées. Non élucidé : 2 agents IA sur 5 non créés pendant la charge.
 - Kit étudiants : `deploy/kapsule/` (Kapsule une zone, Redis Sentinel Bitnami 28.3.12 en RWO `scw-bssd`, `chaos.sh`, barème HA sur 20), rejoué sur kind.
 
+- **Images** : `ghcr.io/killian-aidalinfo/kube-city:1.1.3` (amd64/arm64) = dernière version taguée ; le chart la vise par défaut (`appVersion`). 1.1.0 = premier tag avec Sentinel, 1.1.2 = matchLabelKeys + DaemonSet + HPA, 1.1.3 = agents MCP privés par clé.
+
 ## Pour l'enseignant
 - **Page `/status`** (sur chaque cluster) : pods vivants, leader, maître Redis, joueurs et agents, journal des incidents des 30 dernières min (pod disparu sans arrêt propre, coupure Redis et sa durée), score de dispo. À projeter pendant le tour des clusters ; la mesure officielle du barème reste la sonde via l'Ingress.
 
